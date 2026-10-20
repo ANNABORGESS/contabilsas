@@ -108,6 +108,7 @@ export const MODULES = [
   { id: 'assinaturas', label: 'Assinaturas', icon: '◎' },
   { id: 'metas', label: 'Metas', icon: '◬' },
   { id: 'relatorios', label: 'Relatórios', icon: '▤' },
+  { id: 'conselho', label: 'Conselho', icon: '⚖' },
 ] as const
 
 export type ModuleId = (typeof MODULES)[number]['id']
@@ -118,6 +119,7 @@ export const GLOBAL_MODULES = [
   { id: 'financeiro', label: 'Financeiro consolidado', icon: '◈' },
   { id: 'metas', label: 'Metas da empresa', icon: '◬' },
   { id: 'relatorios', label: 'Relatórios', icon: '▤' },
+  { id: 'conselho', label: 'Conselho', icon: '⚖' },
 ] as const
 
 export type GlobalModuleId = (typeof GLOBAL_MODULES)[number]['id']

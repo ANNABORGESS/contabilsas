@@ -107,6 +107,10 @@ function Topbar({ scope }: { scope: Scope }) {
   const { period, setPeriod } = useApp()
   const { pathname } = useLocation()
   const modulo = pathname.split('/')[2] ?? 'dashboard'
+  // No celular, a faixa de módulos rola até o módulo ativo.
+  useEffect(() => {
+    document.querySelector('.module-strip a.active')?.scrollIntoView({ block: 'nearest', inline: 'center' })
+  }, [pathname])
   // Ao trocar de jornada, mantém o módulo quando ele existe no destino.
   const destino = (s: Scope) => {
     const ids: readonly string[] = (s === 'global' ? GLOBAL_MODULES : MODULES).map((m) => m.id)

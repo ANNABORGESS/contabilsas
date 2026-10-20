@@ -12,6 +12,7 @@ import { Assinaturas } from './pages/journey/Assinaturas'
 import { Financeiro } from './pages/shared/Financeiro'
 import { Metas } from './pages/shared/Metas'
 import { Relatorios } from './pages/shared/Relatorios'
+import { Conselho } from './pages/shared/Conselho'
 
 function JourneyRoute() {
   const { journey, module } = useParams()
@@ -33,6 +34,8 @@ function JourneyRoute() {
       return <Metas key={j} scope={j} />
     case 'relatorios':
       return <Relatorios key={j} scope={j} />
+    case 'conselho':
+      return <Conselho key={j} scope={j} />
     default:
       return <Navigate to={`/${j}/dashboard`} replace />
   }
@@ -54,6 +57,7 @@ export function App() {
               <Route path="financeiro" element={<Financeiro key="global" scope="global" />} />
               <Route path="metas" element={<Metas key="global" scope="global" />} />
               <Route path="relatorios" element={<Relatorios key="global" scope="global" />} />
+              <Route path="conselho" element={<Conselho key="global" scope="global" />} />
             </Route>
             <Route path=":journey" element={<Navigate to="dashboard" replace />} />
             <Route path=":journey/:module" element={<JourneyRoute />} />
