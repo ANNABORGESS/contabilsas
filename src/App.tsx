@@ -1,4 +1,5 @@
-import { HashRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { HashRouter, MemoryRouter, Navigate, Route, Routes, useParams } from 'react-router-dom'
+import { IS_ARTIFACT } from './config/runtime'
 import { AppProvider } from './components/AppContext'
 import { Layout } from './components/Layout'
 import { JOURNEY_IDS, type JourneyId } from './config/journeys'
@@ -37,10 +38,12 @@ function JourneyRoute() {
   }
 }
 
+const Router = IS_ARTIFACT ? MemoryRouter : HashRouter
+
 export function App() {
   return (
     <AppProvider>
-      <HashRouter>
+      <Router>
         <Routes>
           <Route element={<Layout />}>
             <Route index element={<Navigate to="/global/dashboard" replace />} />
@@ -57,7 +60,7 @@ export function App() {
             <Route path="*" element={<Navigate to="/global/dashboard" replace />} />
           </Route>
         </Routes>
-      </HashRouter>
+      </Router>
     </AppProvider>
   )
 }

@@ -138,6 +138,13 @@ function Topbar({ scope }: { scope: Scope }) {
       </select>
       <div className="top-spacer" />
       <GlobalSearch />
+      <nav className="module-strip" aria-label="Módulos">
+        {(scope === 'global' ? GLOBAL_MODULES : MODULES).map((m) => (
+          <NavLink key={m.id} to={`/${scope}/${m.id}`}>
+            <span aria-hidden="true">{m.icon}</span> {m.label}
+          </NavLink>
+        ))}
+      </nav>
     </header>
   )
 }

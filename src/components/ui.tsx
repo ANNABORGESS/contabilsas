@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { fmt, signedPct, type Formato } from './format'
 import { exportExcel, type Sheet } from './export'
+import { IS_ARTIFACT } from '../config/runtime'
 
 export function PageHead({ eyebrow, title, sub, actions }: { eyebrow: string; title: string; sub?: ReactNode; actions?: ReactNode }) {
   return (
@@ -128,7 +129,7 @@ export function DataTable<T>({ rows, columns, searchable = true, exportName, pag
           {searchable && <input className="input" placeholder="Pesquisar na tabela…" value={q} onChange={(e) => setQ(e.target.value)} />}
           <span className="muted small">{filtered.length} registro(s)</span>
           <span style={{ flex: 1 }} />
-          {exportName && (
+          {exportName && !IS_ARTIFACT && (
             <button
               className="btn"
               onClick={() =>
@@ -183,6 +184,7 @@ export function DataTable<T>({ rows, columns, searchable = true, exportName, pag
 }
 
 export function ExportButtons({ name, sheets }: { name: string; sheets: () => Sheet[] }) {
+  if (IS_ARTIFACT) return null
   return (
     <>
       <button className="btn" onClick={() => exportExcel(name, sheets())}>
