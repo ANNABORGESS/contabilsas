@@ -1,0 +1,77 @@
+{
+  "name": "ZARO · Cobrança inteligente de documentos",
+  "nodes": [
+    {
+      "parameters": { "rule": { "interval": [ { "field": "cronExpression", "expression": "0 9 * * 1-5" } ] } },
+      "id": "a1", "name": "Todo dia útil 9h", "type": "n8n-nodes-base.scheduleTrigger", "typeVersion": 1.2, "position": [0, 0]
+    },
+    {
+      "parameters": {
+        "url": "={{ $env.ZARO_URL }}/cobranca/pendencias",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.ZARO_TOKEN }}" } ] },
+        "options": {}
+      },
+      "id": "a2", "name": "Pendências no ZARO", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [220, 0]
+    },
+    {
+      "parameters": { "fieldToSplitOut": "itens", "options": {} },
+      "id": "a3", "name": "Uma cobrança por empresa", "type": "n8n-nodes-base.splitOut", "typeVersion": 1, "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "rules": { "values": [
+          { "conditions": { "conditions": [ { "leftValue": "={{ $json.canal }}", "rightValue": "whatsapp", "operator": { "type": "string", "operation": "equals" } } ] }, "outputKey": "whatsapp" },
+          { "conditions": { "conditions": [ { "leftValue": "={{ $json.canal }}", "rightValue": "whatsapp", "operator": { "type": "string", "operation": "notEquals" } } ] }, "outputKey": "email" }
+        ] },
+        "options": {}
+      },
+      "id": "a4", "name": "Canal", "type": "n8n-nodes-base.switch", "typeVersion": 3, "position": [660, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://graph.facebook.com/v20.0/{{ $env.WA_PHONE_ID }}/messages",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.WA_TOKEN }}" } ] },
+        "sendBody": true, "specifyBody": "json",
+        "jsonBody": "={ \"messaging_product\": \"whatsapp\", \"to\": \"{{ $json.destinatario.whatsapp }}\", \"type\": \"template\", \"template\": { \"name\": \"{{ $env.WA_TEMPLATE }}\", \"language\": { \"code\": \"pt_BR\" }, \"components\": [ { \"type\": \"body\", \"parameters\": [ { \"type\": \"text\", \"text\": \"{{ $json.empresa }}\" }, { \"type\": \"text\", \"text\": \"{{ $json.competencia }}\" }, { \"type\": \"text\", \"text\": \"{{ $json.documentos.join(', ') }}\" } ] } ] } }",
+        "options": { "response": { "response": { "neverError": true } } }
+      },
+      "id": "a5", "name": "WhatsApp (modelo aprovado)", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [880, -100]
+    },
+    {
+      "parameters": {
+        "fromEmail": "={{ $env.ZARO_EMAIL_FROM }}",
+        "toEmail": "={{ $json.destinatario.email }}",
+        "subject": "=Documentos pendentes · {{ $json.empresa }} · {{ $json.competencia }}",
+        "emailFormat": "text",
+        "text": "={{ $json.mensagem }}",
+        "options": {}
+      },
+      "id": "a6", "name": "E-mail", "type": "n8n-nodes-base.emailSend", "typeVersion": 2.1, "position": [880, 100],
+      "continueOnFail": true
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $env.ZARO_URL }}/cobranca/enviado",
+        "sendHeaders": true,
+        "headerParameters": { "parameters": [ { "name": "Authorization", "value": "=Bearer {{ $env.ZARO_TOKEN }}" } ] },
+        "sendBody": true, "specifyBody": "json",
+        "jsonBody": "={ \"keys\": {{ JSON.stringify($('Canal').item.json.keys) }}, \"empresa\": \"{{ $('Canal').item.json.empresa }}\", \"competencia\": \"{{ $('Canal').item.json.competencia }}\", \"etapa\": {{ $('Canal').item.json.etapa }}, \"canal\": \"{{ $('Canal').item.json.canal }}\", \"destino\": \"{{ $('Canal').item.json.destinatario.whatsapp || $('Canal').item.json.destinatario.email }}\", \"documentos\": {{ JSON.stringify($('Canal').item.json.documentos) }}, \"ok\": {{ !$json.error }}, \"erro\": \"{{ $json.error ? $json.error.message : '' }}\" }",
+        "options": {}
+      },
+      "id": "a7", "name": "Registrar no ZARO", "type": "n8n-nodes-base.httpRequest", "typeVersion": 4.2, "position": [1100, 0]
+    }
+  ],
+  "connections": {
+    "Todo dia útil 9h": { "main": [ [ { "node": "Pendências no ZARO", "type": "main", "index": 0 } ] ] },
+    "Pendências no ZARO": { "main": [ [ { "node": "Uma cobrança por empresa", "type": "main", "index": 0 } ] ] },
+    "Uma cobrança por empresa": { "main": [ [ { "node": "Canal", "type": "main", "index": 0 } ] ] },
+    "Canal": { "main": [ [ { "node": "WhatsApp (modelo aprovado)", "type": "main", "index": 0 } ], [ { "node": "E-mail", "type": "main", "index": 0 } ] ] },
+    "WhatsApp (modelo aprovado)": { "main": [ [ { "node": "Registrar no ZARO", "type": "main", "index": 0 } ] ] },
+    "E-mail": { "main": [ [ { "node": "Registrar no ZARO", "type": "main", "index": 0 } ] ] }
+  },
+  "settings": { "executionOrder": "v1" }
+}

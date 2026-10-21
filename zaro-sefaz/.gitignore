@@ -1,0 +1,10 @@
+.env
+*.pfx
+*.p12
+nsu.json
+xml/
+node_modules/
+cloudflared.exe
+tunel.log
+TOKEN-ZARO.txt
+TUNEL-ZARO.txt
