@@ -7,3 +7,7 @@ dist-artifact
 # Skills para contadores (licença ASV Digital / Bravy: não redistribuir). Ficam só na cópia local.
 .claude/skills/*
 !.claude/skills/roast-room/
+# skills de código aberto (licença MIT, repositório colaborativo de contabilidade)
+!.claude/skills/financial-conciliator/
+!.claude/skills/doc-intelligence/
+!.claude/skills/mei-irpf/
