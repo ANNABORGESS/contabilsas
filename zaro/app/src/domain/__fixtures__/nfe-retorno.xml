@@ -1,0 +1,7 @@
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe"><NFe><infNFe Id="NFe13260208201911000199550010000012351000012351">
+  <ide><natOp>RETORNO DE MERCADORIA RECEBIDA PARA CONSERTO</natOp><mod>55</mod><serie>1</serie><nNF>1235</nNF><dhEmi>2026-02-02T09:00:00-04:00</dhEmi><NFref><refNFe>13260103951798000145550010000098761000098765</refNFe></NFref></ide>
+  <emit><CNPJ>08201911000199</CNPJ><xNome>A B S INDUSTRIAL</xNome></emit>
+  <dest><CNPJ>03951798000145</CNPJ><xNome>UCB DA AMAZONIA S.A</xNome></dest>
+  <det nItem="1"><prod><xProd>MOLDE</xProd><CFOP>5916</CFOP><qCom>1</qCom><vUnCom>5000</vUnCom><vProd>5000.00</vProd></prod></det>
+  <total><ICMSTot><vProd>5000.00</vProd><vNF>5000.00</vNF></ICMSTot></total>
+</infNFe></NFe></nfeProc>

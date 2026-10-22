@@ -1,0 +1,4 @@
+<procEventoNFe xmlns="http://www.portalfiscal.inf.br/nfe" versao="1.00"><evento versao="1.00"><infEvento Id="ID1101111326010820191100019955001000001234100001234501">
+  <cOrgao>13</cOrgao><tpAmb>1</tpAmb><CNPJ>08201911000199</CNPJ><chNFe>13260108201911000199550010000012341000012345</chNFe><dhEvento>2026-01-16T11:00:00-04:00</dhEvento><tpEvento>110111</tpEvento><nSeqEvento>1</nSeqEvento>
+  <detEvento versao="1.00"><descEvento>Cancelamento</descEvento><nProt>113260000000001</nProt><xJust>Erro no valor da nota fiscal</xJust></detEvento></infEvento></evento>
+  <retEvento versao="1.00"><infEvento><cStat>135</cStat><xMotivo>Evento registrado e vinculado a NF-e</xMotivo><nProt>113260000000002</nProt></infEvento></retEvento></procEventoNFe>

@@ -1,0 +1,66 @@
+// Plano de contas padrão do ZARO (o mesmo do protótipo). Natureza D = devedora, C = credora.
+
+export interface Conta {
+  codigo: string;
+  nome: string;
+  natureza: 'D' | 'C';
+}
+
+export const PLANO_PADRAO: Conta[] = [
+  ['1.1.1.02', 'Bancos conta movimento', 'D'],
+  ['1.1.1.03', 'Aplicações financeiras', 'D'],
+  ['1.1.2.01', 'Clientes', 'D'],
+  ['1.1.3.01', 'Estoques / matéria-prima', 'D'],
+  ['1.1.4.01', 'Tributos a recuperar', 'D'],
+  ['1.1.9.98', 'Diferenças de conciliação bancária a apurar', 'D'],
+  ['1.1.9.99', 'Pagamentos a identificar', 'D'],
+  ['1.2.3.01', 'Máquinas e equipamentos', 'D'],
+  ['1.2.3.91', '(−) Depreciação acumulada — máquinas', 'C'],
+  ['2.1.1.01', 'Fornecedores', 'C'],
+  ['2.1.2.01', 'Salários a pagar', 'C'],
+  ['2.1.2.02', 'INSS a recolher', 'C'],
+  ['2.1.2.03', 'FGTS a recolher', 'C'],
+  ['2.1.2.04', 'IRRF a recolher', 'C'],
+  ['2.1.3.01', 'Empréstimos e financiamentos', 'C'],
+  ['2.1.4.01', 'Tributos a recolher', 'C'],
+  ['2.1.5.01', 'Empréstimos de sócios e empresas ligadas', 'C'],
+  ['2.1.9.99', 'Entradas bancárias a identificar', 'C'],
+  ['2.3.1.01', 'Capital social / saldos de abertura', 'C'],
+  ['3.1.1.01', 'Receita de vendas e serviços', 'C'],
+  ['3.2.1.01', 'Deduções — tributos sobre vendas', 'D'],
+  ['4.1.1.01', 'Custo de materiais e serviços', 'D'],
+  ['4.1.2.01', 'Despesas com pessoal — salários', 'D'],
+  ['4.1.2.02', 'Encargos sociais (FGTS)', 'D'],
+  ['4.1.3.01', 'Energia elétrica', 'D'],
+  ['4.1.3.02', 'Aluguel e condomínio', 'D'],
+  ['4.1.3.03', 'Manutenção industrial', 'D'],
+  ['4.1.3.04', 'Combustíveis e veículos', 'D'],
+  ['4.1.3.05', 'Telefone e internet', 'D'],
+  ['4.1.3.06', 'Serviços de terceiros', 'D'],
+  ['4.1.3.09', 'Despesas gerais', 'D'],
+  ['4.1.3.10', 'Depreciação de máquinas e equipamentos', 'D'],
+  ['4.1.4.01', 'Tributos e taxas', 'D'],
+  ['4.2.1.01', 'Despesas financeiras — juros', 'D'],
+  ['4.2.1.02', 'Despesas bancárias — tarifas', 'D'],
+].map(([codigo, nome, natureza]) => ({ codigo, nome, natureza: natureza as 'D' | 'C' }));
+
+export const GRUPOS: Record<string, string> = {
+  '1': 'Ativo', '1.1': 'Ativo circulante', '1.2': 'Ativo não circulante',
+  '2': 'Passivo', '2.1': 'Passivo circulante', '2.2': 'Passivo não circulante', '2.3': 'Patrimônio líquido',
+  '3': 'Receitas', '3.1': 'Receita bruta', '3.2': 'Deduções da receita',
+  '4': 'Custos e despesas', '4.1': 'Custos e despesas operacionais', '4.2': 'Resultado financeiro',
+};
+
+const POR_CODIGO = new Map(PLANO_PADRAO.map((c) => [c.codigo, c]));
+
+export const nomeConta = (codigo: string) => POR_CODIGO.get(codigo)?.nome || GRUPOS[codigo] || codigo;
+
+/** Natureza pela conta cadastrada; contas novas herdam do grupo (1 e 4 devedoras, 2 e 3 credoras; 3.2 devedora). */
+export function naturezaConta(codigo: string): 'D' | 'C' {
+  const c = POR_CODIGO.get(codigo);
+  if (c) return c.natureza;
+  if (codigo.startsWith('3.2')) return 'D';
+  return codigo.startsWith('1') || codigo.startsWith('4') ? 'D' : 'C';
+}
+
+export const rotuloConta = (codigo: string) => `${codigo} · ${nomeConta(codigo)}`;
