@@ -20,8 +20,7 @@ async function conectar(): Promise<Db> {
     const { Pool } = await import('pg');
     const { drizzle } = await import('drizzle-orm/node-postgres');
     const { migrate } = await import('drizzle-orm/node-postgres/migrator');
-    // na nuvem cada função abre poucas conexões; o pooler do Supabase faz o resto
-    const pool = new Pool({ connectionString: url, max: Number(process.env.ZARO_DB_CONEXOES || 3), ssl: /sslmode=disable/.test(url) || /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: false } });
+    const pool = await abrirPool(Pool, url);
     const db = drizzle(pool, { schema });
     await migrate(db, { migrationsFolder: MIGRACOES });
     return db as unknown as Db;
@@ -35,6 +34,32 @@ async function conectar(): Promise<Db> {
   const db = drizzle(client, { schema });
   await migrate(db, { migrationsFolder: MIGRACOES });
   return db as unknown as Db;
+}
+
+type PoolCtor = typeof import('pg').Pool;
+
+/** O pooler do Supabase fica em aws-0, aws-1 ou aws-2 conforme o projeto: tenta cada um. */
+function candidatos(url: string): string[] {
+  const m = url.match(/@aws-(\d)-([a-z0-9-]+)\.pooler\.supabase\.com/);
+  if (!m) return [url];
+  return [m[1], ...['0', '1', '2'].filter((n) => n !== m[1])].map((n) => url.replace(`@aws-${m[1]}-${m[2]}.`, `@aws-${n}-${m[2]}.`));
+}
+
+async function abrirPool(Pool: PoolCtor, url: string) {
+  let ultimo: unknown;
+  for (const u of candidatos(url)) {
+    // na nuvem cada função abre poucas conexões; o pooler do Supabase faz o resto
+    const local = /sslmode=disable/.test(u) || /localhost|127\.0\.0\.1/.test(u);
+    const pool = new Pool({ connectionString: u, max: Number(process.env.ZARO_DB_CONEXOES || 3), ssl: local ? undefined : { rejectUnauthorized: false } });
+    try {
+      await pool.query('select 1');
+      return pool;
+    } catch (e) {
+      ultimo = e;
+      await pool.end().catch(() => {});
+    }
+  }
+  throw ultimo;
 }
 
 export function getDb(): Promise<Db> {
