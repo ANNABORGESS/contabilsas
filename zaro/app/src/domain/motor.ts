@@ -24,6 +24,8 @@ export interface Lancamento {
   /** permite trocar a conta e aprender a regra para o parceiro */
   editavel?: boolean;
   chaveRegra?: string;
+  /** movimento do extrato que quitou este título (a baixa do título não é lançada de novo) */
+  tituloBaixado?: string;
 }
 
 export interface BaixaMotor {
@@ -80,13 +82,22 @@ export interface DecisoesContador {
   regras?: Record<string, string>;
   estornos?: Record<string, { motivo: string; data: string }>;
 }
+export interface MovimentoMotor {
+  id: string;
+  conta: string;
+  data: string;
+  valor: number;
+  memo: string;
+}
 export interface EntradaMotor {
   titulos: TituloMotor[];
+  /** extrato bancário: nos anos que têm extrato, o caixa vem daqui */
+  extrato?: MovimentoMotor[];
+  /** nome da empresa, para reconhecer transferências entre contas próprias */
+  empresaNome?: string;
   imobilizado?: ImobilizadoMotor[];
   contratos?: ContratoMotor[];
   decisoes?: DecisoesContador;
-  /** anos com extrato importado: nesses anos a baixa vem do extrato, não do título */
-  anosComExtrato?: Set<string>;
   hoje?: string;
 }
 
@@ -124,7 +135,9 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
   const dec = e.decisoes || {};
   const statusDec = dec.status || {};
   const contas = dec.contas || {};
-  const anosExt = e.anosComExtrato || new Set<string>();
+  // o extrato vem primeiro: título quitado por um movimento do banco não ganha outra baixa
+  const doExtrato = lancamentosDoExtrato(e.extrato || [], e.titulos, e.empresaNome || '', dec);
+  const quitadosNoExtrato = new Set(doExtrato.map((l) => l.tituloBaixado).filter(Boolean));
   const hoje = (e.hoje || new Date().toISOString()).slice(0, 7);
   const L: Lancamento[] = [];
 
@@ -143,7 +156,7 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
     const baixas = (t.baixas || []).filter((b) => !b.estornada);
     const pagoV = baixas.reduce((a, b) => a + b.valor, 0) || (pagoTotal(t.status) ? v : 0);
     const dataPag = baixas.length ? baixas[baixas.length - 1].data : t.venc || data;
-    const baixaNoExtrato = anosExt.has(String(dataPag).slice(0, 4));
+    const baixaNoExtrato = quitadosNoExtrato.has(t.id);
     const base = { origemId: t.id, doc };
 
     if (t.tipo === 'pagar') {
@@ -192,6 +205,8 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
     }
   }
 
+  for (const l of doExtrato) add(l);
+
   const estornos: Lancamento[] = L.filter((l) => l.status === 'Estornado').map((l) => ({
     ...l, id: `${l.id}|est`, data: dec.estornos?.[l.id]?.data || l.data, deb: l.cred, cred: l.deb,
     hist: `Estorno — ${l.hist} — motivo: ${dec.estornos?.[l.id]?.motivo || '—'}`, motivo: 'Lançamento inverso do estorno', conf: 100, auto: true, status: 'Contabilizado', editavel: false,
@@ -217,6 +232,69 @@ export function depreciacaoMensal(a: ImobilizadoMotor, ateComp: string): { comp:
     if (vv <= 0.004) break;
     acum = arred(acum + vv);
     out.push({ comp, valor: vv });
+  }
+  return out;
+}
+
+// ---------- extrato bancário ----------
+
+const normal = (s: string) => String(s || '').toUpperCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+const PALAVRAS_VAZIAS = new Set(['LTDA', 'SA', 'DE', 'DA', 'DO', 'DOS', 'DAS', 'ME', 'EPP', 'EIRELI', 'IND', 'COM', 'INDUSTRIA', 'COMERCIO', 'SERVICOS', 'PIX', 'TED', 'PAGTO', 'PAGAMENTO']);
+const palavras = (s: string) => normal(s).replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !PALAVRAS_VAZIAS.has(w));
+const dias = (a: string, b: string) => Math.abs(Date.parse(`${a.slice(0, 10)}T12:00:00Z`) - Date.parse(`${b.slice(0, 10)}T12:00:00Z`)) / 864e5;
+export const chaveDoExtrato = (memo: string) => `extrato:${palavras(memo).slice(0, 3).join(' ')}`;
+
+const SAIDAS: [RegExp, string, string, number][] = [
+  [/TARIFA|\bTAR\b|CESTA|PACOTE|MANUT CONTA|ANUIDADE/, '4.2.1.02', 'Tarifa bancária', 95],
+  [/JUROS|MORA|ENCARGO|\bIOF\b|MULTA/, '4.2.1.01', 'Juros, mora ou IOF', 92],
+  [/DARF|\bDAS\b|SIMPLES NAC|SEFAZ|\bDAR\b|\bGPS\b|RECEITA FED|TRIBUT|PREFEIT|DETRAN|IPVA/, '4.1.4.01', 'Tributo ou taxa paga', 88],
+  [/FGTS/, '4.1.2.02', 'FGTS', 90],
+  [/FINANC|PARCELA|CONSORC|LEASING|EMPREST|CAPITAL DE GIRO|CAPITAL GIRO/, '2.1.3.01', 'Parcela de empréstimo ou financiamento: reduz a dívida', 75],
+  [/ENERGIA|ELETRICIDADE/, '4.1.3.01', 'Energia elétrica', 90],
+  [/ALUGUEL|CONDOMIN/, '4.1.3.02', 'Aluguel', 85],
+  [/POSTO|COMBUST|GASOLIN|DIESEL/, '4.1.3.04', 'Combustível', 85],
+  [/TELEF|\bVIVO\b|\bCLARO\b|\bTIM\b|INTERNET/, '4.1.3.05', 'Telefone e internet', 85],
+  [/SALARIO|FOLHA|PROVENTO|ADIANT/, '4.1.2.01', 'Pagamento a funcionário', 85],
+  [/LTDA|EIRELI|\bME\b|\bSA\b|S\/A|BOLETO|TITULO/, '2.1.1.01', 'Pagamento a fornecedor (o custo vem da NF no Contas a Pagar)', 70],
+];
+const ENTRADAS: [RegExp, string, string, number][] = [
+  [/EMPREST|CAPITAL DE GIRO|CAPITAL GIRO|LIBERAC/, '2.1.3.01', 'Crédito de empréstimo: aumenta a dívida', 85],
+  [/RENDIMENTO|REMUNERA/, '3.1.1.01', 'Rendimento de aplicação', 70],
+];
+
+/** Classifica cada movimento do extrato. Saída que bate com título a pagar vira baixa de
+ *  fornecedor; entrada que bate com título a receber vira baixa de clientes (sem dupla contagem). */
+export function lancamentosDoExtrato(movs: MovimentoMotor[], titulos: TituloMotor[], empresaNome: string, dec: DecisoesContador): Omit<Lancamento, 'status'>[] {
+  const proprios = palavras(empresaNome).slice(0, 2);
+  const regras = dec.regras || {};
+  const contas = dec.contas || {};
+  const candidatos = titulos
+    .filter((t) => !t.retorno && !/cancel/i.test(t.status) && t.valor > 0)
+    .map((t) => ({ t, tk: new Set(palavras(t.nome)), usado: false }));
+  const out: Omit<Lancamento, 'status'>[] = [];
+  for (const m of [...movs].sort((a, b) => a.data.localeCompare(b.data))) {
+    const memo = normal(m.memo);
+    const v = Math.abs(m.valor);
+    if (!(v > 0)) continue;
+    if (/MESMA TITUL|ENTRE CONTAS|TRANSF.*PROPRIA/.test(memo) || (proprios.length === 2 && proprios.every((w) => memo.includes(w)))) continue;
+    const entrada = m.valor > 0;
+    const tk = palavras(m.memo);
+    const tipo = entrada ? 'receber' : 'pagar';
+    const par = candidatos.find((c) => !c.usado && c.t.tipo === tipo && Math.abs(c.t.valor - v) < 0.011 && tk.some((w) => c.tk.has(w)) && dias(c.t.venc || m.data, m.data) <= 45)
+      || candidatos.find((c) => !c.usado && c.t.tipo === tipo && Math.abs(c.t.valor - v) < 0.011 && dias(c.t.venc || m.data, m.data) <= 7);
+    const base = { id: `BKX|${m.id}`, data: m.data, comp: m.data.slice(0, 7), valor: v, hist: `${m.memo.slice(0, 120)} — ${m.conta}`, origemId: m.id, doc: 'Extrato', modulo: `Extrato bancário · ${entrada ? 'entrada' : 'saída'}`, chaveRegra: chaveDoExtrato(m.memo) };
+    if (par) {
+      par.usado = true;
+      out.push({ ...base, deb: entrada ? '1.1.1.02' : '2.1.1.01', cred: entrada ? '1.1.2.01' : '1.1.1.02', motivo: `Baixa do título ${par.t.id} (${par.t.nome}): mesmo valor e data próxima`, conf: 92, auto: true, tituloBaixado: par.t.id });
+      continue;
+    }
+    const ajustada = contas[base.id];
+    const aprendida = regras[base.chaveRegra];
+    const r = (entrada ? ENTRADAS : SAIDAS).find(([re]) => re.test(memo));
+    const conta = ajustada || aprendida || (r ? r[1] : entrada ? '2.1.9.99' : '1.1.9.99');
+    const motivo = ajustada ? 'Conta ajustada pelo contador' : aprendida ? 'Regra aprendida para este histórico' : r ? r[2] : entrada ? 'Entrada sem origem identificada: a identificar' : 'Saída sem histórico claro: a identificar';
+    const conf = ajustada ? 100 : aprendida ? 98 : r ? r[3] : 50;
+    out.push({ ...base, deb: entrada ? '1.1.1.02' : conta, cred: entrada ? conta : '1.1.1.02', motivo, conf, auto: conf >= 95, editavel: true });
   }
   return out;
 }

@@ -33,9 +33,10 @@ describe('motor contábil', () => {
     expect(gerarLancamentos({ titulos: [{ ...venda, retorno: true }, { ...compra, status: 'Cancelado' }] })).toEqual([]);
   });
 
-  it('nos anos com extrato a baixa não é lançada pelo título (sem dupla contagem)', () => {
-    const L = gerarLancamentos({ titulos: [venda], anosComExtrato: new Set(['2026']) });
+  it('recebimento que aparece no extrato não é lançado duas vezes', () => {
+    const L = gerarLancamentos({ titulos: [venda], extrato: [{ id: 'm9', conta: 'Itaú', data: '2026-02-14', valor: 1000, memo: 'PIX UCB AMAZONIA' }] });
     expect(L.some((l) => l.id === 'CR-1|pag')).toBe(false);
+    expect(L.find((l) => l.id === 'BKX|m9')).toMatchObject({ deb: '1.1.1.02', cred: '1.1.2.01' });
   });
 
   it('estorno cria o lançamento inverso', () => {
@@ -81,5 +82,52 @@ describe('demonstrações', () => {
     const b = balanco(L, '2026-02');
     expect(b.fecha).toBe(true);
     expect(b.ativo).toBe(b.passivo + b.pl);
+  });
+});
+
+describe('Lucro Presumido (estimativa)', () => {
+  it('calcula IRPJ com adicional acima de R$ 60 mil de base no trimestre', async () => {
+    const { tributosPresumido } = await import('./presumido');
+    const t = tributosPresumido({ produtos: 1_000_000, servicos: 0 });
+    // base IRPJ 80.000 → 15% = 12.000 + 10% de 20.000 = 2.000
+    expect(t.irpj).toBe(14000);
+    expect(t.csll).toBe(10800); // 12% × 1.000.000 × 9%
+    expect(t.pis).toBe(6500);
+    expect(t.cofins).toBe(30000);
+  });
+  it('serviço usa presunção de 32%', async () => {
+    const { tributosPresumido } = await import('./presumido');
+    expect(tributosPresumido({ produtos: 0, servicos: 100_000 }).baseIrpj).toBe(32000);
+  });
+});
+
+describe('extrato bancário', () => {
+  it('saída que bate com título vira baixa de fornecedor; o resto é classificado pelo histórico', async () => {
+    const { lancamentosDoExtrato } = await import('./motor');
+    const L = lancamentosDoExtrato(
+      [
+        { id: 'm1', conta: 'Itaú', data: '2026-01-21', valor: -300, memo: 'PAGTO AMAZONAS ENERGIA' },
+        { id: 'm2', conta: 'Itaú', data: '2026-01-22', valor: -12.5, memo: 'TARIFA PACOTE SERVICOS' },
+        { id: 'm3', conta: 'Itaú', data: '2026-01-23', valor: 450, memo: 'PIX RECEBIDO FULANO' },
+        { id: 'm4', conta: 'Itaú', data: '2026-01-24', valor: -1000, memo: 'TRANSF MESMA TITULARIDADE' },
+      ],
+      [compra],
+      'A B S INDUSTRIAL',
+      {},
+    );
+    expect(L.map((l) => [l.origemId, l.deb, l.cred])).toEqual([
+      ['m1', '2.1.1.01', '1.1.1.02'],
+      ['m2', '4.2.1.02', '1.1.1.02'],
+      ['m3', '1.1.1.02', '2.1.9.99'],
+    ]);
+  });
+
+  it('pagamento que está no extrato sai só pelo extrato; pagamento fora do extrato continua lançado', () => {
+    const outra: TituloMotor = { ...compra, id: 'CP-2', nome: 'Posto Ipiranga', valor: 99, status: 'Pago', baixas: [{ data: '2026-01-25', valor: 99 }] };
+    const L = gerarLancamentos({
+      titulos: [{ ...compra, status: 'Pago', baixas: [{ data: '2026-01-20', valor: 300 }] }, outra],
+      extrato: [{ id: 'm1', conta: 'Itaú', data: '2026-01-20', valor: -300, memo: 'PAGTO AMAZONAS ENERGIA' }],
+    });
+    expect(L.filter((l) => l.cred === '1.1.1.02').map((l) => l.id).sort()).toEqual(['BKX|m1', 'CP-2|pag']);
   });
 });

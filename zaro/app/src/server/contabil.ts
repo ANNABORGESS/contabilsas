@@ -10,7 +10,7 @@ import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
 
 export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancamento[]> {
-  const [tits, bxs, imob, ctrs, decs, regras, anos] = await Promise.all([
+  const [tits, bxs, imob, ctrs, decs, regras, extrato] = await Promise.all([
     db.select().from(schema.titulos).where(eq(schema.titulos.empresaId, emp.id)),
     db.select({ tituloId: schema.baixas.tituloId, data: schema.baixas.data, valor: schema.baixas.valor, estornada: schema.baixas.estornada })
       .from(schema.baixas).innerJoin(schema.titulos, eq(schema.titulos.id, schema.baixas.tituloId)).where(eq(schema.titulos.empresaId, emp.id)),
@@ -18,7 +18,7 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     db.select().from(schema.contratosDivida).where(eq(schema.contratosDivida.empresaId, emp.id)),
     db.select().from(schema.lancamentoDecisoes).where(eq(schema.lancamentoDecisoes.empresaId, emp.id)),
     db.select().from(schema.regrasClassificacao).where(eq(schema.regrasClassificacao.empresaId, emp.id)),
-    db.selectDistinct({ ano: schema.extratoMovimentos.data }).from(schema.extratoMovimentos).where(eq(schema.extratoMovimentos.empresaId, emp.id)),
+    db.select({ id: schema.extratoMovimentos.id, conta: schema.extratoMovimentos.conta, data: schema.extratoMovimentos.data, valor: schema.extratoMovimentos.valor, memo: schema.extratoMovimentos.memo }).from(schema.extratoMovimentos).where(eq(schema.extratoMovimentos.empresaId, emp.id)),
   ]);
   const baixasPor = new Map<string, { data: string; valor: number; estornada: boolean }[]>();
   for (const b of bxs) baixasPor.set(b.tituloId, [...(baixasPor.get(b.tituloId) || []), b]);
@@ -39,7 +39,8 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     imobilizado: imob.map((a) => ({ id: a.id, descricao: a.descricao, qtd: a.qtd, valor: a.valor, data: a.data, taxa: a.taxa, residual: a.residual, origem: a.origem, nf: a.nf })),
     contratos: ctrs.map((c) => ({ id: c.id, instituicao: c.instituicao, contrato: c.contrato, tipo: c.tipo, valor: c.valor, dataContr: c.dataContr || '', status: c.status, natureza: c.natureza })),
     decisoes: { status, contas, estornos, regras: Object.fromEntries(regras.map((r) => [r.chave, r.conta])) },
-    anosComExtrato: new Set(anos.map((a) => String(a.ano).slice(0, 4))),
+    extrato,
+    empresaNome: emp.razao,
   });
 }
 
@@ -53,8 +54,8 @@ export async function mudarStatus(db: Db, u: Usuario, emp: Empresa, ids: string[
 }
 
 export async function ajustarConta(db: Db, u: Usuario, emp: Empresa, lanc: Lancamento, conta: string, aprenderRegra: boolean) {
-  // em título a pagar a conta ajustada é a de débito; em título a receber, a de crédito
-  const antes = /Receber/.test(lanc.modulo) ? lanc.cred : lanc.deb;
+  // em título a pagar e saída do extrato a conta ajustada é a de débito; em receber e entrada, a de crédito
+  const antes = /Receber|entrada/.test(lanc.modulo) ? lanc.cred : lanc.deb;
   await db.insert(schema.lancamentoDecisoes).values({ tenantId: u.tenantId, empresaId: emp.id, lancamentoId: lanc.id, conta, status: 'Aprovado', usuario: u.nome })
     .onConflictDoUpdate({ target: [schema.lancamentoDecisoes.empresaId, schema.lancamentoDecisoes.lancamentoId], set: { conta, status: 'Aprovado', usuario: u.nome, atualizadoEm: new Date() } });
   if (aprenderRegra && lanc.chaveRegra) {

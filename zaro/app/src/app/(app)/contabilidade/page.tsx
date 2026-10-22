@@ -154,6 +154,8 @@ function Cabecalho({ titulo, emp, p }: { titulo: string; emp: string; p: { titul
 function Balancete({ lancs, p, previa, emp }: { lancs: Lancamento[]; p: Periodo & { titulo: string }; previa: boolean; emp: string }) {
   const b = balancete(lancs, p, previa);
   const sd = (v: number, nat: 'D' | 'C') => (nat === 'D' ? v : -v);
+  // saldo com o lado: positivo = devedor (D), negativo = credor (C)
+  const comLado = (v: number) => (Math.abs(v) < 0.005 ? brl(0) : `${brl(Math.abs(v))} ${v > 0 ? 'D' : 'C'}`);
   return (
     <div className="card">
       <Cabecalho titulo="Balancete de Verificação" emp={emp} p={p} />
@@ -163,7 +165,7 @@ function Balancete({ lancs, p, previa, emp }: { lancs: Lancamento[]; p: Periodo 
           <tbody>
             {b.linhas.map((l) => {
               const f = sd(l.final, l.natureza);
-              return <tr key={l.conta}><td>{l.conta} · {l.nome}</td><td className="num">{brl(sd(l.anterior, l.natureza))}</td><td className="num">{brl(l.debitos)}</td><td className="num">{brl(l.creditos)}</td><td className="num">{f > 0 ? brl(f) : ''}</td><td className="num">{f < 0 ? brl(-f) : ''}</td></tr>;
+              return <tr key={l.conta}><td>{l.conta} · {l.nome}</td><td className="num">{comLado(sd(l.anterior, l.natureza))}</td><td className="num">{brl(l.debitos)}</td><td className="num">{brl(l.creditos)}</td><td className="num">{f > 0 ? brl(f) : ''}</td><td className="num">{f < 0 ? brl(-f) : ''}</td></tr>;
             })}
             <tr className="destaque"><td>Totais do período</td><td /><td className="num">{brl(b.totalDebitos)}</td><td className="num">{brl(b.totalCreditos)}</td><td colSpan={2} className="num">{Math.abs(b.totalDebitos - b.totalCreditos) < 0.01 ? 'Débitos = créditos ✓' : 'Diferença!'}</td></tr>
           </tbody>
