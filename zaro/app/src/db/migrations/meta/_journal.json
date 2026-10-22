@@ -8,6 +8,13 @@
       "when": 1792610987226,
       "tag": "0000_inicial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1792694998670,
+      "tag": "0001_arquivos_no_banco",
+      "breakpoints": true
     }
   ]
 }

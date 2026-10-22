@@ -29,6 +29,9 @@ export async function criarPrimeiroAcesso(form: FormData) {
   const db = await getDb();
   const [{ n }] = await db.select({ n: count() }).from(schema.usuarios);
   if (n > 0) redirect('/login');
+  // na nuvem, só quem tem o código definido em ZARO_CODIGO_PRIMEIRO_ACESSO cria o escritório
+  const codigo = process.env.ZARO_CODIGO_PRIMEIRO_ACESSO;
+  if (codigo && String(form.get('codigo') || '').trim() !== codigo) voltar('/primeiro-acesso', 'Código de primeiro acesso incorreto.');
   const escritorio = String(form.get('escritorio') || '').trim();
   const nome = String(form.get('nome') || '').trim();
   const email = String(form.get('email') || '').trim().toLowerCase();

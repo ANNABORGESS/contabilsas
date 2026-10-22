@@ -1,0 +1,1 @@
+ALTER TABLE "arquivos" ADD COLUMN "conteudo" "bytea";

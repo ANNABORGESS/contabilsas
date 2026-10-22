@@ -1,7 +1,9 @@
 // Banco de dados do ZARO. Todo dado pertence a um escritório (tenant_id) e, quando é de
 // uma empresa cliente, também a ela (empresa_id). Nenhuma consulta pode ignorar esses filtros.
 import { sql } from 'drizzle-orm';
-import { boolean, date, index, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+import { boolean, customType, date, index, integer, jsonb, numeric, pgTable, primaryKey, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
+
+const bytea = customType<{ data: Buffer; driverData: Buffer }>({ dataType: () => 'bytea' });
 
 const id = () => uuid('id').primaryKey().default(sql`gen_random_uuid()`);
 const criadoEm = () => timestamp('criado_em', { withTimezone: true }).notNull().defaultNow();
@@ -94,7 +96,8 @@ export const arquivos = pgTable('arquivos', {
   nome: text('nome').notNull(),
   mime: text('mime'),
   tamanho: integer('tamanho').notNull().default(0),
-  caminho: text('caminho').notNull(), // relativo à pasta de arquivos
+  caminho: text('caminho').notNull(), // relativo à pasta de arquivos (vazio quando guardado no banco)
+  conteudo: bytea('conteudo'), // na nuvem o arquivo fica no próprio banco
   criadoEm: criadoEm(),
 });
 

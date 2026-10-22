@@ -17,6 +17,7 @@ export default async function PrimeiroAcesso({ searchParams }: { searchParams: P
         <p className="mudo">Primeiro acesso: crie o escritório e o seu usuário de administrador.</p>
         {erro && <div className="aviso erro">{erro}</div>}
         <form action={criarPrimeiroAcesso} className="campos">
+          {process.env.ZARO_CODIGO_PRIMEIRO_ACESSO && <div><label htmlFor="codigo">Código de primeiro acesso</label><input id="codigo" name="codigo" autoComplete="off" required /></div>}
           <div><label htmlFor="escritorio">Nome do escritório</label><input id="escritorio" name="escritorio" required /></div>
           <div><label htmlFor="nome">Seu nome</label><input id="nome" name="nome" required /></div>
           <div><label htmlFor="email">E-mail (usado para entrar)</label><input id="email" name="email" type="email" required /></div>

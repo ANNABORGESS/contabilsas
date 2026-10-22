@@ -20,7 +20,8 @@ async function conectar(): Promise<Db> {
     const { Pool } = await import('pg');
     const { drizzle } = await import('drizzle-orm/node-postgres');
     const { migrate } = await import('drizzle-orm/node-postgres/migrator');
-    const pool = new Pool({ connectionString: url, max: 10 });
+    // na nuvem cada função abre poucas conexões; o pooler do Supabase faz o resto
+    const pool = new Pool({ connectionString: url, max: Number(process.env.ZARO_DB_CONEXOES || 3), ssl: /sslmode=disable/.test(url) || /localhost|127\.0\.0\.1/.test(url) ? undefined : { rejectUnauthorized: false } });
     const db = drizzle(pool, { schema });
     await migrate(db, { migrationsFolder: MIGRACOES });
     return db as unknown as Db;

@@ -8,7 +8,7 @@ export default async function Documentos() {
   const emp = await exigirEmpresa(u);
   const db = await getDb();
   const docs = await db
-    .select({ d: schema.documentosEntrada, a: schema.arquivos })
+    .select({ d: schema.documentosEntrada, a: { id: schema.arquivos.id, nome: schema.arquivos.nome, tamanho: schema.arquivos.tamanho } })
     .from(schema.documentosEntrada)
     .innerJoin(schema.arquivos, eq(schema.arquivos.id, schema.documentosEntrada.arquivoId))
     .where(and(eq(schema.documentosEntrada.empresaId, emp.id), isNotNull(schema.documentosEntrada.arquivoId)))

@@ -10,7 +10,7 @@ export async function GET(_req: Request, { params }: { params: Promise<{ id: str
   const db = await getDb();
   const [a] = await db.select().from(schema.arquivos).where(and(eq(schema.arquivos.id, id), eq(schema.arquivos.tenantId, u.tenantId)));
   if (!a) return new Response('Arquivo não encontrado.', { status: 404 });
-  const conteudo = await lerArquivo(a.caminho);
+  const conteudo = await lerArquivo(a);
   return new Response(new Uint8Array(conteudo), {
     headers: {
       'Content-Type': a.mime || 'application/octet-stream',
