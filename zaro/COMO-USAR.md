@@ -40,3 +40,6 @@ Crie o arquivo `app\.env` (copie de `app\.env.example`) e coloque a sua chave da
 
 ## Fica só no seu computador
 `app\dados`, `app\.env`, `prototipo\uploads\_folha*.txt`, `servidor-sefaz\.env` e o certificado `.pfx` não vão para o GitHub.
+
+## Skills para contadores no Claude Code
+As 57 skills (Lucro Presumido, Simples, folha, SPED, conciliações e outras) não vão para o GitHub: a licença proíbe redistribuir e este repositório é público. No seu computador, copie as pastas de `skills-contadores-main\skills\` para **`C:\ZARO\.claude\skills\`**. Depois, abra o Claude Code dentro de `C:\ZARO` (`cd C:\ZARO` e `claude`) e peça, por exemplo: "apure o Lucro Presumido do 2º trimestre da A B S".

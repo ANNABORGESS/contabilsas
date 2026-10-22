@@ -13,10 +13,9 @@ export default async function Fiscal({ searchParams }: { searchParams: Promise<{
   const ano = /^\d{4}$/.test(sp.ano || '') ? sp.ano! : String(new Date().getFullYear());
   const db = await getDb();
   const receitas = await db
-    .select({ comp: schema.titulos.competencia, cat: schema.titulos.categoria, total: sql<string>`sum(coalesce(${schema.titulos.valorFiscal}, ${schema.titulos.valor}))` })
+    .select({ comp: schema.titulos.competencia, cat: schema.titulos.categoria, valor: schema.titulos.valor, valorFiscal: schema.titulos.valorFiscal, impostos: schema.titulos.impostos, retencoes: schema.titulos.retencoes })
     .from(schema.titulos)
-    .where(and(eq(schema.titulos.empresaId, emp.id), eq(schema.titulos.tipo, 'receber'), eq(schema.titulos.retorno, false), sql`${schema.titulos.status} not ilike '%cancel%'`, sql`${schema.titulos.competencia} like ${ano + '-%'}`))
-    .groupBy(schema.titulos.competencia, schema.titulos.categoria);
+    .where(and(eq(schema.titulos.empresaId, emp.id), eq(schema.titulos.tipo, 'receber'), eq(schema.titulos.retorno, false), sql`${schema.titulos.status} not ilike '%cancel%'`, sql`${schema.titulos.competencia} like ${ano + '-%'}`));
   const dividas = await db.select().from(schema.dividasAtivas).where(eq(schema.dividasAtivas.empresaId, emp.id));
   const totalDiv = dividas.reduce((a, d) => a + (d.valor || 0), 0);
 
@@ -24,9 +23,14 @@ export default async function Fiscal({ searchParams }: { searchParams: Promise<{
     const meses = [1, 2, 3].map((m) => `${ano}-${String(t * 3 + m).padStart(2, '0')}`);
     const regs = [...new Set(meses.map((c) => regimeEm(emp, dataDaCompetencia(c)) || '—'))];
     const r = receitas.filter((x) => x.comp && meses.includes(x.comp));
-    const servicos = r.filter((x) => /servi/i.test(x.cat || '')).reduce((a, x) => a + Number(x.total), 0);
-    const produtos = r.reduce((a, x) => a + Number(x.total), 0) - servicos;
-    return { n: t + 1, regs, presumido: regs.every((x) => /presumido/i.test(x)), est: tributosPresumido({ produtos, servicos }) };
+    // valor fiscal da NF vai só na 1ª parcela; título sem NF usa o próprio valor
+    const bruto = (x: (typeof r)[number]) => (x.valorFiscal != null ? x.valorFiscal : x.valor);
+    const soma = (lista: { nome: string; valor: number }[], re: RegExp) => lista.filter((i) => re.test(i.nome)).reduce((a, i) => a + Number(i.valor || 0), 0);
+    const servicos = r.filter((x) => /servi/i.test(x.cat || '')).reduce((a, x) => a + bruto(x), 0);
+    const produtos = r.reduce((a, x) => a + bruto(x), 0) - servicos;
+    const icms = r.reduce((a, x) => a + soma(x.impostos, /^icms/i), 0);
+    const irrfRetido = r.reduce((a, x) => a + soma(x.retencoes, /irrf/i), 0);
+    return { n: t + 1, regs, presumido: regs.every((x) => /presumido/i.test(x)), est: tributosPresumido({ produtos, servicos, icms, irrfRetido }), icms, irrfRetido };
   });
 
   return (
@@ -39,13 +43,13 @@ export default async function Fiscal({ searchParams }: { searchParams: Promise<{
       </form>
       <div className="card">
         <h2>Tributos por trimestre · {ano}</h2>
-        <p className="pequeno mudo">Estimativa sobre as NF de saída lançadas (sem retornos e canceladas), para conferência. Confirme antes de gerar as guias.</p>
+        <p className="pequeno mudo">Estimativa sobre as NF de saída lançadas (sem retornos e canceladas), para conferência. Presunção de 8%/12% para produtos e 32% para serviços; ICMS destacado fora da base de PIS/COFINS (Tema 69 do STF); IRRF retido pelos clientes abatido do IRPJ. Receitas financeiras ainda não entram. Confira na Receita Federal antes de gerar as guias.</p>
         <div className="tabela-wrap"><table>
           <thead><tr><th>Trimestre</th><th>Regime</th><th className="num">Receita bruta</th><th className="num">IRPJ</th><th className="num">CSLL</th><th className="num">PIS</th><th className="num">COFINS</th><th className="num">Total</th></tr></thead>
           <tbody>{trimestres.map((t) => (
             <tr key={t.n}>
               <td>{t.n}º trimestre</td><td>{t.regs.join(' / ')}</td><td className="num">{brl(t.est.bruta)}</td>
-              {t.presumido ? (<><td className="num">{brl(t.est.irpj)}</td><td className="num">{brl(t.est.csll)}</td><td className="num">{brl(t.est.pis)}</td><td className="num">{brl(t.est.cofins)}</td><td className="num"><b>{brl(t.est.total)}</b></td></>) : <td colSpan={5} className="pequeno mudo">{t.regs.some((r) => /simples/i.test(r)) ? 'Simples Nacional: apuração pelo DAS (histórico)' : 'Regime sem cálculo automático'}</td>}
+              {t.presumido ? (<><td className="num">{brl(t.est.irpj)}{t.irrfRetido > 0 && <div className="pequeno mudo">− IRRF {brl(t.irrfRetido)}</div>}</td><td className="num">{brl(t.est.csll)}</td><td className="num">{brl(t.est.pis)}{t.icms > 0 && <div className="pequeno mudo">base sem ICMS</div>}</td><td className="num">{brl(t.est.cofins)}</td><td className="num"><b>{brl(t.est.total)}</b></td></>) : <td colSpan={5} className="pequeno mudo">{t.regs.some((r) => /simples/i.test(r)) ? 'Simples Nacional: apuração pelo DAS (histórico)' : 'Regime sem cálculo automático'}</td>}
             </tr>
           ))}</tbody>
         </table></div>

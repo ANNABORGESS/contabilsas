@@ -3,3 +3,7 @@ dist
 *.tsbuildinfo
 .DS_Store
 dist-artifact
+
+# Skills para contadores (licença ASV Digital / Bravy: não redistribuir). Ficam só na cópia local.
+.claude/skills/*
+!.claude/skills/roast-room/

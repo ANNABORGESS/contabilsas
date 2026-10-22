@@ -95,6 +95,19 @@ describe('Lucro Presumido (estimativa)', () => {
     expect(t.pis).toBe(6500);
     expect(t.cofins).toBe(30000);
   });
+  it('confere com o exemplo da skill 02: receita financeira soma sem presunção', async () => {
+    const { tributosPresumido } = await import('./presumido');
+    const t = tributosPresumido({ produtos: 1_000_000, servicos: 0, financeiras: 5000 });
+    expect(t.irpj).toBe(15250);
+    expect(t.csll).toBe(11250);
+  });
+  it('tira o ICMS da base de PIS/COFINS e abate o IRRF retido do IRPJ', async () => {
+    const { tributosPresumido } = await import('./presumido');
+    const t = tributosPresumido({ produtos: 100_000, servicos: 0, icms: 18_000, irrfRetido: 200 });
+    expect(t.pis).toBe(533);
+    expect(t.cofins).toBe(2460);
+    expect(t.irpj).toBe(1000);
+  });
   it('serviço usa presunção de 32%', async () => {
     const { tributosPresumido } = await import('./presumido');
     expect(tributosPresumido({ produtos: 0, servicos: 100_000 }).baseIrpj).toBe(32000);
