@@ -1,0 +1,49 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ZARO · Exportar backup</title>
+<style>
+  body { font-family: system-ui, sans-serif; background: #f6f1ec; color: #34302d; margin: 0; padding: 40px 16px; }
+  main { max-width: 560px; margin: 0 auto; background: #fcfaf8; border-radius: 20px; padding: 28px; box-shadow: 0 8px 20px rgba(60,50,45,.04); }
+  button { background: #34302d; color: #fff; border: 0; border-radius: 12px; padding: 12px 18px; font: inherit; font-weight: 600; cursor: pointer; }
+  .msg { margin-top: 16px; padding: 12px 14px; border-radius: 12px; background: #eef2f6; color: #45627d; }
+  .erro { background: #f4e3e0; color: #8e4e48; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Exportar backup do protótipo</h1>
+  <p>Baixa todos os dados que o protótipo do ZARO guardou neste navegador, para importar no sistema novo em <b>Configurações → Importar backup do protótipo</b>.</p>
+  <p>Use o mesmo navegador em que você usava o protótipo.</p>
+  <button id="baixar" type="button">Baixar backup</button>
+  <div id="msg"></div>
+</main>
+<script>
+  // O protótipo grava tudo em localStorage na chave abaixo. Anexos grandes ficam no IndexedDB
+  // e não entram no backup: o sistema novo guarda só o nome deles.
+  const CHAVE = 'contabilsas:dados:v1';
+  document.getElementById('baixar').onclick = () => {
+    const msg = document.getElementById('msg');
+    let txt = null;
+    try { txt = localStorage.getItem(CHAVE); } catch (e) {}
+    if (!txt) {
+      msg.className = 'msg erro';
+      msg.textContent = 'Nenhum dado do protótipo encontrado neste navegador. Abra este endereço no navegador em que você usava o ZARO.';
+      return;
+    }
+    let dados;
+    try { dados = JSON.parse(txt); } catch (e) { msg.className = 'msg erro'; msg.textContent = 'Os dados guardados estão corrompidos.'; return; }
+    const blob = new Blob([JSON.stringify(dados)], { type: 'application/json' });
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'ZARO_backup_' + new Date().toISOString().slice(0, 10) + '.json';
+    a.click();
+    const n = (dados.novos || []).length, e = (dados.empresasList || []).length;
+    msg.className = 'msg';
+    msg.textContent = 'Backup baixado: ' + e + ' empresa(s) e ' + n + ' título(s) da empresa ativa (as outras empresas vão junto). Tamanho: ' + Math.round(txt.length / 1024) + ' KB.';
+  };
+</script>
+</body>
+</html>

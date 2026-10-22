@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<nfeProc xmlns="http://www.portalfiscal.inf.br/nfe" versao="4.00">
+  <NFe>
+    <infNFe Id="NFe13260108201911000199550010000012341000012345" versao="4.00">
+      <ide><cUF>13</cUF><natOp>VENDA DE PRODUCAO DO ESTABELECIMENTO</natOp><mod>55</mod><serie>1</serie><nNF>1234</nNF><dhEmi>2026-01-15T10:00:00-04:00</dhEmi><tpNF>1</tpNF></ide>
+      <emit><CNPJ>08201911000199</CNPJ><xNome>A B S INDUSTRIAL DA AMAZONIA LTDA</xNome><enderEmit><xMun>Manaus</xMun><UF>AM</UF></enderEmit></emit>
+      <dest><CNPJ>03951798000145</CNPJ><xNome>UCB DA AMAZONIA S.A</xNome><enderDest><xMun>Manaus</xMun><UF>AM</UF></enderDest><IE>041234567</IE></dest>
+      <det nItem="1"><prod><xProd>EIXO USINADO</xProd><NCM>84834010</NCM><CFOP>5101</CFOP><uCom>UN</uCom><qCom>10.0000</qCom><vUnCom>100.00</vUnCom><vProd>1000.00</vProd></prod>
+        <imposto><ICMS><ICMS00><vBC>1000.00</vBC><pICMS>20.00</pICMS><vICMS>200.00</vICMS></ICMS00></ICMS><PIS><PISAliq><vBC>1000.00</vBC><pPIS>0.65</pPIS><vPIS>6.50</vPIS></PISAliq></PIS><COFINS><COFINSAliq><vBC>1000.00</vBC><pCOFINS>3.00</pCOFINS><vCOFINS>30.00</vCOFINS></COFINSAliq></COFINS></imposto></det>
+      <det nItem="2"><prod><xProd>BUCHA</xProd><NCM>84834010</NCM><CFOP>5101</CFOP><uCom>UN</uCom><qCom>1.0000</qCom><vUnCom>200.01</vUnCom><vProd>200.01</vProd></prod></det>
+      <total><ICMSTot><vProd>1200.01</vProd><vDesc>0.00</vDesc><vFrete>0.00</vFrete><vNF>1200.01</vNF></ICMSTot></total>
+      <cobr><fat><nFat>1234</nFat></fat><dup><nDup>001</nDup><dVenc>2026-02-14</dVenc><vDup>600.00</vDup></dup><dup><nDup>002</nDup><dVenc>2026-03-16</dVenc><vDup>600.01</vDup></dup></cobr>
+      <pag><detPag><tPag>15</tPag><vPag>1200.01</vPag></detPag></pag>
+      <infAdic><infCpl>Pedido 4500012345</infCpl></infAdic>
+    </infNFe>
+  </NFe>
+  <protNFe versao="4.00"><infProt><chNFe>13260108201911000199550010000012341000012345</chNFe><cStat>100</cStat></infProt></protNFe>
+</nfeProc>

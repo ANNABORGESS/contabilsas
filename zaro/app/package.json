@@ -1,0 +1,37 @@
+{
+  "name": "zaro-app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "ZARO — sistema contábil, fiscal e financeiro para escritórios de contabilidade.",
+  "scripts": {
+    "dev": "next dev -p 3000",
+    "build": "next build",
+    "start": "next start -p 3000",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "db:generate": "drizzle-kit generate"
+  },
+  "engines": {
+    "node": ">=20.9"
+  },
+  "dependencies": {
+    "@anthropic-ai/sdk": "0.132.0",
+    "@electric-sql/pglite": "0.3.16",
+    "drizzle-orm": "0.45.3",
+    "fast-xml-parser": "5.2.5",
+    "next": "15.5.27",
+    "pg": "8.16.3",
+    "react": "19.2.9",
+    "react-dom": "19.2.9",
+    "server-only": "0.0.1"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "@types/pg": "8.15.6",
+    "@types/react": "19.2.18",
+    "@types/react-dom": "19.2.7",
+    "drizzle-kit": "0.31.4",
+    "typescript": "5.9.3",
+    "vitest": "3.2.7"
+  }
+}

@@ -1,0 +1,252 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Escritório de Contabilidade</title>
+<meta name="description" content="Contabilidade, fiscal, departamento pessoal e abertura de empresas.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700;800&display=swap">
+<style>
+  :root {
+    --bg: #f6f1ec; --card: #fcfaf8; --texto: #34302d; --texto-2: #5c5651; --texto-3: #7c756f;
+    --divisor: #e8e1db; --acento: #6786a3; --acento-bg: #eef2f6; --acento-forte: #45627d; --escuro: #2a3a49;
+    --raio: 20px; --sombra: 0 8px 20px rgba(60, 50, 45, .06);
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body { margin: 0; font-family: 'Manrope', system-ui, sans-serif; color: var(--texto); background: var(--bg); line-height: 1.6; }
+  a { color: inherit; }
+  .faixa { max-width: 1120px; margin: 0 auto; padding: 0 16px; }
+
+  /* cabeçalho */
+  header { position: sticky; top: 0; z-index: 10; background: rgba(246, 241, 236, .92); backdrop-filter: blur(8px); border-bottom: 1px solid var(--divisor); }
+  header .faixa { display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 68px; }
+  .logo { font-weight: 800; letter-spacing: .02em; font-size: 18px; text-decoration: none; }
+  nav { display: flex; gap: 4px; }
+  nav a { text-decoration: none; color: var(--texto-2); font-weight: 600; padding: 8px 12px; border-radius: 999px; }
+  nav a:hover { background: var(--card); color: var(--texto); }
+
+  /* apresentação: fundo que cobre toda a largura */
+  .hero {
+    min-height: 78vh; display: grid; place-items: center; text-align: center; color: #fff; padding: 64px 16px;
+    background:
+      linear-gradient(135deg, rgba(42, 58, 73, .92), rgba(69, 98, 125, .80)),
+      repeating-linear-gradient(90deg, rgba(255,255,255,.05) 0 1px, transparent 1px 72px),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.05) 0 1px, transparent 1px 72px),
+      #2a3a49;
+  }
+  .hero h1 { font-size: clamp(36px, 7vw, 72px); line-height: 1.05; margin: 0 0 14px; letter-spacing: -.02em; animation: surgir 1s ease-out both; }
+  .hero p { font-size: clamp(18px, 2.4vw, 24px); margin: 0 0 32px; opacity: .9; animation: surgir 1s .25s ease-out both; }
+  @keyframes surgir { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
+  .botao { display: inline-block; text-decoration: none; font-weight: 700; padding: 13px 24px; border-radius: 999px; background: #fff; color: var(--escuro); transition: background .2s, color .2s, transform .2s; }
+  .botao:hover { background: var(--acento); color: #fff; transform: translateY(-2px); }
+
+  section { padding: 88px 0; }
+  .rotulo { text-transform: uppercase; letter-spacing: .12em; font-size: 12px; font-weight: 700; color: var(--acento-forte); margin: 0 0 8px; }
+  h2 { font-size: clamp(28px, 4vw, 40px); line-height: 1.15; margin: 0 0 18px; letter-spacing: -.01em; }
+
+  /* perfil: texto e imagem lado a lado */
+  .perfil .faixa { display: flex; gap: 56px; align-items: center; }
+  .perfil .texto { flex: 1.1; }
+  .perfil .texto p { color: var(--texto-2); font-size: 17px; }
+  .perfil .imagem { flex: 1; min-height: 360px; border-radius: var(--raio); background: var(--acento-bg); display: grid; place-items: center; box-shadow: var(--sombra); overflow: hidden; }
+  .numeros { display: flex; gap: 32px; margin-top: 24px; }
+  .numeros b { display: block; font-size: 30px; color: var(--acento-forte); }
+  .numeros span { color: var(--texto-3); font-size: 14px; }
+
+  /* serviços: lista vertical numerada */
+  .servicos { background: var(--card); }
+  .lista { list-style: none; padding: 0; margin: 32px 0 0; counter-reset: s; }
+  .lista li { counter-increment: s; display: flex; gap: 28px; align-items: flex-start; padding: 28px 0; border-top: 1px solid var(--divisor); }
+  .lista li::before { content: counter(s, decimal-leading-zero); font-size: 34px; font-weight: 800; color: var(--acento); min-width: 64px; line-height: 1; }
+  .lista h3 { margin: 0 0 6px; font-size: 20px; }
+  .lista p { margin: 0 0 12px; color: var(--texto-2); }
+  .saiba { display: inline-block; text-decoration: none; font-weight: 700; font-size: 14px; padding: 8px 16px; border-radius: 999px; border: 1.5px solid var(--acento); color: var(--acento-forte); transition: background .2s, color .2s; }
+  .saiba:hover { background: var(--acento-forte); border-color: var(--acento-forte); color: #fff; }
+
+  /* clientes: cartões lado a lado */
+  .cartoes { display: flex; flex-wrap: wrap; gap: 18px; margin-top: 32px; }
+  .cartao { flex: 1 1 200px; background: var(--card); border-radius: var(--raio); padding: 26px 20px; text-align: center; box-shadow: var(--sombra); border: 1px solid rgba(100, 90, 80, .07); }
+  .cartao img { width: 72px; height: 72px; object-fit: contain; margin-bottom: 12px; }
+  .cartao b { display: block; }
+  .cartao span { color: var(--texto-3); font-size: 14px; }
+
+  /* rodapé */
+  footer { background: var(--escuro); color: #e8eef4; padding: 56px 0 28px; }
+  footer .faixa { display: flex; flex-wrap: wrap; gap: 40px; justify-content: space-between; }
+  footer h3 { margin: 0 0 12px; font-size: 18px; color: #fff; }
+  footer p { margin: 4px 0; color: #c9d5e1; }
+  footer a { color: #fff; }
+  .redes { display: flex; gap: 12px; margin-top: 8px; }
+  .redes a { width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, .1); transition: background .2s; }
+  .redes a:hover { background: var(--acento); }
+  .redes svg { width: 20px; height: 20px; fill: #fff; }
+  .copy { width: 100%; border-top: 1px solid rgba(255, 255, 255, .12); padding-top: 20px; font-size: 13px; color: #9fb1c3; }
+  .pendente { background: #f5edd8; color: #7a6235; border-radius: 6px; padding: 0 6px; }
+
+  @media (max-width: 760px) {
+    nav { display: none; }
+    section { padding: 64px 0; }
+    .perfil .faixa { flex-direction: column; gap: 32px; }
+    .perfil .imagem { width: 100%; min-height: 240px; }
+    .lista li { gap: 16px; }
+    .lista li::before { min-width: 44px; font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="faixa">
+    <a class="logo" href="#inicio" data-campo="nome"></a>
+    <nav>
+      <a href="#inicio">Início</a>
+      <a href="#perfil">Perfil</a>
+      <a href="#servicos">Serviços</a>
+      <a href="#clientes">Clientes</a>
+      <a href="#contato">Contato</a>
+    </nav>
+  </div>
+</header>
+
+<main>
+  <div class="hero" id="inicio">
+    <div>
+      <h1 data-campo="nome"></h1>
+      <p data-campo="slogan"></p>
+      <a class="botao" data-link="whatsapp" href="#contato">Fale com um contador</a>
+    </div>
+  </div>
+
+  <section class="perfil" id="perfil">
+    <div class="faixa">
+      <div class="texto">
+        <p class="rotulo">Perfil</p>
+        <h2>Contabilidade próxima, com números que você entende.</h2>
+        <p>Fundado em <span data-campo="fundacao"></span>, o <span data-campo="nome"></span> cuida da contabilidade, dos impostos e do departamento pessoal de empresas de <span data-campo="cidade"></span>, para que o dono foque no negócio.</p>
+        <p>Trabalhamos com Simples Nacional, Lucro Presumido e Lucro Real, com fechamento mensal, relatórios claros e atendimento direto com o contador responsável.</p>
+        <div class="numeros">
+          <div><b data-campo="anos"></b><span>anos de experiência</span></div>
+          <div><b data-campo="empresas"></b><span>empresas atendidas</span></div>
+        </div>
+      </div>
+      <div class="imagem" aria-hidden="true">
+        <!-- ilustração: troque por <img src="foto-do-escritorio.jpg" alt="..."> se tiver uma foto -->
+        <svg viewBox="0 0 320 260" width="80%" role="img">
+          <rect x="40" y="40" width="240" height="180" rx="18" fill="#fcfaf8"/>
+          <rect x="64" y="70" width="110" height="12" rx="6" fill="#c9d9e7"/>
+          <rect x="64" y="94" width="160" height="10" rx="5" fill="#e1eaf2"/>
+          <rect x="72" y="176" width="24" height="24" rx="4" fill="#8fa7bd"/>
+          <rect x="108" y="150" width="24" height="50" rx="4" fill="#6786a3"/>
+          <rect x="144" y="130" width="24" height="70" rx="4" fill="#56738f"/>
+          <rect x="180" y="116" width="24" height="84" rx="4" fill="#45627d"/>
+          <rect x="216" y="100" width="24" height="100" rx="4" fill="#2a3a49"/>
+        </svg>
+      </div>
+    </div>
+  </section>
+
+  <section class="servicos" id="servicos">
+    <div class="faixa">
+      <p class="rotulo">Serviços</p>
+      <h2>O que fazemos pela sua empresa</h2>
+      <ol class="lista">
+        <li><div><h3>Abertura e regularização de empresas</h3><p>CNPJ, contrato social, inscrições, alvarás e escolha do regime tributário certo desde o início.</p><a class="saiba" data-link="whatsapp" href="#contato">Saiba mais</a></div></li>
+        <li><div><h3>Contabilidade e fechamento mensal</h3><p>Lançamentos, conciliação bancária, balancete, DRE e balanço todo mês, com explicação do resultado.</p><a class="saiba" data-link="whatsapp" href="#contato">Saiba mais</a></div></li>
+        <li><div><h3>Fiscal e tributário</h3><p>Apuração do Simples Nacional, Lucro Presumido e Lucro Real, guias, SPED e obrigações acessórias em dia.</p><a class="saiba" data-link="whatsapp" href="#contato">Saiba mais</a></div></li>
+        <li><div><h3>Departamento pessoal</h3><p>Folha de pagamento, eSocial, férias, 13º, rescisões e FGTS, sem surpresa no fim do mês.</p><a class="saiba" data-link="whatsapp" href="#contato">Saiba mais</a></div></li>
+        <li><div><h3>Planejamento tributário</h3><p>Comparação entre regimes e revisão de créditos para a empresa pagar só o que deve.</p><a class="saiba" data-link="whatsapp" href="#contato">Saiba mais</a></div></li>
+        <li><div><h3>Imposto de Renda pessoa física</h3><p>Declaração completa, MEI, aluguéis, investimentos e ganho de capital, com conferência contra a malha fina.</p><a class="saiba" data-link="whatsapp" href="#contato">Saiba mais</a></div></li>
+      </ol>
+    </div>
+  </section>
+
+  <section id="clientes">
+    <div class="faixa">
+      <p class="rotulo">Clientes</p>
+      <h2>Empresas que confiam no nosso trabalho</h2>
+      <div class="cartoes" id="cartoes"></div>
+    </div>
+  </section>
+</main>
+
+<footer id="contato">
+  <div class="faixa">
+    <div>
+      <h3 data-campo="nome"></h3>
+      <p data-campo="slogan"></p>
+    </div>
+    <div>
+      <h3>Contato</h3>
+      <p data-campo="endereco"></p>
+      <p>Telefone: <span data-campo="telefone"></span></p>
+      <p>E-mail: <a data-link="email" data-campo="email"></a></p>
+    </div>
+    <div>
+      <h3>Redes sociais</h3>
+      <div class="redes">
+        <a data-link="instagram" aria-label="Instagram" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 2.2c3.2 0 3.6 0 4.8.1 3.3.1 4.8 1.7 4.9 4.9.1 1.3.1 1.6.1 4.8s0 3.6-.1 4.8c-.1 3.2-1.7 4.8-4.9 4.9-1.3.1-1.6.1-4.8.1s-3.6 0-4.8-.1c-3.3-.1-4.8-1.7-4.9-4.9C2.2 15.6 2.2 15.2 2.2 12s0-3.6.1-4.8C2.4 3.9 3.9 2.4 7.2 2.3 8.4 2.2 8.8 2.2 12 2.2zm0 4.7a5.1 5.1 0 1 0 0 10.2 5.1 5.1 0 0 0 0-10.2zm0 8.4a3.3 3.3 0 1 1 0-6.6 3.3 3.3 0 0 1 0 6.6zm5.3-9.8a1.2 1.2 0 1 0 0 2.4 1.2 1.2 0 0 0 0-2.4z"/></svg></a>
+        <a data-link="linkedin" aria-label="LinkedIn" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M4.98 3.5a2.5 2.5 0 1 1 0 5 2.5 2.5 0 0 1 0-5zM3 9h4v12H3zM9 9h3.8v1.7h.1c.5-1 1.8-2 3.8-2 4 0 4.8 2.6 4.8 6V21h-4v-5.6c0-1.3 0-3-1.9-3s-2.2 1.5-2.2 2.9V21H9z"/></svg></a>
+        <a data-link="whatsapp" aria-label="WhatsApp" target="_blank" rel="noopener"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 0-8.6 15.1L2 22l5-1.3A10 10 0 1 0 12 2zm0 18.2c-1.5 0-3-.4-4.2-1.2l-.3-.2-3 .8.8-2.9-.2-.3A8.2 8.2 0 1 1 12 20.2zm4.5-6.1c-.2-.1-1.5-.7-1.7-.8-.2-.1-.4-.1-.6.1l-.8 1c-.1.2-.3.2-.5.1a6.7 6.7 0 0 1-3.3-2.9c-.2-.4.2-.4.7-1.3.1-.2 0-.3 0-.4l-.8-1.8c-.2-.5-.4-.4-.6-.4h-.5c-.2 0-.4.1-.6.3-.2.2-.8.8-.8 2s.8 2.3 1 2.5c.1.2 1.6 2.5 4 3.5 1.5.6 2 .7 2.8.6.5-.1 1.5-.6 1.7-1.2.2-.6.2-1.1.2-1.2-.1-.1-.2-.2-.4-.3z"/></svg></a>
+      </div>
+    </div>
+    <p class="copy">© <span id="ano"></span> <span data-campo="nome"></span> · CRC <span data-campo="crc"></span></p>
+  </div>
+</footer>
+
+<script>
+  /* ============================================================
+     EDITE AQUI os dados do seu escritório.
+     O que ficar vazio ('') aparece no site como [preencher].
+     ============================================================ */
+  const ESCRITORIO = {
+    nome: '',            // ex.: 'Borges Contabilidade'
+    slogan: 'Experiência. Compromisso. Valor.',
+    fundacao: '',        // ano, ex.: '2010'
+    anos: '',            // ex.: '15+'
+    empresas: '',        // ex.: '120'
+    cidade: '',          // ex.: 'Manaus'
+    endereco: '',        // ex.: 'Av. Exemplo, 100, Sala 2, Centro, Manaus/AM'
+    telefone: '',        // ex.: '(92) 99999-0000'
+    whatsapp: '',        // só números com DDI e DDD, ex.: '5592999990000'
+    email: '',           // ex.: 'contato@seuescritorio.com.br'
+    instagram: '',       // endereço completo do perfil
+    linkedin: '',        // endereço completo da página
+    crc: '',             // registro no CRC
+  };
+  // Clientes: só publique com autorização deles. Logo é opcional (arquivo de imagem nesta pasta).
+  const CLIENTES = [
+    // { nome: 'Empresa Exemplo', segmento: 'Indústria', logo: 'logo-exemplo.png' },
+  ];
+
+  // ---- daqui para baixo não precisa mexer ----
+  const pendente = (t) => `<span class="pendente">[${t}]</span>`;
+  document.querySelectorAll('[data-campo]').forEach((el) => {
+    const k = el.dataset.campo;
+    const v = ESCRITORIO[k];
+    if (v) el.textContent = v; else el.innerHTML = pendente(k === 'nome' ? 'nome do escritório' : 'preencher');
+  });
+  if (ESCRITORIO.nome) document.title = ESCRITORIO.nome + ' · Contabilidade';
+  const links = {
+    whatsapp: ESCRITORIO.whatsapp ? 'https://wa.me/' + ESCRITORIO.whatsapp.replace(/\D/g, '') : '',
+    email: ESCRITORIO.email ? 'mailto:' + ESCRITORIO.email : '',
+    instagram: ESCRITORIO.instagram,
+    linkedin: ESCRITORIO.linkedin,
+  };
+  document.querySelectorAll('[data-link]').forEach((el) => {
+    const u = links[el.dataset.link];
+    if (u) { el.href = u; if (el.dataset.link === 'whatsapp') { el.target = '_blank'; el.rel = 'noopener'; } }
+    else if (el.closest('.redes')) el.style.display = 'none';
+  });
+  document.getElementById('ano').textContent = new Date().getFullYear();
+  const box = document.getElementById('cartoes');
+  if (CLIENTES.length) {
+    box.innerHTML = CLIENTES.map((c) => `<div class="cartao">${c.logo ? `<img src="${c.logo}" alt="Logo ${c.nome}">` : ''}<b></b><span></span></div>`).join('');
+    box.querySelectorAll('.cartao').forEach((el, i) => { el.querySelector('b').textContent = CLIENTES[i].nome; el.querySelector('span').textContent = CLIENTES[i].segmento || ''; });
+  } else {
+    box.innerHTML = ['Indústria', 'Comércio', 'Serviços', 'Profissionais liberais'].map((s) => `<div class="cartao"><b>${s}</b><span>${pendente('cliente com autorização')}</span></div>`).join('');
+  }
+</script>
+</body>
+</html>
