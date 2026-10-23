@@ -43,3 +43,10 @@ Crie o arquivo `app\.env` (copie de `app\.env.example`) e coloque a sua chave da
 
 ## Skills para contadores no Claude Code
 As 57 skills (Lucro Presumido, Simples, folha, SPED, conciliações e outras) não vão para o GitHub: a licença proíbe redistribuir e este repositório é público. No seu computador, copie as pastas de `skills-contadores-main\skills\` para **`C:\ZARO\.claude\skills\`**. Depois, abra o Claude Code dentro de `C:\ZARO` (`cd C:\ZARO` e `claude`) e peça, por exemplo: "apure o Lucro Presumido do 2º trimestre da A B S".
+
+## 57 agentes de contabilidade no Claude Code
+São especialistas que o Claude Code chama sozinho quando o assunto bate (DAS, Lucro Presumido, folha, rescisão, conciliação, SPED, eSocial, cobrança de honorários e outros). Também não vão para o GitHub: o pacote não tem licença de redistribuição e este repositório é público.
+
+No seu computador, copie os arquivos `.md` de cada pasta de `57-Agentes-Contabilidade-main\MODELOS\` (menos os `COMO-INSTALAR.md`) para **`C:\ZARO\.claude\agents\`**. Abra o Claude Code dentro de `C:\ZARO` e confira com `/agents`. Para usar um específico: "use o agente apuracao-simples-nacional para apurar o DAS de 09/2026".
+
+A interface DigIAna (pasta `interface`, para Windows) é opcional: mostra os agentes em cartões e abre o Claude Code num terminal. Ela é instalada à parte, seguindo o README do pacote.

@@ -11,3 +11,7 @@ dist-artifact
 !.claude/skills/financial-conciliator/
 !.claude/skills/doc-intelligence/
 !.claude/skills/mei-irpf/
+
+# 57 agentes de contabilidade: instalados só na máquina (sem licença de redistribuição; o repositório é público)
+.claude/agents/*
+!.claude/agents/council-*.md
