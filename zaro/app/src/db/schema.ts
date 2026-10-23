@@ -283,6 +283,59 @@ export const funcionarios = pgTable('funcionarios', {
   criadoEm: criadoEm(),
 });
 
+/** Produtos e serviços que a empresa vende (cadastro usado no lançamento de vendas). */
+export const catalogo = pgTable(
+  'catalogo',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    tipo: text('tipo').notNull(), // 'produto' | 'servico'
+    nome: text('nome').notNull(),
+    unidade: text('unidade'),
+    ncm: text('ncm'), // produto: NCM; serviço: item da LC 116
+    categoria: text('categoria'),
+    preco: dinheiro('preco'),
+    custo: dinheiro('custo'),
+    descricao: text('descricao'),
+    ativo: boolean('ativo').notNull().default(true),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('catalogo_empresa').on(t.empresaId)],
+);
+
+export interface ItemVenda {
+  catalogoId: string | null;
+  tipo: 'produto' | 'servico';
+  nome: string;
+  qtd: number;
+  preco: number;
+  total: number;
+}
+
+/** Venda lançada no Comercial: gera os títulos a receber das parcelas. */
+export const vendas = pgTable(
+  'vendas',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    numero: integer('numero').notNull(),
+    data: date('data', { mode: 'string' }).notNull(),
+    parceiroId: uuid('parceiro_id').references(() => parceiros.id, { onDelete: 'set null' }),
+    cliente: text('cliente').notNull(),
+    docCliente: text('doc_cliente'),
+    itens: jsonb('itens').$type<ItemVenda[]>().notNull().default([]),
+    total: dinheiro('total').notNull(),
+    parcelas: integer('parcelas').notNull().default(1),
+    primeiroVenc: date('primeiro_venc', { mode: 'string' }).notNull(),
+    obs: text('obs'),
+    status: text('status').notNull().default('Lançada'),
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex('vendas_numero').on(t.empresaId, t.numero)],
+);
+
 export const dividasAtivas = pgTable('dividas_ativas', {
   id: id(),
   tenantId: tenant(),

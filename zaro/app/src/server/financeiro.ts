@@ -58,12 +58,17 @@ export async function cancelarTitulo(db: Db, u: Usuario, emp: Empresa, tituloId:
   await auditar(db, u, { empresaId: emp.id, acao: 'Cancelou título', entidade: `${t.codigo} · ${t.nome}`, antes: t.status, depois: 'Cancelado', justificativa: motivo });
 }
 
+/** Próximo código sequencial de título da empresa: CP-0001 (pagar) ou CR-0001 (receber). */
+export async function proximoCodigo(db: Db, empresaId: string, tipo: 'pagar' | 'receber') {
+  const prefixo = tipo === 'pagar' ? 'CP-' : 'CR-';
+  const [r] = await db.select({ max: sql<number>`coalesce(max(cast(substring(${schema.titulos.codigo} from 4) as integer)), 0)` }).from(schema.titulos)
+    .where(and(eq(schema.titulos.empresaId, empresaId), like(schema.titulos.codigo, `${prefixo}%`), sql`substring(${schema.titulos.codigo} from 4) ~ '^[0-9]+$'`));
+  return `${prefixo}${String(Number(r?.max || 0) + 1).padStart(4, '0')}`;
+}
+
 export async function novoTitulo(db: Db, u: Usuario, emp: Empresa, v: { tipo: 'pagar' | 'receber'; nome: string; descricao: string; categoria: string; venc: string; valor: number; competencia: string }) {
   if (!v.nome.trim() || !(v.valor > 0) || !v.venc) throw new Error('Informe parceiro, valor e vencimento.');
-  const prefixo = v.tipo === 'pagar' ? 'CP-' : 'CR-';
-  const [r] = await db.select({ max: sql<number>`coalesce(max(cast(substring(${schema.titulos.codigo} from 4) as integer)), 0)` }).from(schema.titulos)
-    .where(and(eq(schema.titulos.empresaId, emp.id), like(schema.titulos.codigo, `${prefixo}%`), sql`substring(${schema.titulos.codigo} from 4) ~ '^[0-9]+$'`));
-  const codigo = `${prefixo}${String(Number(r?.max || 0) + 1).padStart(4, '0')}`;
+  const codigo = await proximoCodigo(db, emp.id, v.tipo);
   await db.insert(schema.titulos).values({
     tenantId: u.tenantId, empresaId: emp.id, codigo, tipo: v.tipo, nome: v.nome.trim(), descricao: v.descricao || null, categoria: v.categoria || null,
     venc: v.venc, valor: arred(v.valor), status: v.tipo === 'pagar' ? 'A pagar' : 'A receber', competencia: v.competencia || v.venc.slice(0, 7), origem: 'manual',

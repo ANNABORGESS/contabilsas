@@ -3,12 +3,11 @@ import Link from 'next/link';
 import { getDb, schema } from '@/db';
 import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
-import { ehAberto, titulosDaEmpresa } from '@/server/consultas';
+import { ehAberto, FILTROS_TITULO, titulosFiltrados } from '@/server/consultas';
 import { baixar, cancelar, criar, estornar, revisar } from './acoes';
 import { corStatus } from '@/components/status';
 
 type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string };
-const FILTROS = [['abertos', 'Em aberto'], ['vencidos', 'Vencidos'], ['quitados', 'Pagos/recebidos'], ['retorno', 'Retorno'], ['cancelados', 'Cancelados'], ['todos', 'Todos']];
 
 export default async function Financeiro({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
@@ -73,19 +72,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
   }
 
   const tipo = aba;
-  const f = FILTROS.some(([k]) => k === sp.f) ? sp.f! : 'abertos';
-  const todos = await titulosDaEmpresa(db, emp.id, tipo);
-  const q = (sp.q || '').toLowerCase().trim();
-  const lista = todos.filter((t) => {
-    const ok =
-      f === 'todos' ? true
-        : f === 'abertos' ? ehAberto(t)
-          : f === 'vencidos' ? ehAberto(t) && !!t.venc && t.venc < hoje
-            : f === 'quitados' ? /pago|recebido|quitad/i.test(t.status)
-              : f === 'retorno' ? t.retorno
-                : /cancel/i.test(t.status);
-    return ok && (!q || `${t.codigo} ${t.nome} ${t.nf || ''} ${t.descricao || ''}`.toLowerCase().includes(q));
-  });
+  const { f, q, todos, lista } = await titulosFiltrados(db, emp.id, tipo, sp.f, sp.q, hoje);
   const ids = lista.slice(0, 300).map((t) => t.id);
   const bxs = ids.length ? await db.select().from(schema.baixas).where(and(inArray(schema.baixas.tituloId, ids))) : [];
   const porTit = new Map<string, typeof bxs>();
@@ -110,9 +97,11 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
       <div className="card" style={{ marginBottom: 16 }}>
         <form className="linha" action="/financeiro">
           <input type="hidden" name="tipo" value={tipo} />
-          <select name="f" defaultValue={f} style={{ width: 180 }}>{FILTROS.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
+          <select name="f" defaultValue={f} style={{ width: 180 }}>{FILTROS_TITULO.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
           <input name="q" defaultValue={sp.q} placeholder="Buscar por código, nome, NF" style={{ flex: 1, minWidth: 200 }} />
           <button className="btn" type="submit">Filtrar</button>
+          <a className="btn" href={`/financeiro/exportar?tipo=${tipo}&f=${f}${q ? `&q=${encodeURIComponent(q)}` : ''}`} title="Baixar a lista filtrada em planilha">Excel</a>
+          <a className="btn" href={`/financeiro/relatorio?tipo=${tipo}&f=${f}${q ? `&q=${encodeURIComponent(q)}` : ''}`} target="_blank" rel="noopener" title="Abrir relatório para imprimir ou salvar em PDF">PDF</a>
         </form>
         {edita && (
           <details style={{ marginTop: 12 }}>

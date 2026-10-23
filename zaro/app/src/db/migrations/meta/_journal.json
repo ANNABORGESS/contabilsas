@@ -15,6 +15,13 @@
       "when": 1792694998670,
       "tag": "0001_arquivos_no_banco",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1792778293549,
+      "tag": "0002_catalogo_e_vendas",
+      "breakpoints": true
     }
   ]
 }

@@ -72,3 +72,23 @@ export async function buscar(db: Db, empresaId: string, termo: string) {
   ]);
   return { titulos, parceiros };
 }
+
+export const FILTROS_TITULO = [['abertos', 'Em aberto'], ['vencidos', 'Vencidos'], ['quitados', 'Pagos/recebidos'], ['retorno', 'Retorno'], ['cancelados', 'Cancelados'], ['todos', 'Todos']] as const;
+
+/** Lista do Financeiro com o filtro e a busca da tela (a mesma usada na exportação em Excel e PDF). */
+export async function titulosFiltrados(db: Db, empresaId: string, tipo: 'pagar' | 'receber', filtro: string | undefined, busca: string | undefined, hoje: string) {
+  const f = FILTROS_TITULO.some(([k]) => k === filtro) ? filtro! : 'abertos';
+  const q = (busca || '').toLowerCase().trim();
+  const todos = await titulosDaEmpresa(db, empresaId, tipo);
+  const lista = todos.filter((t) => {
+    const ok =
+      f === 'todos' ? true
+        : f === 'abertos' ? ehAberto(t)
+          : f === 'vencidos' ? ehAberto(t) && !!t.venc && t.venc < hoje
+            : f === 'quitados' ? /pago|recebido|quitad/i.test(t.status)
+              : f === 'retorno' ? t.retorno
+                : /cancel/i.test(t.status);
+    return ok && (!q || `${t.codigo} ${t.nome} ${t.nf || ''} ${t.descricao || ''}`.toLowerCase().includes(q));
+  });
+  return { f, q: (busca || '').trim(), todos, lista, nomeFiltro: FILTROS_TITULO.find(([k]) => k === f)![1] };
+}

@@ -324,8 +324,13 @@ kbd { font: inherit; font-size: 11px; font-weight: 700; color: var(--texto-3); b
   .conteudo { padding: 16px; }
   .g2, .g3, .g4 { grid-template-columns: 1fr; }
 }
+@page relatorio { size: A4 landscape; margin: 10mm; }
+.relatorio { page: relatorio; }
 @media print {
   .lateral, .topo, .textura, .nao-imprimir { display: none !important; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+  .relatorio table { font-size: 11px; }
+  .card:hover { transform: none; }
   .app { display: block; }
   body { background: #fff; }
   .card { box-shadow: none; border: 0; }
