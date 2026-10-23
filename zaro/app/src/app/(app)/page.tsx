@@ -6,11 +6,26 @@ import { STATUS_NO_LIVRO } from '@/domain/motor';
 import { regimeEm } from '@/domain/regime';
 import { exigirEmpresa, exigirUsuario } from '@/server/auth';
 import { lancamentosDaEmpresa } from '@/server/contabil';
+import { AtalhoBusca } from '@/components/Topo';
 import { auditoriaRecente, resumoFinanceiro } from '@/server/consultas';
 
 function saudacao() {
   const h = Number(new Intl.DateTimeFormat('pt-BR', { hour: 'numeric', hour12: false, timeZone: 'America/Manaus' }).format(new Date()));
   return h < 12 ? 'Bom dia.' : h < 18 ? 'Boa tarde.' : 'Boa noite.';
+}
+
+/** Anel de progresso do fechamento, como no protótipo. */
+function Anel({ pct }: { pct: number }) {
+  const r = 56, c = 2 * Math.PI * r;
+  return (
+    <div className="anel" role="img" aria-label={`Fechamento ${pct}%`}>
+      <svg width="136" height="136" viewBox="0 0 136 136">
+        <circle cx="68" cy="68" r={r} fill="none" stroke="#ebe5df" strokeWidth="11" />
+        {pct > 0 && <circle cx="68" cy="68" r={r} fill="none" stroke="#8fbf9f" strokeWidth="11" strokeLinecap="round" strokeDasharray={`${(c * pct) / 100} ${c}`} transform="rotate(-90 68 68)" className="anel-arco" />}
+      </svg>
+      <div className="anel-txt"><b>{pct}%</b><span>Fechamento</span></div>
+    </div>
+  );
 }
 
 export default async function Dashboard() {
@@ -46,29 +61,24 @@ export default async function Dashboard() {
           <h1>{saudacao()}</h1>
           <p>Aqui está o que exige sua atenção hoje · {emp.fantasia || emp.razao} · {regimeEm(emp, hoje) || 'regime não informado'}</p>
         </div>
+        <AtalhoBusca />
       </div>
 
-      <div className="grade g4">
-        <div className="card kpi">
-          <div className="rotulo">Fechamento {comp.split('-').reverse().join('/')}</div>
-          <div className="v">{pctFech}%</div>
-          <div className="s">{fechados} de {doMes.length} lançamentos aprovados</div>
+      <div className="card fechamento">
+        <Anel pct={pctFech} />
+        <div>
+          <div className="mudo">Fechamento contábil</div>
+          <div className="competencia">{comp.split('-').reverse().join('/')}</div>
+          <div className="mudo pequeno">{fechados} de {doMes.length} lançamentos da competência aprovados</div>
+          <Link href="/contabilidade" className="btn mini" style={{ marginTop: 12 }}>Ver fechamento</Link>
         </div>
-        <div className="card kpi">
-          <div className="rotulo">Vencidos</div>
-          <div className="v neg">{fin.pagarVencido.n}</div>
-          <div className="s">títulos a pagar</div>
-        </div>
-        <div className="card kpi">
-          <div className="rotulo">A aprovar</div>
-          <div className="v">{aAprovar}</div>
-          <div className="s">lançamentos contábeis</div>
-        </div>
-        <div className="card kpi">
-          <div className="rotulo">Autopilot</div>
-          <div className="v">{novos}</div>
-          <div className="s">documentos aguardando</div>
-        </div>
+      </div>
+
+      <div className="card faixa">
+        <Link href="/financeiro?tipo=pagar&f=vencidos" className="kpi"><div className="rotulo">Vencidos</div><div className="v neg">{fin.pagarVencido.n}</div><div className="s">títulos a pagar</div></Link>
+        <Link href="/contabilidade" className="kpi"><div className="rotulo">A aprovar</div><div className="v">{aAprovar}</div><div className="s">lançamentos contábeis</div></Link>
+        <Link href="/autopilot" className="kpi"><div className="rotulo">Autopilot</div><div className="v">{novos}</div><div className="s">documentos aguardando</div></Link>
+        <Link href="/financeiro?tipo=receber&f=vencidos" className="kpi"><div className="rotulo">A receber vencido</div><div className="v at">{fin.receberVencido.n}</div><div className="s">{brl(fin.receberVencido.total)}</div></Link>
       </div>
 
       <div className="card" style={{ marginTop: 16 }}>

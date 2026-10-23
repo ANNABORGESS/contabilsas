@@ -50,3 +50,25 @@ export async function auditoriaRecente(db: Db, tenantId: string, empresaId: stri
 }
 
 export const ehAberto = (t: Pick<Titulo, 'status' | 'retorno'>) => !t.retorno && !/cancel|pago|recebido|quitad/i.test(t.status);
+
+/** Contagem para o sino do topo: títulos a pagar vencidos e documentos novos no Autopilot. */
+export async function alertasDaEmpresa(db: Db, empresaId: string, hoje: string) {
+  const [[v], [d]] = await Promise.all([
+    db.select({ n: sql<number>`count(*)::int` }).from(schema.titulos).where(and(eq(schema.titulos.empresaId, empresaId), eq(schema.titulos.tipo, 'pagar'), ABERTO, sql`${schema.titulos.venc} < ${hoje}`)),
+    db.select({ n: sql<number>`count(*)::int` }).from(schema.documentosEntrada).where(and(eq(schema.documentosEntrada.empresaId, empresaId), eq(schema.documentosEntrada.status, 'Novo'))),
+  ]);
+  return { vencidos: Number(v.n), documentos: Number(d.n) };
+}
+
+/** Busca do topo: títulos (código, nome, NF, descrição, pedido) e clientes/fornecedores (nome, CNPJ). */
+export async function buscar(db: Db, empresaId: string, termo: string) {
+  const t = termo.trim();
+  if (t.length < 2) return { titulos: [] as Titulo[], parceiros: [] as (typeof schema.parceiros.$inferSelect)[] };
+  const like = `%${t.replace(/[%_\\]/g, (c) => '\\' + c)}%`;
+  const dig = t.replace(/\D/g, '');
+  const [titulos, parceiros] = await Promise.all([
+    db.select().from(schema.titulos).where(and(eq(schema.titulos.empresaId, empresaId), sql`(${schema.titulos.codigo} ilike ${like} or ${schema.titulos.nome} ilike ${like} or ${schema.titulos.nf} ilike ${like} or ${schema.titulos.descricao} ilike ${like} or ${schema.titulos.dados}->>'pedido' ilike ${like})`)).orderBy(sql`${schema.titulos.venc} desc nulls last`).limit(40),
+    db.select().from(schema.parceiros).where(and(eq(schema.parceiros.empresaId, empresaId), dig.length >= 4 ? sql`(${schema.parceiros.razao} ilike ${like} or ${schema.parceiros.doc} like ${'%' + dig + '%'})` : sql`${schema.parceiros.razao} ilike ${like}`)).limit(20),
+  ]);
+  return { titulos, parceiros };
+}

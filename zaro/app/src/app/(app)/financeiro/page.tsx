@@ -5,18 +5,10 @@ import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import { ehAberto, titulosDaEmpresa } from '@/server/consultas';
 import { baixar, cancelar, criar, estornar, revisar } from './acoes';
+import { corStatus } from '@/components/status';
 
 type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string };
 const FILTROS = [['abertos', 'Em aberto'], ['vencidos', 'Vencidos'], ['quitados', 'Pagos/recebidos'], ['retorno', 'Retorno'], ['cancelados', 'Cancelados'], ['todos', 'Todos']];
-
-function corStatus(s: string, venc: string | null, hoje: string) {
-  if (/cancel/i.test(s)) return '';
-  if (/pago|recebido|quitad/i.test(s)) return 'pos';
-  if (/retorno/i.test(s)) return 'acento';
-  if (venc && venc < hoje) return 'neg';
-  if (/parcial|revis/i.test(s)) return 'at';
-  return 'acento';
-}
 
 export default async function Financeiro({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();

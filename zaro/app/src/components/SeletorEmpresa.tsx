@@ -5,7 +5,7 @@ export function SeletorEmpresa({ empresas, ativa, acao }: { empresas: { id: stri
   const form = useRef<HTMLFormElement>(null);
   if (!empresas.length) return <span className="mudo">Nenhuma empresa cadastrada</span>;
   return (
-    <form ref={form} action={acao} style={{ minWidth: 260 }}>
+    <form ref={form} action={acao} className="seletor">
       <label htmlFor="empresa" className="rotulo">Empresa</label>
       <select id="empresa" name="empresa" defaultValue={ativa} onChange={() => form.current?.requestSubmit()}>
         {empresas.map((e) => <option key={e.id} value={e.id}>{e.nome}</option>)}
