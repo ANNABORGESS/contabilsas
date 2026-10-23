@@ -25,6 +25,8 @@ async function conectar(): Promise<Db> {
     await migrate(db, { migrationsFolder: MIGRACOES });
     return db as unknown as Db;
   }
+  // na Vercel o disco é só leitura: sem DATABASE_URL não há onde guardar os dados
+  if (process.env.VERCEL) throw new Error('Falta a variável DATABASE_URL nas configurações da Vercel.');
   const { PGlite } = await import('@electric-sql/pglite');
   const { drizzle } = await import('drizzle-orm/pglite');
   const { migrate } = await import('drizzle-orm/pglite/migrator');

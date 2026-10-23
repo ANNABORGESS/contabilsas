@@ -12,6 +12,6 @@ export async function GET() {
   } catch (e) {
     // mostra só o tipo do erro, nunca a URL ou a senha do banco
     const err = e as { code?: string; message?: string };
-    return Response.json({ ok: false, erro: err.code || String(err.message || 'erro').slice(0, 80).replace(/postgres(ql)?:\/\/\S+/g, '[url]') }, { status: 503 });
+    return Response.json({ ok: false, erro: err.code || String(err.message || 'erro').slice(0, 120).replace(/postgres(ql)?:\/\/\S+/g, '[url]') }, { status: 503 });
   }
 }
