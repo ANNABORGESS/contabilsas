@@ -32,6 +32,13 @@ Crie o arquivo `app\.env` (copie de `app\.env.example`) e coloque a sua chave da
 - **Comercial, Estoque, Custos, Pessoal e Documentos**: consultas a partir dos dados lançados.
 - **Auditoria** de todas as ações.
 
+## Novidades
+- **Especialistas** (menu): envie os zips de skills e agentes (skills-contadores, 57-Agentes, contabilidade) pela própria tela. Eles ficam só no banco do seu escritório. Escolha um especialista e pergunte; ele responde com os números da empresa ativa. Precisa da chave ANTHROPIC_API_KEY (na Vercel ou no `.env`).
+- **Comercial → Vendas**: lance a venda e as parcelas viram títulos no Contas a Receber. **Produtos e Estoque** tem o cadastro de produtos e serviços.
+- **Financeiro**: botões **Excel** e **PDF** baixam a lista filtrada.
+- **Fiscal → NF da SEFAZ**: importe a planilha do portal da SEFAZ-AM, confirme o recebimento (com pedido) e marque o lançamento. Mostra o que está fora da ZARO.
+- **Lucro Presumido 2026**: a estimativa aplica a majoração da LC 224/2025 sobre a receita acima de R$ 5 milhões no ano.
+
 ## Ainda falta
 - Leitura de PDF (DANFE, guias, extratos) e importação de OFX pelo próprio sistema.
 - Cálculo da folha, orçamentos e pedidos, emissão de NF-e e CT-e.

@@ -371,6 +371,39 @@ export const consultasEspecialista = pgTable(
   (t) => [index('consultas_especialista_emp').on(t.empresaId, t.especialistaId)],
 );
 
+/** Lista de NF do portal da SEFAZ-AM, com o controle de recebimento e de lançamento. */
+export const notasSefaz = pgTable(
+  'notas_sefaz',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    chave: text('chave').notNull(),
+    uf: text('uf'),
+    numero: text('numero'),
+    serie: text('serie'),
+    emissao: date('emissao', { mode: 'string' }),
+    cnpjEmit: text('cnpj_emit'),
+    ieEmit: text('ie_emit'),
+    razaoEmit: text('razao_emit'),
+    cnpjDest: text('cnpj_dest'),
+    ieDest: text('ie_dest'),
+    razaoDest: text('razao_dest'),
+    cfop: text('cfop'),
+    selagem: text('selagem'),
+    situacao: text('situacao'),
+    tipo: text('tipo'),
+    valor: dinheiro('valor').notNull().default(0),
+    pedido: text('pedido'),
+    recebidoEm: timestamp('recebido_em', { withTimezone: true }),
+    recebidoPor: text('recebido_por'),
+    lancadoEm: timestamp('lancado_em', { withTimezone: true }),
+    lancadoPor: text('lancado_por'),
+    importadoEm: timestamp('importado_em', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('notas_sefaz_chave').on(t.empresaId, t.chave), index('notas_sefaz_pedido').on(t.empresaId, t.pedido)],
+);
+
 export const dividasAtivas = pgTable('dividas_ativas', {
   id: id(),
   tenantId: tenant(),
