@@ -2,22 +2,23 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 
-const ITENS: ([string, string] | null)[] = [
-  ['/', 'Dashboard'],
-  ['/autopilot', 'ZARO Autopilot'],
-  ['/empresas', 'Empresas e Filiais'],
-  ['/pessoal', 'Departamento Pessoal'],
-  ['/financeiro', 'Financeiro'],
-  ['/comercial', 'Comercial'],
-  ['/estoque', 'Produtos e Estoque'],
-  ['/custos', 'Custos e Preços'],
-  ['/contabilidade', 'Contabilidade'],
-  ['/fiscal', 'Fiscal e Tributário'],
-  ['/conselho', 'Conselho ZARO'],
-  ['/documentos', 'Documentos'],
+// cada área tem a sua cor pastel (as cores ficam em globals.css, em [data-cor])
+const ITENS: ([string, string, string] | null)[] = [
+  ['/', 'Dashboard', 'lavanda'],
+  ['/autopilot', 'ZARO Autopilot', 'lilas'],
+  ['/empresas', 'Empresas e Filiais', 'ceu'],
+  ['/pessoal', 'Departamento Pessoal', 'pessego'],
+  ['/financeiro', 'Financeiro', 'menta'],
+  ['/comercial', 'Comercial', 'rosa'],
+  ['/estoque', 'Produtos e Estoque', 'areia'],
+  ['/custos', 'Custos e Preços', 'coral'],
+  ['/contabilidade', 'Contabilidade', 'agua'],
+  ['/fiscal', 'Fiscal e Tributário', 'limao'],
+  ['/conselho', 'Conselho ZARO', 'lilas'],
+  ['/documentos', 'Documentos', 'ceu'],
   null,
-  ['/configuracoes', 'Configurações'],
-  ['/auditoria', 'Auditoria'],
+  ['/configuracoes', 'Configurações', 'neutro'],
+  ['/auditoria', 'Auditoria', 'neutro'],
 ];
 
 export function Menu() {
@@ -26,7 +27,8 @@ export function Menu() {
     <nav className="menu">
       {ITENS.map((i, k) =>
         i ? (
-          <Link key={i[0]} href={i[0]} className={(i[0] === '/' ? p === '/' : p.startsWith(i[0])) ? 'ativo' : ''}>
+          <Link key={i[0]} href={i[0]} data-cor={i[2]} className={(i[0] === '/' ? p === '/' : p.startsWith(i[0])) ? 'ativo' : ''}>
+            <span className="ponto" aria-hidden="true" />
             {i[1]}
           </Link>
         ) : (

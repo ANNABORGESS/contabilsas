@@ -1,7 +1,7 @@
 /* Tokens do ZARO (README de passagem, seção Design tokens) */
 :root {
-  --bg: #f6f1ec;
-  --card: #fcfaf8;
+  --bg: #f7f3f0;
+  --card: #fffdfb;
   --campo: #fffdfb;
   --texto: #34302d;
   --texto-2: #5c5651;
@@ -27,12 +27,34 @@
   --raio-card: 20px;
   --raio-campo: 12px;
   --sombra: 0 8px 20px rgba(60, 50, 45, 0.04);
+  --sombra-alta: 0 14px 30px rgba(60, 50, 45, 0.09);
+
+  /* tons pastéis: fundo suave, cor de destaque e tinta para texto */
+  --lavanda: #e4dcf7; --lavanda-f: #a48fd6; --lavanda-t: #5a4790;
+  --lilas: #f1d9f0; --lilas-f: #c98bc6; --lilas-t: #7b3f78;
+  --ceu: #d7e8f8; --ceu-f: #7fb0de; --ceu-t: #2f5f8c;
+  --pessego: #fde0cc; --pessego-f: #eda57a; --pessego-t: #8a4a22;
+  --menta: #d3efe0; --menta-f: #78c39c; --menta-t: #2c6b49;
+  --rosa: #fbdbe4; --rosa-f: #e992ab; --rosa-t: #8c3a54;
+  --areia: #f6ead2; --areia-f: #d7b46f; --areia-t: #775a1f;
+  --coral: #fbd9d3; --coral-f: #ea9585; --coral-t: #8d3d30;
+  --agua: #d2eeee; --agua-f: #6cc0c0; --agua-t: #22696a;
+  --limao: #eef3cb; --limao-f: #bfcd63; --limao-t: #5d6a14;
+  --neutro: #ece6e1; --neutro-f: #b3a9a0; --neutro-t: #5c5651;
+
+  /* cor da área aberta (troca conforme o item ativo do menu) */
+  --tema: var(--lavanda); --tema-f: var(--lavanda-f); --tema-t: var(--lavanda-t);
 }
 
 * { box-sizing: border-box; }
 html, body { margin: 0; padding: 0; }
 body {
-  background: var(--bg);
+  background:
+    radial-gradient(900px 500px at 100% -10%, rgba(228, 220, 247, 0.55), transparent 60%),
+    radial-gradient(700px 420px at -10% 110%, rgba(211, 239, 224, 0.5), transparent 60%),
+    radial-gradient(600px 380px at 60% 120%, rgba(253, 224, 204, 0.45), transparent 60%),
+    var(--bg);
+  background-attachment: fixed;
   color: var(--texto);
   font-family: var(--font-manrope), system-ui, sans-serif;
   font-size: 14px;
@@ -129,6 +151,114 @@ details summary { cursor: pointer; font-weight: 600; }
 /* telas de acesso */
 .acesso { min-height: 100vh; display: grid; place-items: center; padding: 16px; }
 .acesso .card { width: 100%; max-width: 420px; }
+
+
+/* ---------- cores por área e movimento ---------- */
+[data-cor='lavanda'] { --c: var(--lavanda); --c-f: var(--lavanda-f); --c-t: var(--lavanda-t); }
+[data-cor='lilas'] { --c: var(--lilas); --c-f: var(--lilas-f); --c-t: var(--lilas-t); }
+[data-cor='ceu'] { --c: var(--ceu); --c-f: var(--ceu-f); --c-t: var(--ceu-t); }
+[data-cor='pessego'] { --c: var(--pessego); --c-f: var(--pessego-f); --c-t: var(--pessego-t); }
+[data-cor='menta'] { --c: var(--menta); --c-f: var(--menta-f); --c-t: var(--menta-t); }
+[data-cor='rosa'] { --c: var(--rosa); --c-f: var(--rosa-f); --c-t: var(--rosa-t); }
+[data-cor='areia'] { --c: var(--areia); --c-f: var(--areia-f); --c-t: var(--areia-t); }
+[data-cor='coral'] { --c: var(--coral); --c-f: var(--coral-f); --c-t: var(--coral-t); }
+[data-cor='agua'] { --c: var(--agua); --c-f: var(--agua-f); --c-t: var(--agua-t); }
+[data-cor='limao'] { --c: var(--limao); --c-f: var(--limao-f); --c-t: var(--limao-t); }
+[data-cor='neutro'] { --c: var(--neutro); --c-f: var(--neutro-f); --c-t: var(--neutro-t); }
+
+/* a tela inteira assume a cor do item ativo do menu */
+.app:has(.menu a.ativo[data-cor='lavanda']) { --tema: var(--lavanda); --tema-f: var(--lavanda-f); --tema-t: var(--lavanda-t); }
+.app:has(.menu a.ativo[data-cor='lilas']) { --tema: var(--lilas); --tema-f: var(--lilas-f); --tema-t: var(--lilas-t); }
+.app:has(.menu a.ativo[data-cor='ceu']) { --tema: var(--ceu); --tema-f: var(--ceu-f); --tema-t: var(--ceu-t); }
+.app:has(.menu a.ativo[data-cor='pessego']) { --tema: var(--pessego); --tema-f: var(--pessego-f); --tema-t: var(--pessego-t); }
+.app:has(.menu a.ativo[data-cor='menta']) { --tema: var(--menta); --tema-f: var(--menta-f); --tema-t: var(--menta-t); }
+.app:has(.menu a.ativo[data-cor='rosa']) { --tema: var(--rosa); --tema-f: var(--rosa-f); --tema-t: var(--rosa-t); }
+.app:has(.menu a.ativo[data-cor='areia']) { --tema: var(--areia); --tema-f: var(--areia-f); --tema-t: var(--areia-t); }
+.app:has(.menu a.ativo[data-cor='coral']) { --tema: var(--coral); --tema-f: var(--coral-f); --tema-t: var(--coral-t); }
+.app:has(.menu a.ativo[data-cor='agua']) { --tema: var(--agua); --tema-f: var(--agua-f); --tema-t: var(--agua-t); }
+.app:has(.menu a.ativo[data-cor='limao']) { --tema: var(--limao); --tema-f: var(--limao-f); --tema-t: var(--limao-t); }
+.app:has(.menu a.ativo[data-cor='neutro']) { --tema: var(--neutro); --tema-f: var(--neutro-f); --tema-t: var(--neutro-t); }
+
+/* marca com degradê pastel */
+.marca b {
+  background: linear-gradient(90deg, var(--lavanda-f), var(--rosa-f), var(--pessego-f), var(--menta-f));
+  -webkit-background-clip: text; background-clip: text; color: transparent;
+}
+.lateral { background: rgba(255, 253, 251, 0.55); backdrop-filter: blur(8px); }
+
+/* menu: bolinha colorida, item ativo pintado com a cor da área */
+.menu a { transition: background 0.18s, transform 0.18s, color 0.18s; }
+.menu a .ponto { width: 10px; height: 10px; border-radius: 50%; background: var(--c-f); flex: none; box-shadow: 0 0 0 3px var(--c); transition: transform 0.2s; }
+.menu a:hover { background: var(--c); color: var(--c-t); transform: translateX(3px); }
+.menu a:hover .ponto { transform: scale(1.25); }
+.menu a.ativo { background: var(--c); color: var(--c-t); border-color: transparent; font-weight: 600; }
+
+/* título da tela com sublinhado na cor da área */
+.cabeca h1, .conteudo > h1 { position: relative; padding-bottom: 6px; }
+.cabeca h1::after, .conteudo > h1::after {
+  content: ''; position: absolute; left: 0; bottom: 0; width: 56px; height: 4px; border-radius: 4px;
+  background: linear-gradient(90deg, var(--tema-f), var(--tema));
+}
+
+/* cartões: sobem de leve ao passar o mouse */
+.card { transition: transform 0.2s ease, box-shadow 0.2s ease; }
+.card:hover { transform: translateY(-2px); box-shadow: var(--sombra-alta); }
+
+/* cartões de números (KPI) coloridos, cada um de um tom */
+.card.kpi { position: relative; overflow: hidden; border: 0; }
+.grade > .card.kpi:nth-child(5n + 1) { background: linear-gradient(160deg, var(--lavanda), #fffdfb 85%); }
+.grade > .card.kpi:nth-child(5n + 2) { background: linear-gradient(160deg, var(--menta), #fffdfb 85%); }
+.grade > .card.kpi:nth-child(5n + 3) { background: linear-gradient(160deg, var(--pessego), #fffdfb 85%); }
+.grade > .card.kpi:nth-child(5n + 4) { background: linear-gradient(160deg, var(--ceu), #fffdfb 85%); }
+.grade > .card.kpi:nth-child(5n + 5) { background: linear-gradient(160deg, var(--rosa), #fffdfb 85%); }
+.card.kpi::before { content: ''; position: absolute; right: -28px; top: -28px; width: 90px; height: 90px; border-radius: 50%; background: rgba(255, 255, 255, 0.45); }
+
+/* abas, botões e campos na cor da área */
+.abas a { transition: background 0.18s, color 0.18s; }
+.abas a:hover { background: var(--tema); color: var(--tema-t); text-decoration: none; }
+.abas a.ativo { background: var(--tema); color: var(--tema-t); border-color: transparent; }
+.btn { transition: background 0.18s, transform 0.12s, box-shadow 0.18s; }
+.btn:hover { background: var(--tema); border-color: transparent; color: var(--tema-t); }
+.btn:active { transform: scale(0.97); }
+.btn.primario { background: var(--tema-t); border-color: var(--tema-t); color: #fff; }
+.btn.primario:hover { background: var(--tema-t); color: #fff; box-shadow: 0 6px 16px rgba(60, 50, 45, 0.18); filter: brightness(1.08); }
+input:focus, select:focus, textarea:focus { border-color: var(--tema-f); box-shadow: 0 0 0 3px var(--tema); }
+
+/* tabelas: linha ganha cor ao passar o mouse */
+tbody tr { transition: background 0.15s; }
+tbody tr:hover td { background: color-mix(in srgb, var(--tema) 45%, transparent); }
+th { color: var(--tema-t); opacity: 0.8; }
+
+/* etiquetas mais vivas */
+.tag { background: var(--neutro); }
+.tag.pos { background: var(--menta); color: var(--menta-t); }
+.tag.neg { background: var(--rosa); color: var(--rosa-t); }
+.tag.at { background: var(--areia); color: var(--areia-t); }
+.tag.acento { background: var(--ceu); color: var(--ceu-t); }
+.tag.ia { background: var(--lilas); color: var(--lilas-t); }
+.aviso { background: var(--ceu); color: var(--ceu-t); }
+.aviso.ok { background: var(--menta); color: var(--menta-t); }
+.aviso.erro { background: var(--rosa); color: var(--rosa-t); }
+
+/* telas entram deslizando */
+@keyframes surgir { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+.conteudo > :not(.topo) { animation: surgir 0.45s ease both; }
+.conteudo > :nth-child(3) { animation-delay: 0.05s; }
+.conteudo > :nth-child(4) { animation-delay: 0.1s; }
+.conteudo > :nth-child(n + 5) { animation-delay: 0.15s; }
+.grade > .card { animation: surgir 0.5s ease both; }
+.grade > .card:nth-child(2) { animation-delay: 0.06s; }
+.grade > .card:nth-child(3) { animation-delay: 0.12s; }
+.grade > .card:nth-child(n + 4) { animation-delay: 0.18s; }
+
+/* telas de entrar e primeiro acesso */
+.acesso .card { animation: surgir 0.5s ease both; position: relative; overflow: hidden; }
+.acesso .card::before { content: ''; position: absolute; inset: 0 0 auto; height: 5px; background: linear-gradient(90deg, var(--lavanda-f), var(--rosa-f), var(--pessego-f), var(--menta-f)); }
+.acesso .btn.primario { background: var(--lavanda-t); border-color: var(--lavanda-t); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
 
 @media (max-width: 900px) {
   .app { grid-template-columns: 1fr; }
