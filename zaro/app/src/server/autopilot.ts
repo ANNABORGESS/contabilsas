@@ -10,6 +10,7 @@ import { direcaoDaNota, ehRetorno, titulosDaNota, type Direcao, type TituloGerad
 import { guardarArquivo } from './arquivos';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
+import { unzipSync } from 'fflate';
 
 export interface ArquivoRecebido {
   nome: string;
@@ -32,8 +33,28 @@ export interface ResultadoEntrada {
   mensagem: string;
 }
 
-export async function receberArquivos(db: Db, u: Usuario, emp: Empresa, arquivos: ArquivoRecebido[], canal = 'Upload'): Promise<ResultadoEntrada[]> {
+const MIME: Record<string, string> = { xml: 'application/xml', pdf: 'application/pdf', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg' };
+
+/** Abre os .zip e devolve os XML, PDF e imagens de dentro (ignora pastas do macOS e outros tipos). */
+export function abrirZips(arquivos: ArquivoRecebido[]): ArquivoRecebido[] {
+  return arquivos.flatMap((a) => {
+    if (!/\.zip$/i.test(a.nome)) return [a];
+    const dentro = unzipSync(new Uint8Array(a.conteudo), { filter: (f) => !/(^|\/)__MACOSX\//.test(f.name) && /\.(xml|pdf|png|jpe?g)$/i.test(f.name) && f.originalSize < 20 * 1024 * 1024 });
+    return Object.entries(dentro).slice(0, 500).map(([caminho, b]) => {
+      const nome = caminho.split('/').pop() || caminho;
+      return { nome, mime: MIME[nome.split('.').pop()!.toLowerCase()] || 'application/octet-stream', conteudo: Buffer.from(b) };
+    });
+  });
+}
+
+export async function receberArquivos(db: Db, u: Usuario, emp: Empresa, recebidos: ArquivoRecebido[], canal = 'Upload'): Promise<ResultadoEntrada[]> {
   const out: ResultadoEntrada[] = [];
+  let arquivos: ArquivoRecebido[];
+  try {
+    arquivos = abrirZips(recebidos);
+  } catch {
+    return [{ nome: recebidos.map((a) => a.nome).join(', '), status: 'Erro', mensagem: 'Não consegui abrir o .zip (arquivo corrompido ou protegido por senha).' }];
+  }
   for (const a of arquivos) {
     try {
       out.push(await receberUm(db, u, emp, a, canal));

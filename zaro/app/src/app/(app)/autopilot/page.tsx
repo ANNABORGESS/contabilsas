@@ -31,8 +31,8 @@ export default async function Autopilot({ searchParams }: { searchParams: Promis
       {edita && (
         <form action={enviarArquivos} className="card linha" style={{ marginBottom: 16 }}>
           <div style={{ flex: 1, minWidth: 240 }}>
-            <label htmlFor="arquivos">Arquivos (XML, PDF) de {emp.fantasia || emp.razao}</label>
-            <input id="arquivos" name="arquivos" type="file" multiple accept=".xml,.pdf,.png,.jpg,.jpeg" required />
+            <label htmlFor="arquivos">Arquivos (XML, ZIP com XMLs, PDF) de {emp.fantasia || emp.razao}</label>
+            <input id="arquivos" name="arquivos" type="file" multiple accept=".xml,.zip,.pdf,.png,.jpg,.jpeg" required />
           </div>
           <button className="btn primario" type="submit" style={{ alignSelf: 'flex-end' }}>Enviar</button>
         </form>
