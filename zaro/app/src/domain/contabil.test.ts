@@ -108,6 +108,36 @@ describe('Lucro Presumido (estimativa)', () => {
     expect(t.cofins).toBe(2460);
     expect(t.irpj).toBe(1000);
   });
+  it('LC 224: antes de 2026 e abaixo de R$ 1,25 mi por trimestre não há acréscimo', async () => {
+    const { acrescimosLC224 } = await import('./presumido');
+    const q = [0, 1, 2, 3].map(() => ({ produtos: 100_000, servicos: 0 }));
+    expect(acrescimosLC224(2025, q.map(() => ({ produtos: 9e6, servicos: 0 }))).every((x) => !x.irpj && !x.csll)).toBe(true);
+    expect(acrescimosLC224(2026, q).every((x) => !x.irpj && !x.csll)).toBe(true);
+  });
+  it('LC 224: majora o excedente; CSLL só a partir do 2º tri de 2026; ajuste anual no 4º', async () => {
+    const { acrescimosLC224, tributosPresumido } = await import('./presumido');
+    const r = acrescimosLC224(2026, [0, 1, 2, 3].map(() => ({ produtos: 2_000_000, servicos: 0 })));
+    // 750 mil acima do limite em cada trimestre × 0,8% (10% de 8%)
+    expect(r.map((x) => x.irpj)).toEqual([6000, 6000, 6000, 6000]);
+    // CSLL: 0 no 1º; 750 mil × 1,2% no 2º e 3º; no 4º, ano (2º a 4º) 6 mi − 3,75 mi = 2,25 mi × 1,2% − 18 mil já majorados
+    expect(r.map((x) => x.csll)).toEqual([0, 9000, 9000, 9000]);
+    const t = tributosPresumido({ produtos: 2_000_000, servicos: 0, acrescimoIrpj: r[1].irpj, acrescimoCsll: r[1].csll });
+    expect(t.baseIrpj).toBe(166000);
+    expect(t.baseCsll).toBe(249000);
+  });
+  it('LC 224: a sobra do limite passa para o trimestre seguinte e serviço majora 32% → 35,2%', async () => {
+    const { acrescimosLC224 } = await import('./presumido');
+    const r = acrescimosLC224(2027, [
+      { produtos: 0, servicos: 1_000_000 }, // sobra 250 mil
+      { produtos: 0, servicos: 2_000_000 }, // limite 1,5 mi → excedente 500 mil
+      { produtos: 0, servicos: 1_000_000 }, // limite 1,25 mi
+      { produtos: 0, servicos: 1_000_000 },
+    ]);
+    expect(r[1]).toEqual({ irpj: 16000, csll: 16000, excedente: 500_000 }); // 500 mil × 3,2%
+    expect(r[2].irpj).toBe(0);
+    // ano: 5 mi, sem excedente anual → o 4º devolve o que foi majorado no 2º
+    expect(r[3].irpj).toBe(-16000);
+  });
   it('serviço usa presunção de 32%', async () => {
     const { tributosPresumido } = await import('./presumido');
     expect(tributosPresumido({ produtos: 0, servicos: 100_000 }).baseIrpj).toBe(32000);

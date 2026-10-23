@@ -2,7 +2,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import Link from 'next/link';
 import { getDb, schema } from '@/db';
 import { brl, dataBr } from '@/domain/dinheiro';
-import { tributosPresumido } from '@/domain/presumido';
+import { acrescimosLC224, tributosPresumido } from '@/domain/presumido';
 import { dataDaCompetencia, regimeEm } from '@/domain/regime';
 import { exigirEmpresa, exigirUsuario } from '@/server/auth';
 
@@ -30,7 +30,11 @@ export default async function Fiscal({ searchParams }: { searchParams: Promise<{
     const produtos = r.reduce((a, x) => a + bruto(x), 0) - servicos;
     const icms = r.reduce((a, x) => a + soma(x.impostos, /^icms/i), 0);
     const irrfRetido = r.reduce((a, x) => a + soma(x.retencoes, /irrf/i), 0);
-    return { n: t + 1, regs, presumido: regs.every((x) => /presumido/i.test(x)), est: tributosPresumido({ produtos, servicos, icms, irrfRetido }), icms, irrfRetido };
+    return { n: t + 1, regs, presumido: regs.every((x) => /presumido/i.test(x)), produtos, servicos, icms, irrfRetido };
+  }).map((t, _, todos) => {
+    // LC 224/2025: o acréscimo de presunção depende do ano inteiro (sobra de limite e ajuste do 4º trimestre)
+    const lc = acrescimosLC224(Number(ano), todos)[t.n - 1];
+    return { ...t, lc, est: tributosPresumido({ produtos: t.produtos, servicos: t.servicos, icms: t.icms, irrfRetido: t.irrfRetido, acrescimoIrpj: lc.irpj, acrescimoCsll: lc.csll }) };
   });
 
   return (
@@ -43,13 +47,13 @@ export default async function Fiscal({ searchParams }: { searchParams: Promise<{
       </form>
       <div className="card">
         <h2>Tributos por trimestre · {ano}</h2>
-        <p className="pequeno mudo">Estimativa sobre as NF de saída lançadas (sem retornos e canceladas), para conferência. Presunção de 8%/12% para produtos e 32% para serviços; ICMS destacado fora da base de PIS/COFINS (Tema 69 do STF); IRRF retido pelos clientes abatido do IRPJ. Receitas financeiras ainda não entram. Confira na Receita Federal antes de gerar as guias.</p>
+        <p className="pequeno mudo">Estimativa sobre as NF de saída lançadas (sem retornos e canceladas), para conferência. Presunção de 8%/12% para produtos e 32% para serviços; ICMS destacado fora da base de PIS/COFINS (Tema 69 do STF); IRRF retido pelos clientes abatido do IRPJ. Desde 2026, a receita acima de R$ 5 milhões no ano (R$ 1,25 mi por trimestre, com ajuste no 4º) tem presunção 10% maior (LC 224/2025); a CSLL só majora a partir do 2º trimestre de 2026. Receitas financeiras ainda não entram. Confira na Receita Federal antes de gerar as guias.</p>
         <div className="tabela-wrap"><table>
           <thead><tr><th>Trimestre</th><th>Regime</th><th className="num">Receita bruta</th><th className="num">IRPJ</th><th className="num">CSLL</th><th className="num">PIS</th><th className="num">COFINS</th><th className="num">Total</th></tr></thead>
           <tbody>{trimestres.map((t) => (
             <tr key={t.n}>
               <td>{t.n}º trimestre</td><td>{t.regs.join(' / ')}</td><td className="num">{brl(t.est.bruta)}</td>
-              {t.presumido ? (<><td className="num">{brl(t.est.irpj)}{t.irrfRetido > 0 && <div className="pequeno mudo">− IRRF {brl(t.irrfRetido)}</div>}</td><td className="num">{brl(t.est.csll)}</td><td className="num">{brl(t.est.pis)}{t.icms > 0 && <div className="pequeno mudo">base sem ICMS</div>}</td><td className="num">{brl(t.est.cofins)}</td><td className="num"><b>{brl(t.est.total)}</b></td></>) : <td colSpan={5} className="pequeno mudo">{t.regs.some((r) => /simples/i.test(r)) ? 'Simples Nacional: apuração pelo DAS (histórico)' : 'Regime sem cálculo automático'}</td>}
+              {t.presumido ? (<><td className="num">{brl(t.est.irpj)}{t.irrfRetido > 0 && <div className="pequeno mudo">− IRRF {brl(t.irrfRetido)}</div>}{t.lc.irpj !== 0 && <div className="pequeno at">LC 224: base {t.lc.irpj > 0 ? '+' : '−'} {brl(Math.abs(t.lc.irpj))}</div>}</td><td className="num">{brl(t.est.csll)}{t.lc.csll !== 0 && <div className="pequeno at">LC 224: base {t.lc.csll > 0 ? '+' : '−'} {brl(Math.abs(t.lc.csll))}</div>}</td><td className="num">{brl(t.est.pis)}{t.icms > 0 && <div className="pequeno mudo">base sem ICMS</div>}</td><td className="num">{brl(t.est.cofins)}</td><td className="num"><b>{brl(t.est.total)}</b></td></>) : <td colSpan={5} className="pequeno mudo">{t.regs.some((r) => /simples/i.test(r)) ? 'Simples Nacional: apuração pelo DAS (histórico)' : 'Regime sem cálculo automático'}</td>}
             </tr>
           ))}</tbody>
         </table></div>
