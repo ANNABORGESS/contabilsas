@@ -2,6 +2,7 @@ import { getDb } from '@/db';
 import { BotaoRecolher, Menu } from '@/components/Menu';
 import { SeletorEmpresa } from '@/components/SeletorEmpresa';
 import { Alertas, Busca } from '@/components/Topo';
+import { PainelIa } from '@/components/ZaroIa';
 import { empresaAtiva, empresasDoEscritorio, exigirUsuario } from '@/server/auth';
 import { alertasDaEmpresa } from '@/server/consultas';
 import { sair } from '../(acesso)/acoes';
@@ -44,6 +45,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         </header>
         {children}
       </div>
+      <PainelIa empresa={ativa ? ativa.fantasia || ativa.razao : ''} />
     </div>
   );
 }

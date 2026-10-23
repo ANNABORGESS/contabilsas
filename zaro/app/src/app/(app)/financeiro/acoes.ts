@@ -4,6 +4,7 @@ import { redirect, unstable_rethrow } from 'next/navigation';
 import { getDb } from '@/db';
 import { numero } from '@/domain/dinheiro';
 import { exigirEdicao, exigirEmpresa } from '@/server/auth';
+import { definirSaldoInicial } from '@/server/banco';
 import { ajustarTitulo, cancelarTitulo, estornarBaixa, novoTitulo, registrarBaixa } from '@/server/financeiro';
 
 async function executar(form: FormData, f: (ctx: { db: Awaited<ReturnType<typeof getDb>>; u: Awaited<ReturnType<typeof exigirEdicao>>; emp: Awaited<ReturnType<typeof exigirEmpresa>> }) => Promise<string>) {
@@ -50,5 +51,11 @@ export async function criar(form: FormData) {
     const tipo = form.get('tipo') === 'receber' ? 'receber' : 'pagar';
     const codigo = await novoTitulo(db, u, emp, { tipo, nome: String(form.get('nome') || ''), descricao: String(form.get('descricao') || ''), categoria: String(form.get('categoria') || ''), venc: String(form.get('venc') || ''), valor: numero(form.get('valor')), competencia: String(form.get('competencia') || '') });
     return `Título ${codigo} lançado.`;
+  });
+}
+export async function definirSaldo(form: FormData) {
+  await executar(form, async ({ db, u, emp }) => {
+    await definirSaldoInicial(db, u, emp, String(form.get('data') || ''), numero(form.get('valor')));
+    return 'Saldo inicial gravado. O Dashboard passa a mostrar o saldo bancário.';
   });
 }

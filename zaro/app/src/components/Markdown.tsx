@@ -3,13 +3,17 @@ import { Fragment, type ReactNode } from 'react';
 
 function inline(texto: string, k = 0): ReactNode[] {
   const out: ReactNode[] = [];
-  const re = /(\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g;
+  const re = /(\[[^\]]+\]\([^)\s]+\)|\*\*[^*]+\*\*|`[^`]+`|\*[^*\s][^*]*\*|_[^_\s][^_]*_)/g;
   let ultimo = 0;
   for (const m of texto.matchAll(re)) {
     if (m.index! > ultimo) out.push(texto.slice(ultimo, m.index));
     const t = m[0];
     const chave = `${k}-${m.index}`;
-    if (t.startsWith('**')) out.push(<b key={chave}>{t.slice(2, -2)}</b>);
+    if (t.startsWith('[')) {
+      const [, rot, href] = t.match(/^\[([^\]]+)\]\(([^)\s]+)\)$/)!;
+      // só links internos da ZARO (começam com "/"); outros viram texto
+      out.push(/^\/(?!\/)/.test(href) ? <a key={chave} href={href}>{rot}</a> : rot);
+    } else if (t.startsWith('**')) out.push(<b key={chave}>{t.slice(2, -2)}</b>);
     else if (t.startsWith('`')) out.push(<code key={chave}>{t.slice(1, -1)}</code>);
     else out.push(<i key={chave}>{t.slice(1, -1)}</i>);
     ultimo = m.index! + t.length;

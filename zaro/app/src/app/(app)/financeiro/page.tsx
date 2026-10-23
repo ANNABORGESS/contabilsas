@@ -4,7 +4,8 @@ import { getDb, schema } from '@/db';
 import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import { ehAberto, FILTROS_TITULO, titulosFiltrados } from '@/server/consultas';
-import { baixar, cancelar, criar, estornar, revisar } from './acoes';
+import { baixar, cancelar, criar, definirSaldo, estornar, revisar } from './acoes';
+import { saldoBancario } from '@/server/banco';
 import { corStatus } from '@/components/status';
 
 type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string };
@@ -34,11 +35,31 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
   );
 
   if (aba === 'extrato') {
-    const movs = await db.select().from(schema.extratoMovimentos).where(eq(schema.extratoMovimentos.empresaId, emp.id)).orderBy(desc(schema.extratoMovimentos.data)).limit(500);
+    const [movs, saldo] = await Promise.all([
+      db.select().from(schema.extratoMovimentos).where(eq(schema.extratoMovimentos.empresaId, emp.id)).orderBy(desc(schema.extratoMovimentos.data)).limit(500),
+      saldoBancario(db, u.tenantId, emp.id),
+    ]);
     return (
       <>
         <div className="cabeca"><div><h1>Financeiro</h1><p>Movimentos de extrato bancário importados (últimos 500).</p></div></div>
         {abas}
+        {avisos}
+        <div className="card" id="saldo" style={{ marginBottom: 16 }}>
+          <h2>Saldo bancário</h2>
+          {saldo ? (
+            <p>Saldo atual: <b className={saldo.atual < 0 ? 'neg' : ''}>{brl(saldo.atual)}</b> · saldo inicial de {brl(saldo.inicial.valor)} em {dataBr(saldo.inicial.data)} mais os movimentos do extrato até {dataBr(saldo.ultimoMovimento)}.</p>
+          ) : (
+            <p className="mudo">Informe o saldo do banco numa data (o do extrato daquele dia). A ZARO soma os movimentos do extrato posteriores e mostra o saldo no Dashboard. Sem isso, o Dashboard não mostra saldo bancário.</p>
+          )}
+          {edita && (
+            <form action={definirSaldo} className="linha" style={{ marginTop: 10 }}>
+              <input type="hidden" name="volta" value="/financeiro?tipo=extrato" />
+              <div><label>Data do saldo</label><input type="date" name="data" required defaultValue={saldo?.inicial.data} /></div>
+              <div><label>Saldo no fim do dia (R$)</label><input name="valor" required inputMode="decimal" defaultValue={saldo ? String(saldo.inicial.valor).replace('.', ',') : ''} /></div>
+              <button className="btn primario" type="submit">{saldo ? 'Atualizar saldo inicial' : 'Gravar saldo inicial'}</button>
+            </form>
+          )}
+        </div>
         <div className="card">
           {movs.length ? (
             <div className="tabela-wrap"><table>
