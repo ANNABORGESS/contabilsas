@@ -64,7 +64,7 @@ const FORMATO = {
   },
 };
 
-async function numerosDaEmpresa(db: Db, emp: Empresa) {
+export async function numerosDaEmpresa(db: Db, emp: Empresa) {
   const hoje = new Date().toISOString().slice(0, 10);
   const ano = hoje.slice(0, 4);
   const [fin, lancs, dividas, contratos] = await Promise.all([

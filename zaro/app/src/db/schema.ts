@@ -336,6 +336,41 @@ export const vendas = pgTable(
   (t) => [uniqueIndex('vendas_numero').on(t.empresaId, t.numero)],
 );
 
+/** Skills e agentes enviados pelo escritório (o conteúdo licenciado fica só no banco, nunca no repositório). */
+export const especialistas = pgTable(
+  'especialistas',
+  {
+    id: id(),
+    tenantId: tenant(),
+    tipo: text('tipo').notNull(), // 'skill' | 'agente'
+    slug: text('slug').notNull(),
+    nome: text('nome').notNull(),
+    descricao: text('descricao').notNull().default(''),
+    conteudo: text('conteudo').notNull(),
+    pacote: text('pacote'),
+    ativo: boolean('ativo').notNull().default(true),
+    atualizadoEm: timestamp('atualizado_em', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (t) => [uniqueIndex('especialistas_slug').on(t.tenantId, t.tipo, t.slug)],
+);
+
+/** Perguntas feitas a um especialista, com a resposta, por empresa. */
+export const consultasEspecialista = pgTable(
+  'consultas_especialista',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    especialistaId: uuid('especialista_id').notNull().references(() => especialistas.id, { onDelete: 'cascade' }),
+    usuario: text('usuario').notNull(),
+    pergunta: text('pergunta').notNull(),
+    resposta: text('resposta').notNull(),
+    usouDados: boolean('usou_dados').notNull().default(true),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('consultas_especialista_emp').on(t.empresaId, t.especialistaId)],
+);
+
 export const dividasAtivas = pgTable('dividas_ativas', {
   id: id(),
   tenantId: tenant(),

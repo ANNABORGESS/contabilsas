@@ -15,6 +15,7 @@ const ITENS: ([string, string, string, string, string] | null)[] = [
   ['/custos', 'Custos e Preços', 'lilas', 'cst', '#B49CCB'],
   ['/contabilidade', 'Contabilidade', 'ceu', 'cnt', '#7F98AE'],
   ['/fiscal', 'Fiscal e Tributário', 'lavanda', 'fis', '#9B82BD'],
+  ['/especialistas', 'Especialistas', 'pessego', 'espec', '#C9956F'],
   ['/conselho', 'Conselho ZARO', 'lilas', 'cons', '#9B82BD'],
   ['/documentos', 'Documentos', 'lilas', 'doc', '#B49CCB'],
   null,
