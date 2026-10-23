@@ -417,6 +417,61 @@ export const dividasAtivas = pgTable('dividas_ativas', {
   criadoEm: criadoEm(),
 });
 
+/** Histórico de cobrança de clientes em atraso: contatos, acordos e promessas de pagamento. */
+export const cobrancas = pgTable(
+  'cobrancas',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    cliente: text('cliente').notNull(), // chave do cliente: CNPJ/CPF ou nome em minúsculas
+    nomeCliente: text('nome_cliente').notNull(),
+    tipo: text('tipo').notNull(), // Contato, Acordo, Promessa, Observação
+    status: text('status').notNull(), // STATUS_COBRANCA
+    canal: text('canal'), // Telefone, E-mail, WhatsApp, Presencial
+    valor: dinheiro('valor'),
+    dataPrometida: date('data_prometida', { mode: 'string' }),
+    obs: text('obs'),
+    usuario: text('usuario').notNull(),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('cobrancas_empresa_cliente').on(t.empresaId, t.cliente)],
+);
+
+/** Versões do orçamento anual (original, revisões, forecast). Versão aprovada não muda mais. */
+export const orcamentos = pgTable(
+  'orcamentos',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    ano: integer('ano').notNull(),
+    nome: text('nome').notNull(),
+    tipo: text('tipo').notNull().default('Original'), // Original, Revisão, Forecast
+    status: text('status').notNull().default('Rascunho'), // Rascunho, Aprovado
+    baseId: uuid('base_id'),
+    aprovadoPor: text('aprovado_por'),
+    aprovadoEm: timestamp('aprovado_em', { withTimezone: true }),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('orcamentos_empresa_ano').on(t.empresaId, t.ano)],
+);
+
+/** Valores orçados por área (centro de custo ou categoria), natureza e mês. */
+export const orcamentoLinhas = pgTable(
+  'orcamento_linhas',
+  {
+    id: id(),
+    tenantId: tenant(),
+    orcamentoId: uuid('orcamento_id').notNull().references(() => orcamentos.id, { onDelete: 'cascade' }),
+    area: text('area').notNull(),
+    natureza: text('natureza').notNull().default('despesa'), // receita | despesa
+    mes: integer('mes').notNull(), // 1..12
+    valor: dinheiro('valor').notNull().default(0),
+  },
+  (t) => [uniqueIndex('orcamento_linhas_uq').on(t.orcamentoId, t.area, t.natureza, t.mes)],
+);
+
 export const auditoria = pgTable(
   'auditoria',
   {

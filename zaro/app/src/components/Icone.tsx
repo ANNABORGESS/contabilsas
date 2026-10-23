@@ -12,6 +12,7 @@ const DESENHOS: Record<string, React.ReactNode> = {
   fis: <><path d="M14 3H6v18h12V7l-4-4z" /><path d="M14 3v4h4" /><path d="M9 13h6M9 17h4" /></>,
   cons: <><circle cx="8" cy="9" r="3" /><circle cx="16" cy="9" r="3" /><path d="M2 20c0-3 3-5 6-5s6 2 6 5M12 20c0-3 3-5 6-5" /></>,
   espec: <><path d="M2 5.5C4.5 4 7.5 4 12 6.5 16.5 4 19.5 4 22 5.5V19c-2.5-1.5-5.5-1.5-10 1-4.5-2.5-7.5-2.5-10-1z" /><path d="M12 6.5V20" /><path d="M15.5 9.5l1.2 1.2 2.3-2.4" /></>,
+  intel: <><path d="M3 20h18" /><path d="M6 16v-4M11 16V8M16 16v-6" /><path d="M5 9l5-4 4 3 6-5" /></>,
   doc: <><rect x="3" y="4" width="18" height="16" /><path d="M3 9h18M9 13h6" /></>,
   cfg: <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3" /></>,
   audit: <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6l8-3z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></>,

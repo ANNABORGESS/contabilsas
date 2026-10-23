@@ -6,6 +6,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import type { Db } from '@/db';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
+import { contextoIa } from './inteligencia';
 import { compPadrao, dadosDoPainel, resumoParaIa } from './painel';
 
 export interface Mensagem {
@@ -13,8 +14,6 @@ export interface Mensagem {
   texto: string;
 }
 
-/** Contextos extras por área (as abas de Inteligência Financeira registram os seus aqui). */
-export const CONTEXTOS: Record<string, (db: Db, u: Usuario, emp: Empresa, hoje: string) => Promise<string>> = {};
 
 export const iaDisponivel = () => !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 
@@ -25,7 +24,7 @@ export async function perguntarZaroIa(db: Db, u: Usuario, emp: Empresa, historic
   if (!ultima || ultima.papel !== 'usuario') throw new Error('Escreva uma pergunta.');
   const hoje = new Date().toISOString().slice(0, 10);
   const dados = await dadosDoPainel(db, u, emp, compPadrao(hoje), hoje);
-  const extra = area && CONTEXTOS[area] ? await CONTEXTOS[area](db, u, emp, hoje) : '';
+  const extra = area ? await contextoIa(db, u, emp, hoje, area) : '';
   const sistema = [
     'Você é a ZARO IA, assistente executiva de um sistema contábil brasileiro. Responda em português do Brasil, direto, para um gestor ou contador.',
     'Use SOMENTE os dados abaixo, que são da empresa selecionada. Não invente números, clientes, datas ou causas.',

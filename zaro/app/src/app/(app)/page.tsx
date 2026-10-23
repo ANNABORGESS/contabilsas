@@ -11,10 +11,9 @@ import { Icone } from '@/components/Icone';
 import { PerguntasIa } from '@/components/ZaroIa';
 import { Grafico } from '@/components/painel/Grafico';
 import { Personalizar, SeletorComp } from '@/components/painel/Personalizar';
+import { COR } from '@/components/painel/cores';
 import { Esqueleto } from './loading';
 
-// Paleta dos gráficos (validada para daltonismo): entradas, saídas, saldo.
-const COR = { entrada: '#3f7cb2', saida: '#c26a3e', saldo: '#8a6bbf' };
 const MESES = ['jan', 'fev', 'mar', 'abr', 'mai', 'jun', 'jul', 'ago', 'set', 'out', 'nov', 'dez'];
 const mesCurto = (m: string) => `${MESES[+m.slice(5) - 1]}/${m.slice(2, 4)}`;
 const compBr = (c: string) => c.split('-').reverse().join('/');

@@ -1,7 +1,7 @@
 'use client';
 // Gráfico de barras e linhas em SVG puro (sem biblioteca): um eixo só, marcas finas, legenda,
 // dica ao passar o cursor e alternância para tabela. As cores vêm das séries; o texto usa os tokens.
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 export interface Serie {
   nome: string;
@@ -51,6 +51,16 @@ export function Grafico({
   const [n, setN] = useState(janelaInicial || categorias.length);
   const [tabela, setTabela] = useState(false);
   const [foco, setFoco] = useState<number | null>(null);
+  // a largura do desenho acompanha a do card, para o texto dos eixos não crescer em cards largos
+  const caixa = useRef<HTMLDivElement>(null);
+  const [W, setW] = useState(640);
+  useEffect(() => {
+    const el = caixa.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([e]) => setW(Math.max(300, Math.round(e.contentRect.width))));
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
   const ini = Math.max(0, categorias.length - n);
   const cats = categorias.slice(ini);
   const nomes = (rotulos || categorias).slice(ini);
@@ -58,16 +68,16 @@ export function Grafico({
   const todos = ss.flatMap((s) => s.valores.filter((v): v is number => v != null)).concat(referencia ? [referencia.valor] : []);
   const { ini: y0, fim: y1, ticks } = useMemo(() => escala(Math.min(0, ...todos), Math.max(0, ...todos)), [todos.join(',')]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const L = 56, R = 12, T = 12, B = 28, W = 640, H = altura;
+  const L = 56, R = 12, T = 12, B = 28, H = altura;
   const larg = (W - L - R) / Math.max(1, cats.length);
   const y = (v: number) => T + ((y1 - v) / (y1 - y0)) * (H - T - B);
   const barras = ss.filter((s) => s.tipo === 'barra');
   const lb = Math.min(24, Math.max(6, (larg * 0.7) / Math.max(1, barras.length) - 2));
-  const passoRotulo = Math.ceil(cats.length / 12);
+  const passoRotulo = Math.ceil(cats.length / Math.max(4, Math.floor((W - L) / 56)));
   const vazio = !todos.some((v) => v !== 0);
 
   return (
-    <div className="grafico">
+    <div className="grafico" ref={caixa}>
       <div className="grafico-topo">
         <div className="legenda" aria-hidden={tabela}>
           {ss.map((s) => (

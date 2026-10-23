@@ -369,6 +369,11 @@ h2.md-h { font-size: 18px; } h3.md-h { font-size: 16px; } h4.md-h { font-size: 1
 .painel-grade .card + .card { margin-top: 0; }
 .indicadores { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 14px; }
 .indicadores.quatro { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.indicador { background: linear-gradient(165deg, #eef3f8, #fcfaf8 70%); }
+.indicador[data-cor='menta'] { background: linear-gradient(165deg, #edf6f0, #fcfaf8 70%); }
+.indicador[data-cor='pessego'] { background: linear-gradient(165deg, #f8efe9, #fcfaf8 70%); }
+.indicador[data-cor='lavanda'] { background: linear-gradient(165deg, #f3eff8, #fcfaf8 70%); }
+.indicador[data-cor='rosa'] { background: linear-gradient(165deg, #f7ecea, #fcfaf8 70%); }
 .indicador { display: flex; flex-direction: column; gap: 6px; padding: 18px; animation: subir 0.4s ease-out both; }
 .indicador .v { font-size: 22px; font-weight: 600; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
 .indicador .rotulo { font-size: 12.5px; color: var(--texto-2); font-weight: 600; flex: 1; }
@@ -437,7 +442,13 @@ ul.insights li p { margin: 4px 0 0; color: var(--texto-2); }
 .acao-rapida { display: flex; align-items: center; gap: 10px; padding: 12px 14px; border-radius: 14px; border: 1px solid var(--divisor); color: var(--texto); font-weight: 600; font-size: 13.5px; background: #fffefc; transition: transform 0.15s, background 0.15s; }
 .acao-rapida:hover { transform: translateY(-1px); background: var(--tema, #f3eeea); text-decoration: none; }
 .acao-rapida.bloqueada { opacity: 0.45; cursor: not-allowed; }
-.cartao-ia { background: linear-gradient(160deg, #fbf9fe, var(--card) 60%); border-color: var(--ia-borda); }
+.cartao-ia { background: linear-gradient(160deg, #f4effa, #fcfaf8 65%); border-color: var(--ia-borda); }
+[data-bloco='posicao'] > .card { background: linear-gradient(170deg, #f1f7f3, #fcfaf8 55%); }
+[data-bloco='evolucao'] > .card, [data-bloco='fluxo'] > .card { background: linear-gradient(170deg, #f2f6fa, #fcfaf8 55%); }
+[data-bloco='fechamento'] > .card { background: linear-gradient(170deg, #f6f1ec, #fcfaf8 60%); }
+[data-bloco='atencao'] > .card { background: linear-gradient(170deg, #faf1ef, #fcfaf8 55%); }
+[data-bloco='atividades'] > .card, [data-bloco='acoes'] > .card { background: linear-gradient(170deg, #f8f2ec, #fcfaf8 55%); }
+.fech-area { background: rgba(255, 255, 255, 0.7); }
 .sugestoes-ia { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
 /* personalizar */
 .personalizar { position: relative; }
@@ -493,3 +504,21 @@ ul.insights li p { margin: 4px 0 0; color: var(--texto-2); }
 }
 @media (max-width: 520px) { .indicadores, .indicadores.quatro { grid-template-columns: 1fr; } }
 @media (prefers-reduced-motion: reduce) { .indicador, .ia-painel, .brilho-ia, .esqueleto { animation: none; } }
+.etapas { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+.etapa { display: flex; flex-direction: column; align-items: center; min-width: 108px; padding: 10px 12px; border-radius: 14px; background: #f6f1ec; font-size: 12px; color: var(--texto-2); text-align: center; }
+.etapa b { font-size: 20px; color: var(--texto); }
+.acoes-lote { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--divisor); }
+.acoes-lote input[type='date'] { width: auto; }
+details.conferencia { border: 1px solid var(--divisor); border-radius: 14px; padding: 10px 12px; margin-top: 8px; background: rgba(255, 255, 255, 0.6); }
+details.conferencia summary { cursor: pointer; }
+.cobrar { position: relative; }
+.cobrar summary { list-style: none; cursor: pointer; }
+.cobrar-caixa { position: absolute; right: 0; top: 34px; width: 360px; z-index: 10; box-shadow: var(--sombra-alta); text-align: left; }
+.sim-campo { display: flex; flex-direction: column; margin-top: 10px; font-weight: 500; }
+.sim-campo span { display: flex; align-items: center; gap: 10px; }
+.sim-campo input[type='range'] { flex: 1; accent-color: #a48fd6; }
+.editor-orc input.cel { width: 84px; padding: 4px 6px; text-align: right; font-size: 12.5px; }
+@media (max-width: 900px) { .cobrar-caixa { right: auto; left: -200px; width: min(360px, 90vw); } }
+.sim-campo input[type='range'] { -webkit-appearance: none; appearance: none; height: 6px; padding: 0; border: 0; border-radius: 999px; background: #e9e1f3; box-shadow: none; }
+.sim-campo input[type='range']::-webkit-slider-thumb { -webkit-appearance: none; width: 16px; height: 16px; border-radius: 50%; background: #a48fd6; border: 2px solid #fff; box-shadow: 0 1px 4px rgba(41, 38, 51, 0.2); cursor: pointer; }
+.sim-campo input[type='range']::-moz-range-thumb { width: 16px; height: 16px; border-radius: 50%; background: #a48fd6; border: 2px solid #fff; cursor: pointer; }

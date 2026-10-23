@@ -33,6 +33,9 @@ Crie o arquivo `app\.env` (copie de `app\.env.example`) e coloque a sua chave da
 - **Auditoria** de todas as ações.
 
 ## Novidades
+- **Dashboard executivo**: saldo bancário, contas a receber e a pagar, tributos e resultado (com variação), gráficos de evolução e de fluxo projetado, fechamento da competência por área, alertas e atividades. Botão **Personalizar** para esconder e reordenar blocos (fica salvo no seu usuário). Para ver o saldo do banco, informe o **saldo inicial** em Financeiro → Extrato.
+- **ZARO IA**: botão de brilho no topo abre o assistente; ele responde só com os números da empresa ativa, dizendo fonte, período e link. Precisa da chave ANTHROPIC_API_KEY.
+- **Inteligência Financeira** (menu): abas Executivo (faturamento, lucro, margem, EBITDA), Caixa (projeção de 30 a 180 dias com cenários e caixa mínimo), Inadimplência (faixas de atraso, devedores e registro de cobrança), Pagamentos (conferência de documentos, aprovação e agendamento, leitura de linha digitável) e Orçamento (versões, orçado x realizado por centro de custo, semáforo e exportação).
 - **Especialistas** (menu): envie os zips de skills e agentes (skills-contadores, 57-Agentes, contabilidade) pela própria tela. Eles ficam só no banco do seu escritório. Escolha um especialista e pergunte; ele responde com os números da empresa ativa. Precisa da chave ANTHROPIC_API_KEY (na Vercel ou no `.env`).
 - **Comercial → Vendas**: lance a venda e as parcelas viram títulos no Contas a Receber. **Produtos e Estoque** tem o cadastro de produtos e serviços.
 - **Financeiro**: botões **Excel** e **PDF** baixam a lista filtrada.
@@ -42,7 +45,8 @@ Crie o arquivo `app\.env` (copie de `app\.env.example`) e coloque a sua chave da
 ## Ainda falta
 - Leitura de PDF (DANFE, guias, extratos) e importação de OFX pelo próprio sistema.
 - Cálculo da folha, orçamentos e pedidos, emissão de NF-e e CT-e.
-- Saldos de abertura (bancos, empréstimos, PGFN) e IRPJ/CSLL na DRE.
+- Cadastro de filiais; saldos de abertura de empréstimos e PGFN; conta própria de IRPJ/CSLL na DRE.
+- Captura automática de boletos por e-mail/PDF e envio de cobrança por integração (hoje o e-mail e o WhatsApp abrem no seu aplicativo).
 - O protótipo (`prototipo/`) continua aqui como referência visual e de regras.
 
 ## Fica só no seu computador
