@@ -214,3 +214,33 @@ export async function dadosPlanejamento(db: Db, u: Usuario, emp: Empresa, hoje: 
     contas: [...new Set([...contasExtrato.map((c) => c.conta), ...contasUsadas])].sort(),
   };
 }
+
+/** Contas a receber em aberto com vencimento até a data (para confirmar recebimentos em lote). */
+export async function receberAte(db: Db, emp: Empresa, ate: string) {
+  const ts = await db.select().from(schema.titulos).where(and(eq(schema.titulos.empresaId, emp.id), eq(schema.titulos.tipo, 'receber')));
+  const abertos = ts.filter((t) => ehAberto(t) && t.venc && t.venc <= ate).sort((a, b) => (a.venc || '').localeCompare(b.venc || ''));
+  const s = await saldos(db, abertos.map((t) => t.id));
+  return abertos.map((t) => ({ id: t.id, codigo: t.codigo, nome: t.nome, nf: t.nf, venc: t.venc!, valor: t.valor, saldo: arred(t.valor - (s.get(t.id) || 0)) })).filter((t) => t.saldo > 0.004);
+}
+
+/** Confirma recebimentos: baixa pelo saldo, na data do vencimento de cada título (ou numa data única). */
+export async function confirmarRecebimentos(db: Db, u: Usuario, emp: Empresa, ids: string[], v: { dataUnica: string | null; forma: string; conta: string }) {
+  const unicos = [...new Set(ids.filter(Boolean))];
+  if (!unicos.length) throw new Error('Selecione ao menos um título.');
+  if (v.dataUnica && !/^\d{4}-\d{2}-\d{2}$/.test(v.dataUnica)) throw new Error('Data inválida.');
+  const ts = await db.select().from(schema.titulos).where(and(eq(schema.titulos.empresaId, emp.id), eq(schema.titulos.tipo, 'receber'), inArray(schema.titulos.id, unicos)));
+  if (ts.length !== unicos.length) throw new Error('Algum título não pertence a esta empresa.');
+  const s = await saldos(db, ts.map((t) => t.id));
+  let total = 0, n = 0;
+  for (const t of ts) {
+    if (!ehAberto(t)) continue;
+    const saldo = arred(t.valor - (s.get(t.id) || 0));
+    if (!(saldo > 0.004)) continue;
+    const data = v.dataUnica || t.venc || new Date().toISOString().slice(0, 10);
+    await db.insert(schema.baixas).values({ tenantId: u.tenantId, tituloId: t.id, data, valor: saldo, forma: v.forma || 'Transferência', conta: v.conta.trim() || null, obs: 'Recebimento confirmado em lote' });
+    await db.update(schema.titulos).set({ status: 'Recebido' }).where(eq(schema.titulos.id, t.id));
+    await auditar(db, u, { empresaId: emp.id, acao: 'Registrou recebimento', entidade: `${t.codigo} · ${t.nome}`, antes: `${t.status} · saldo ${brl(saldo)}`, depois: `Recebido · ${brl(saldo)} em ${dataBr(data)} (confirmação em lote)` });
+    total += saldo; n++;
+  }
+  return { n, total: arred(total) };
+}

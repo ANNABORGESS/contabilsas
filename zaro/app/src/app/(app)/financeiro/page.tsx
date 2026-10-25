@@ -4,16 +4,16 @@ import { getDb, schema } from '@/db';
 import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import { ehAberto, FILTROS_TITULO, localizarChave, titulosFiltrados } from '@/server/consultas';
-import { aprovarSelecao, baixar, cancelar, comprovanteSelecao, criar, definirSaldo, estornar, parcelarSelecao, prioritarioSelecao, programarSelecao, reagendarSelecao, registrarPagamentoAcao, rejeitarSelecao, renegociarSelecao, revisar, trocarContaSelecao } from './acoes';
+import { aprovarSelecao, baixar, confirmarRecebimentosAcao, cancelar, comprovanteSelecao, criar, definirSaldo, estornar, parcelarSelecao, prioritarioSelecao, programarSelecao, reagendarSelecao, registrarPagamentoAcao, rejeitarSelecao, renegociarSelecao, revisar, trocarContaSelecao } from './acoes';
 import { etapaAtingida, prioridade } from '@/domain/pagamento';
-import { dadosPlanejamento } from '@/server/pagamentos';
+import { dadosPlanejamento, receberAte } from '@/server/pagamentos';
 import { PlanejarPagamento, RegistrarPagamento, type TituloPlano } from '@/components/financeiro/Pagamento';
 import { saldoBancario } from '@/server/banco';
 import { corStatus } from '@/components/status';
 import { Conciliacao } from './conciliacao';
 import { Endividamento } from './endividamento';
 
-type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string; chave?: string; novo?: string; pagar?: string; conta?: string };
+type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string; chave?: string; novo?: string; pagar?: string; conta?: string; confirmar?: string };
 
 export default async function Financeiro({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
@@ -81,7 +81,8 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
   ]);
   const mesAtual = hoje.slice(0, 7);
   const planeja = tipo === 'pagar' && edita;
-  const sim = planeja ? await dadosPlanejamento(db, u, emp, hoje) : null;
+  const sim = edita && (tipo === 'pagar' || sp.confirmar) ? await dadosPlanejamento(db, u, emp, hoje) : null;
+  const confirmar = tipo === 'receber' && edita && /^\d{4}-\d{2}-\d{2}$/.test(sp.confirmar || '') ? { ate: sp.confirmar!, lista: await receberAte(db, emp, sp.confirmar!) } : null;
   const pagarIds = planeja && sp.pagar ? sp.pagar.split(',').filter(Boolean).slice(0, 50) : [];
   const paraPagar = pagarIds.length ? await db.select().from(schema.titulos).where(and(eq(schema.titulos.empresaId, emp.id), eq(schema.titulos.tipo, 'pagar'), inArray(schema.titulos.id, pagarIds))) : [];
   const bxPagar = paraPagar.length ? await db.select().from(schema.baixas).where(and(inArray(schema.baixas.tituloId, paraPagar.map((t) => t.id)), eq(schema.baixas.estornada, false))) : [];
@@ -113,7 +114,19 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
           <p>{tipo === 'pagar' ? 'Central inteligente de obrigações, prioridades e pagamentos' : 'Central de recebimentos, clientes e inadimplência'}</p>
         </div>
         <div className="acoes-cabeca">
-          <a className="btn" href={`/financeiro/exportar?tipo=${tipo}&mes=${mesAtual}`} title={`Planilha Excel com os títulos que vencem em ${mesAtual.split('-').reverse().join('/')}`}>Gerar planilha do mês</a>
+          <details className="menu-acao">
+            <summary className="btn">Gerar planilha do mês</summary>
+            <div className="card menu-acao-caixa">
+              <label htmlFor="mes-rel">Mês</label>
+              <input id="mes-rel" type="month" name="mes" form="form-rel-pdf" defaultValue={mesAtual} required />
+              <form id="form-rel-pdf" action="/relatorio-mensal" target="_blank" className="linha">
+                <input type="hidden" name="pdf" value="1" /><input type="hidden" name="tipo" value={tipo} />
+                <button className="btn primario mini" type="submit">Relatório em PDF</button>
+                <button className="btn mini" type="submit" formAction="/financeiro/exportar" formTarget="_self" name="tipo" value={tipo}>Planilha Excel</button>
+              </form>
+              <span className="pequeno mudo">PDF no modelo do Relatório Financeiro (A4 deitado): receber, pagar, fluxo por semana, empréstimos e resumo do mês.</span>
+            </div>
+          </details>
           <details className="menu-acao">
             <summary className="btn">Localizar pela chave</summary>
             <form className="card menu-acao-caixa" action="/financeiro">
@@ -131,11 +144,47 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
               <Link href="/fiscal/notas" className="acao-rapida">Planilha de NF da SEFAZ<span className="pequeno mudo"> · notas do portal que ainda não estão na ZARO</span></Link>
             </div>
           </details>
+          {edita && tipo === 'receber' && (
+            <details className="menu-acao">
+              <summary className="btn">Confirmar recebimentos</summary>
+              <form className="card menu-acao-caixa" action="/financeiro">
+                <input type="hidden" name="tipo" value="receber" />
+                <label htmlFor="confirmar">Títulos em aberto que vencem até</label>
+                <input id="confirmar" type="date" name="confirmar" defaultValue={sp.confirmar || hoje} required />
+                <button className="btn primario mini" type="submit">Ver a lista para confirmar</button>
+              </form>
+            </details>
+          )}
           {edita && <Link className="btn primario" href={`/financeiro?tipo=${tipo}&novo=1#lancar`}>+ Lançar título</Link>}
         </div>
       </div>
       {abas}
       {avisos}
+      {confirmar && (
+        <form className="card confirmar-lote" action={confirmarRecebimentosAcao} style={{ marginBottom: 16 }}>
+          <input type="hidden" name="volta" value="/financeiro?tipo=receber&f=quitados" />
+          <div className="linha" style={{ justifyContent: 'space-between' }}>
+            <h2>Confirmar recebimentos com vencimento até {dataBr(confirmar.ate)}</h2>
+            <Link href="/financeiro?tipo=receber" className="pequeno">Cancelar</Link>
+          </div>
+          {confirmar.lista.length ? (
+            <>
+              <p className="pequeno mudo">{confirmar.lista.length} título(s) em aberto, {brl(confirmar.lista.reduce((a, t) => a + t.saldo, 0))}. Desmarque o que ainda não entrou na conta. Cada título é baixado pelo saldo em aberto.</p>
+              <div className="tabela-wrap"><table className="compacta">
+                <thead><tr><th /><th>Título</th><th>Cliente</th><th>NF</th><th>Vencimento</th><th className="num">Saldo</th></tr></thead>
+                <tbody>{confirmar.lista.map((t) => <tr key={t.id}><td><input type="checkbox" name="id" value={t.id} defaultChecked aria-label={`Confirmar ${t.codigo}`} /></td><td>{t.codigo}</td><td>{t.nome}</td><td>{t.nf || '—'}</td><td>{dataBr(t.venc)}</td><td className="num">{brl(t.saldo)}</td></tr>)}</tbody>
+              </table></div>
+              <div className="linha" style={{ marginTop: 12, alignItems: 'flex-end' }}>
+                <div><label>Data do recebimento</label><select name="modo" defaultValue="venc"><option value="venc">A do vencimento de cada título</option><option value="unica">Uma data só para todos</option></select></div>
+                <div><label>Data única</label><input type="date" name="dataUnica" max={hoje} /></div>
+                <div><label>Forma</label><select name="forma" defaultValue="Transferência"><option>Transferência</option><option>PIX</option><option>Boleto</option><option>Dinheiro</option><option>Cartão</option><option>Outros</option></select></div>
+                <div><label>Conta de entrada</label><input name="conta" list="contas-receb" placeholder="Banco / conta" /><datalist id="contas-receb">{(sim?.contas || []).map((c) => <option key={c} value={c} />)}</datalist></div>
+                <button className="btn primario" type="submit">Confirmar recebimentos</button>
+              </div>
+            </>
+          ) : <p className="mudo">Nenhum título a receber em aberto com vencimento até {dataBr(confirmar.ate)}.</p>}
+        </form>
+      )}
       {achado && (
         <div className="card" style={{ marginBottom: 16 }}>
           <div className="linha" style={{ justifyContent: 'space-between' }}><h2>Chave {achado.chave || '—'}</h2><Link href={`/financeiro?tipo=${tipo}`} className="pequeno">Limpar</Link></div>

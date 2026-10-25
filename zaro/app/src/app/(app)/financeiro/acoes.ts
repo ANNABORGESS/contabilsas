@@ -7,7 +7,7 @@ import { exigirEdicao, exigirEmpresa } from '@/server/auth';
 import { definirSaldoInicial } from '@/server/banco';
 import { conciliarMovimento } from '@/server/financeiro-analises';
 import { moverPagamento } from '@/server/inteligencia';
-import { anexarComprovante, marcarPrioritario, parcelarTitulo, reagendarMais7, registrarPagamento, registrarPagamentosLote, rejeitar, renegociar, trocarConta } from '@/server/pagamentos';
+import { anexarComprovante, confirmarRecebimentos, marcarPrioritario, parcelarTitulo, reagendarMais7, registrarPagamento, registrarPagamentosLote, rejeitar, renegociar, trocarConta } from '@/server/pagamentos';
 import { ajustarTitulo, cancelarTitulo, estornarBaixa, novoTitulo, registrarBaixa } from '@/server/financeiro';
 
 async function executar(form: FormData, f: (ctx: { db: Awaited<ReturnType<typeof getDb>>; u: Awaited<ReturnType<typeof exigirEdicao>>; emp: Awaited<ReturnType<typeof exigirEmpresa>> }) => Promise<string>) {
@@ -120,5 +120,12 @@ export async function conciliarAcao(form: FormData) {
   await executar(form, async ({ db, u, emp }) => {
     const r = await conciliarMovimento(db, u, emp, String(form.get('mov') || ''), String(form.get('titulo') || ''));
     return `Extrato conciliado com ${r.codigo}: baixa de ${brl(r.valor)}${r.sobra > 0.009 ? ` (sobram ${brl(r.sobra)} do movimento sem título)` : ''}.`;
+  });
+}
+
+export async function confirmarRecebimentosAcao(form: FormData) {
+  await executar(form, async ({ db, u, emp }) => {
+    const r = await confirmarRecebimentos(db, u, emp, ids(form), { dataUnica: form.get('modo') === 'unica' ? String(form.get('dataUnica') || '') : null, forma: String(form.get('forma') || ''), conta: String(form.get('conta') || '') });
+    return `${r.n} recebimento(s) confirmado(s): ${brl(r.total)}.`;
   });
 }
