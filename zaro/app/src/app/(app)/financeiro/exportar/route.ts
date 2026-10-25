@@ -14,7 +14,12 @@ export async function GET(req: Request) {
   const tipo = sp.get('tipo') === 'receber' ? 'receber' : 'pagar';
   const hoje = new Date().toISOString().slice(0, 10);
   const db = await getDb();
-  const [{ lista, nomeFiltro, q }, pagos] = await Promise.all([titulosFiltrados(db, emp.id, tipo, sp.get('f') || undefined, sp.get('q') || undefined, hoje), pagosPorTitulo(db, emp.id)]);
+  // "Gerar planilha do mês": todos os títulos (qualquer situação) com vencimento no mês pedido
+  const mes = /^\d{4}-\d{2}$/.test(sp.get('mes') || '') ? sp.get('mes')! : null;
+  const [r, pagos] = await Promise.all([titulosFiltrados(db, emp.id, tipo, mes ? 'todos' : sp.get('f') || undefined, mes ? undefined : sp.get('q') || undefined, hoje), pagosPorTitulo(db, emp.id)]);
+  const { q } = r;
+  const lista = mes ? r.lista.filter((t) => t.venc?.startsWith(mes) && !/cancel/i.test(t.status)) : r.lista;
+  const nomeFiltro = mes ? `Vencimentos de ${mes.split('-').reverse().join('/')} (sem cancelados)` : r.nomeFiltro;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'ZARO';
@@ -38,7 +43,7 @@ export async function GET(req: Request) {
   [12, 38, 20, 10, 8, 12, 12, 14, 14, 14, 16, 22, 50].forEach((w, i) => { ws.getColumn(i + 1).width = w; });
   ws.autoFilter = { from: { row: 4, column: 1 }, to: { row: fim, column: 13 } };
 
-  const nome = `${tipo === 'pagar' ? 'contas-a-pagar' : 'contas-a-receber'}-${(emp.fantasia || emp.razao).replace(/[^\w]+/g, '-').toLowerCase()}-${hoje}.xlsx`;
+  const nome = `${tipo === 'pagar' ? 'contas-a-pagar' : 'contas-a-receber'}-${(emp.fantasia || emp.razao).replace(/[^\w]+/g, '-').toLowerCase()}-${mes || hoje}.xlsx`;
   return new Response(new Uint8Array(await wb.xlsx.writeBuffer()), {
     headers: {
       'Content-Type': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',

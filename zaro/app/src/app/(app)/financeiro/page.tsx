@@ -3,12 +3,12 @@ import Link from 'next/link';
 import { getDb, schema } from '@/db';
 import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
-import { ehAberto, FILTROS_TITULO, titulosFiltrados } from '@/server/consultas';
+import { ehAberto, FILTROS_TITULO, localizarChave, titulosFiltrados } from '@/server/consultas';
 import { baixar, cancelar, criar, definirSaldo, estornar, revisar } from './acoes';
 import { saldoBancario } from '@/server/banco';
 import { corStatus } from '@/components/status';
 
-type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string };
+type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string; chave?: string; novo?: string };
 
 export default async function Financeiro({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
@@ -93,7 +93,11 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
   }
 
   const tipo = aba;
-  const { f, q, todos, lista } = await titulosFiltrados(db, emp.id, tipo, sp.f, sp.q, hoje);
+  const [{ f, q, todos, lista }, achado] = await Promise.all([
+    titulosFiltrados(db, emp.id, tipo, sp.chave ? 'todos' : sp.f, sp.chave ? sp.chave.replace(/\D/g, '') : sp.q, hoje),
+    sp.chave ? localizarChave(db, emp.id, sp.chave) : null,
+  ]);
+  const mesAtual = hoje.slice(0, 7);
   const ids = lista.slice(0, 300).map((t) => t.id);
   const bxs = ids.length ? await db.select().from(schema.baixas).where(and(inArray(schema.baixas.tituloId, ids))) : [];
   const porTit = new Map<string, typeof bxs>();
@@ -105,11 +109,50 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
 
   return (
     <>
-      <div className="cabeca">
-        <div><h1>Financeiro</h1><p>{tipo === 'pagar' ? 'Títulos a pagar: NF de fornecedores, guias, folha e empréstimos.' : 'Títulos a receber: NF de saída da empresa. Notas de retorno ficam com valor zero no caixa.'}</p></div>
+      <div className="cabeca central">
+        <div>
+          <div className="sobretitulo">Financeiro · central de decisão</div>
+          <h1>{tipo === 'pagar' ? 'Contas a Pagar' : 'Contas a Receber'}</h1>
+          <p>{tipo === 'pagar' ? 'Central inteligente de obrigações, prioridades e pagamentos' : 'Central de recebimentos, clientes e inadimplência'}</p>
+        </div>
+        <div className="acoes-cabeca">
+          <a className="btn" href={`/financeiro/exportar?tipo=${tipo}&mes=${mesAtual}`} title={`Planilha Excel com os títulos que vencem em ${mesAtual.split('-').reverse().join('/')}`}>Gerar planilha do mês</a>
+          <details className="menu-acao">
+            <summary className="btn">Localizar pela chave</summary>
+            <form className="card menu-acao-caixa" action="/financeiro">
+              <input type="hidden" name="tipo" value={tipo} />
+              <label htmlFor="chave">Chave de acesso da NF (44 números)</label>
+              <input id="chave" name="chave" defaultValue={sp.chave} inputMode="numeric" placeholder="1326 1008 2019 1100 0199 5500 1000 0012 3410 0012 3456" required />
+              <button className="btn primario mini" type="submit" style={{ marginTop: 8 }}>Localizar</button>
+            </form>
+          </details>
+          <details className="menu-acao">
+            <summary className="btn">{tipo === 'pagar' ? 'Importar NF/XML/boleto' : 'Importar NF/XML'}</summary>
+            <div className="card menu-acao-caixa">
+              <Link href="/autopilot" className="acao-rapida">NF-e, NFS-e ou ZIP de XML<span className="pequeno mudo"> · Autopilot lê, confere e prepara o título</span></Link>
+              {tipo === 'pagar' && <Link href="/inteligencia?aba=pagamentos" className="acao-rapida">Boleto (linha digitável)<span className="pequeno mudo"> · confere valor, vencimento e duplicidade</span></Link>}
+              <Link href="/fiscal/notas" className="acao-rapida">Planilha de NF da SEFAZ<span className="pequeno mudo"> · notas do portal que ainda não estão na ZARO</span></Link>
+            </div>
+          </details>
+          {edita && <Link className="btn primario" href={`/financeiro?tipo=${tipo}&novo=1#lancar`}>+ Lançar título</Link>}
+        </div>
       </div>
       {abas}
       {avisos}
+      {achado && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <div className="linha" style={{ justifyContent: 'space-between' }}><h2>Chave {achado.chave || '—'}</h2><Link href={`/financeiro?tipo=${tipo}`} className="pequeno">Limpar</Link></div>
+          {!achado.valida ? <p className="at">A chave de acesso tem 44 números; esta tem {achado.chave.length}.</p> : !achado.titulos.length && !achado.documentos.length && !achado.notas.length ? (
+            <p className="mudo">Esta NF não está nesta empresa: nenhum título, nenhum XML no Autopilot e nenhuma linha na lista da SEFAZ. Se for de outra empresa do escritório, troque a empresa no topo. Para trazê-la, use <Link href="/autopilot">Importar XML</Link>.</p>
+          ) : (
+            <ul className="alertas">
+              {achado.titulos.map((t) => <li key={t.id}><span><b>{t.codigo}</b> · {t.tipo === 'pagar' ? 'Contas a Pagar' : 'Contas a Receber'} · {t.nome} · parcela {t.parcela} · vence {dataBr(t.venc)} · {brl(t.valor)}</span><span className={`tag ${corStatus(t.status, t.venc, hoje)}`}>{t.status}</span></li>)}
+              {achado.documentos.map((d) => <li key={d.id}><span>Autopilot · {d.tipo} · {d.nomeArquivo}{d.valor ? ` · ${brl(d.valor)}` : ''}</span><Link className="tag" href="/autopilot">{d.status}</Link></li>)}
+              {achado.notas.map((n, i) => <li key={i}><span>Lista da SEFAZ · NF {n.numero} · {n.razaoEmit} · {brl(n.valor)}{n.situacao ? ` · ${n.situacao}` : ''}</span><Link className="tag" href="/fiscal/notas?f=todas">{n.lancadoEm ? 'Lançada' : n.recebidoEm ? 'Recebida' : 'Não recebida'}</Link></li>)}
+            </ul>
+          )}
+        </div>
+      )}
       <div className="grade g3" style={{ marginBottom: 16 }}>
         <div className="card kpi"><div className="rotulo">Em aberto</div><div className="v">{brl(totAberto)}</div><div className="s">{aberto.length} título(s)</div></div>
         <div className="card kpi"><div className="rotulo">Vencido</div><div className="v neg">{brl(totVencido)}</div><div className="s">até hoje</div></div>
@@ -125,7 +168,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
           <a className="btn" href={`/financeiro/relatorio?tipo=${tipo}&f=${f}${q ? `&q=${encodeURIComponent(q)}` : ''}`} target="_blank" rel="noopener" title="Abrir relatório para imprimir ou salvar em PDF">PDF</a>
         </form>
         {edita && (
-          <details style={{ marginTop: 12 }}>
+          <details id="lancar" style={{ marginTop: 12 }} open={sp.novo === '1'}>
             <summary>Lançar título manual</summary>
             <form action={criar} className="grade g4" style={{ marginTop: 10, alignItems: 'end' }}>
               <input type="hidden" name="volta" value={volta} /><input type="hidden" name="tipo" value={tipo} />

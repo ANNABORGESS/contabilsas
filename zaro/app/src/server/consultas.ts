@@ -88,7 +88,19 @@ export async function titulosFiltrados(db: Db, empresaId: string, tipo: 'pagar' 
             : f === 'quitados' ? /pago|recebido|quitad/i.test(t.status)
               : f === 'retorno' ? t.retorno
                 : /cancel/i.test(t.status);
-    return ok && (!q || `${t.codigo} ${t.nome} ${t.nf || ''} ${t.descricao || ''}`.toLowerCase().includes(q));
+    return ok && (!q || `${t.codigo} ${t.nome} ${t.nf || ''} ${t.descricao || ''} ${t.nfChave || ''}`.toLowerCase().includes(q));
   });
   return { f, q: (busca || '').trim(), todos, lista, nomeFiltro: FILTROS_TITULO.find(([k]) => k === f)![1] };
+}
+
+/** "Localizar pela chave": onde a NF de 44 dígitos está nesta empresa (títulos, Autopilot e lista da SEFAZ). */
+export async function localizarChave(db: Db, empresaId: string, entrada: string) {
+  const chave = entrada.replace(/\D/g, '');
+  if (chave.length !== 44) return { chave, valida: false as const, titulos: [] as Titulo[], documentos: [] as { id: string; tipo: string; status: string; nomeArquivo: string; valor: number | null }[], notas: [] as { numero: string | null; razaoEmit: string | null; valor: number; situacao: string | null; recebidoEm: Date | null; lancadoEm: Date | null }[] };
+  const [titulos, documentos, notas] = await Promise.all([
+    db.select().from(schema.titulos).where(and(eq(schema.titulos.empresaId, empresaId), eq(schema.titulos.nfChave, chave))).orderBy(schema.titulos.codigo),
+    db.select({ id: schema.documentosEntrada.id, tipo: schema.documentosEntrada.tipo, status: schema.documentosEntrada.status, nomeArquivo: schema.documentosEntrada.nomeArquivo, valor: schema.documentosEntrada.valor }).from(schema.documentosEntrada).where(and(eq(schema.documentosEntrada.empresaId, empresaId), eq(schema.documentosEntrada.chave, chave))),
+    db.select({ numero: schema.notasSefaz.numero, razaoEmit: schema.notasSefaz.razaoEmit, valor: schema.notasSefaz.valor, situacao: schema.notasSefaz.situacao, recebidoEm: schema.notasSefaz.recebidoEm, lancadoEm: schema.notasSefaz.lancadoEm }).from(schema.notasSefaz).where(and(eq(schema.notasSefaz.empresaId, empresaId), eq(schema.notasSefaz.chave, chave))),
+  ]);
+  return { chave, valida: true as const, titulos, documentos, notas };
 }
