@@ -589,3 +589,10 @@ tr.prio-linha-Alta td:first-child { box-shadow: inset 3px 0 0 #9fb6cc; }
   .planejar-corpo { grid-template-columns: 1fr; }
   .faixa-info, .grade-pag, .grade-forma { grid-template-columns: 1fr 1fr; }
 }
+/* submenu do menu lateral */
+.submenu { display: flex; flex-direction: column; gap: 2px; margin: 6px 0 8px 30px; }
+.menu .submenu a { padding: 6px 10px; font-size: 13.5px; font-weight: 500; color: var(--texto-3); border-radius: 10px; }
+.menu .submenu a:hover { color: var(--texto); background: rgba(255, 255, 255, 0.6); }
+.menu .submenu a.sub-ativo { color: var(--acento-forte); font-weight: 600; background: rgba(255, 255, 255, 0.5); }
+[data-menu-recolhido] .submenu { display: none; }
+@media (max-width: 900px) { .submenu { display: none; } }

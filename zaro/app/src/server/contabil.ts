@@ -12,7 +12,7 @@ import type { Empresa, Usuario } from './auth';
 export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancamento[]> {
   const [tits, bxs, imob, ctrs, decs, regras, extrato] = await Promise.all([
     db.select().from(schema.titulos).where(eq(schema.titulos.empresaId, emp.id)),
-    db.select({ id: schema.baixas.id, tituloId: schema.baixas.tituloId, data: schema.baixas.data, valor: schema.baixas.valor, estornada: schema.baixas.estornada, desconto: schema.baixas.desconto, juros: schema.baixas.juros, multa: schema.baixas.multa })
+    db.select({ id: schema.baixas.id, tituloId: schema.baixas.tituloId, data: schema.baixas.data, valor: schema.baixas.valor, estornada: schema.baixas.estornada, desconto: schema.baixas.desconto, juros: schema.baixas.juros, multa: schema.baixas.multa, dados: schema.baixas.dados })
       .from(schema.baixas).innerJoin(schema.titulos, eq(schema.titulos.id, schema.baixas.tituloId)).where(eq(schema.titulos.empresaId, emp.id)),
     db.select().from(schema.imobilizado).where(eq(schema.imobilizado.empresaId, emp.id)),
     db.select().from(schema.contratosDivida).where(eq(schema.contratosDivida.empresaId, emp.id)),
@@ -20,8 +20,8 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     db.select().from(schema.regrasClassificacao).where(eq(schema.regrasClassificacao.empresaId, emp.id)),
     db.select({ id: schema.extratoMovimentos.id, conta: schema.extratoMovimentos.conta, data: schema.extratoMovimentos.data, valor: schema.extratoMovimentos.valor, memo: schema.extratoMovimentos.memo }).from(schema.extratoMovimentos).where(eq(schema.extratoMovimentos.empresaId, emp.id)),
   ]);
-  const baixasPor = new Map<string, { id: string; data: string; valor: number; estornada: boolean; desconto: number; juros: number; multa: number }[]>();
-  for (const b of bxs) baixasPor.set(b.tituloId, [...(baixasPor.get(b.tituloId) || []), b]);
+  const baixasPor = new Map<string, { id: string; data: string; valor: number; estornada: boolean; desconto: number; juros: number; multa: number; extratoId: string | null }[]>();
+  for (const b of bxs) baixasPor.set(b.tituloId, [...(baixasPor.get(b.tituloId) || []), { ...b, extratoId: ((b.dados || {}) as { extratoId?: string }).extratoId || null }]);
   const status: Record<string, StatusLanc> = {};
   const contas: Record<string, string> = {};
   const estornos: Record<string, { motivo: string; data: string }> = {};

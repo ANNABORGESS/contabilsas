@@ -10,14 +10,16 @@ import { dadosPlanejamento } from '@/server/pagamentos';
 import { PlanejarPagamento, RegistrarPagamento, type TituloPlano } from '@/components/financeiro/Pagamento';
 import { saldoBancario } from '@/server/banco';
 import { corStatus } from '@/components/status';
+import { Conciliacao } from './conciliacao';
+import { Endividamento } from './endividamento';
 
-type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string; chave?: string; novo?: string; pagar?: string };
+type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string; chave?: string; novo?: string; pagar?: string; conta?: string };
 
 export default async function Financeiro({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
   const emp = await exigirEmpresa(u);
   const sp = await searchParams;
-  const aba = sp.tipo === 'receber' ? 'receber' : sp.tipo === 'extrato' ? 'extrato' : sp.tipo === 'emprestimos' ? 'emprestimos' : 'pagar';
+  const aba = (['receber', 'extrato', 'emprestimos', 'endividamento'] as const).find((k) => k === sp.tipo) || 'pagar';
   const edita = podeEditar(u);
   const hoje = new Date().toISOString().slice(0, 10);
   const db = await getDb();
@@ -26,8 +28,9 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
     <div className="abas">
       <Link href="/financeiro?tipo=pagar" className={aba === 'pagar' ? 'ativo' : ''}>Contas a Pagar</Link>
       <Link href="/financeiro?tipo=receber" className={aba === 'receber' ? 'ativo' : ''}>Contas a Receber</Link>
-      <Link href="/financeiro?tipo=extrato" className={aba === 'extrato' ? 'ativo' : ''}>Extrato bancário</Link>
-      <Link href="/financeiro?tipo=emprestimos" className={aba === 'emprestimos' ? 'ativo' : ''}>Empréstimos</Link>
+      <Link href="/financeiro?tipo=emprestimos" className={aba === 'emprestimos' ? 'ativo' : ''}>Empréstimos e Financiamentos</Link>
+      <Link href="/financeiro?tipo=endividamento" className={aba === 'endividamento' ? 'ativo' : ''}>Análise de endividamento</Link>
+      <Link href="/financeiro?tipo=extrato" className={aba === 'extrato' ? 'ativo' : ''}>Conciliação bancária</Link>
     </div>
   );
   const avisos = (
@@ -37,42 +40,19 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
     </>
   );
 
+  const cabecaSimples = (titulo: string, sub: string) => (
+    <>
+      <div className="cabeca central"><div><div className="sobretitulo">Financeiro · central de decisão</div><h1>{titulo}</h1><p>{sub}</p></div></div>
+      {abas}
+      {avisos}
+    </>
+  );
+
   if (aba === 'extrato') {
-    const [movs, saldo] = await Promise.all([
-      db.select().from(schema.extratoMovimentos).where(eq(schema.extratoMovimentos.empresaId, emp.id)).orderBy(desc(schema.extratoMovimentos.data)).limit(500),
-      saldoBancario(db, u.tenantId, emp.id),
-    ]);
-    return (
-      <>
-        <div className="cabeca"><div><h1>Financeiro</h1><p>Movimentos de extrato bancário importados (últimos 500).</p></div></div>
-        {abas}
-        {avisos}
-        <div className="card" id="saldo" style={{ marginBottom: 16 }}>
-          <h2>Saldo bancário</h2>
-          {saldo ? (
-            <p>Saldo atual: <b className={saldo.atual < 0 ? 'neg' : ''}>{brl(saldo.atual)}</b> · saldo inicial de {brl(saldo.inicial.valor)} em {dataBr(saldo.inicial.data)} mais os movimentos do extrato até {dataBr(saldo.ultimoMovimento)}.</p>
-          ) : (
-            <p className="mudo">Informe o saldo do banco numa data (o do extrato daquele dia). A ZARO soma os movimentos do extrato posteriores e mostra o saldo no Dashboard. Sem isso, o Dashboard não mostra saldo bancário.</p>
-          )}
-          {edita && (
-            <form action={definirSaldo} className="linha" style={{ marginTop: 10 }}>
-              <input type="hidden" name="volta" value="/financeiro?tipo=extrato" />
-              <div><label>Data do saldo</label><input type="date" name="data" required defaultValue={saldo?.inicial.data} /></div>
-              <div><label>Saldo no fim do dia (R$)</label><input name="valor" required inputMode="decimal" defaultValue={saldo ? String(saldo.inicial.valor).replace('.', ',') : ''} /></div>
-              <button className="btn primario" type="submit">{saldo ? 'Atualizar saldo inicial' : 'Gravar saldo inicial'}</button>
-            </form>
-          )}
-        </div>
-        <div className="card">
-          {movs.length ? (
-            <div className="tabela-wrap"><table>
-              <thead><tr><th>Data</th><th>Conta</th><th>Histórico</th><th className="num">Valor</th></tr></thead>
-              <tbody>{movs.map((m) => <tr key={m.id}><td>{dataBr(m.data)}</td><td>{m.conta}</td><td>{m.memo}</td><td className={`num ${m.valor < 0 ? 'neg' : 'pos'}`}>{brl(m.valor)}</td></tr>)}</tbody>
-            </table></div>
-          ) : <div className="vazio">Nenhum extrato importado. Os extratos do protótipo entram pela importação do backup em Configurações.</div>}
-        </div>
-      </>
-    );
+    return <Conciliacao u={u} emp={emp} sp={sp} edita={edita} cabeca={cabecaSimples('Conciliação bancária', 'Extrato do banco × títulos: o que já está conciliado, o que falta e o saldo')} />;
+  }
+  if (aba === 'endividamento') {
+    return <Endividamento emp={emp} hoje={hoje} cabeca={cabecaSimples('Análise de endividamento', 'Quanto a empresa deve, para quem, quando vence e se o resultado sustenta a dívida')} />;
   }
 
   if (aba === 'emprestimos') {
@@ -80,8 +60,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
     const total = ctrs.filter((c) => !/cancel|quitad/i.test(c.status)).reduce((a, c) => a + c.valor, 0);
     return (
       <>
-        <div className="cabeca"><div><h1>Financeiro</h1><p>Contratos de empréstimo e financiamento. Total contratado ativo: <b>{brl(total)}</b>.</p></div></div>
-        {abas}
+        {cabecaSimples('Empréstimos e Financiamentos', `Contratos de empréstimo e financiamento. Total contratado ativo: ${brl(total)}.`)}
         <div className="aviso">Pendência conhecida: saldo de abertura e cronograma das parcelas ainda precisam ser informados para o Balanço mostrar a dívida correta.</div>
         <div className="card">
           {ctrs.length ? (

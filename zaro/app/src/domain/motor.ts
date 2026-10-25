@@ -26,6 +26,8 @@ export interface Lancamento {
   chaveRegra?: string;
   /** movimento do extrato que quitou este título (a baixa do título não é lançada de novo) */
   tituloBaixado?: string;
+  /** o vínculo extrato × título foi feito pelo usuário na conciliação */
+  conciliadoManual?: boolean;
 }
 
 export interface BaixaMotor {
@@ -37,6 +39,8 @@ export interface BaixaMotor {
   desconto?: number;
   juros?: number;
   multa?: number;
+  /** movimento do extrato conciliado manualmente com esta baixa (o banco sai uma vez só) */
+  extratoId?: string | null;
 }
 export interface TituloMotor {
   id: string;
@@ -142,7 +146,8 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
   const contas = dec.contas || {};
   // o extrato vem primeiro: título quitado por um movimento do banco não ganha outra baixa
   const doExtrato = lancamentosDoExtrato(e.extrato || [], e.titulos, e.empresaNome || '', dec);
-  const quitadosNoExtrato = new Set(doExtrato.map((l) => l.tituloBaixado).filter(Boolean));
+  // títulos ligados ao extrato pela regra automática (os manuais já tiram a baixa vinculada abaixo)
+  const quitadosNoExtrato = new Set(doExtrato.filter((l) => !l.conciliadoManual).map((l) => l.tituloBaixado).filter(Boolean));
   const hoje = (e.hoje || new Date().toISOString()).slice(0, 7);
   const L: Lancamento[] = [];
 
@@ -159,8 +164,10 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
     const data = t.emissao || t.venc || `${comp}-01`;
     const doc = t.nf ? `NF ${t.nf}` : t.id;
     const baixas = (t.baixas || []).filter((b) => !b.estornada);
-    const pagoV = baixas.reduce((a, b) => a + b.valor, 0) || (pagoTotal(t.status) ? v : 0);
-    const dataPag = baixas.length ? baixas[baixas.length - 1].data : t.venc || data;
+    // baixa conciliada com o extrato já sai do banco pelo lançamento do extrato
+    const semExtrato = baixas.filter((b) => !b.extratoId);
+    const pagoV = baixas.length ? semExtrato.reduce((a, b) => a + b.valor, 0) : pagoTotal(t.status) ? v : 0;
+    const dataPag = semExtrato.length ? semExtrato[semExtrato.length - 1].data : t.venc || data;
     const baixaNoExtrato = quitadosNoExtrato.has(t.id);
     const base = { origemId: t.id, doc };
 
@@ -291,10 +298,19 @@ export function lancamentosDoExtrato(movs: MovimentoMotor[], titulos: TituloMoto
     .filter((t) => !t.retorno && !/cancel/i.test(t.status) && t.valor > 0)
     .map((t) => ({ t, tk: new Set(palavras(t.nome)), usado: false }));
   const out: Omit<Lancamento, 'status'>[] = [];
+  // conciliação manual: a baixa aponta para o movimento do extrato
+  const vinculo = new Map<string, (typeof candidatos)[number]>();
+  for (const c of candidatos) for (const b of c.t.baixas || []) if (b.extratoId && !b.estornada) { vinculo.set(b.extratoId, c); c.usado = true; }
   for (const m of [...movs].sort((a, b) => a.data.localeCompare(b.data))) {
     const memo = normal(m.memo);
     const v = Math.abs(m.valor);
     if (!(v > 0)) continue;
+    const manual = vinculo.get(m.id);
+    if (manual) {
+      const entradaM = m.valor > 0;
+      out.push({ id: `BKX|${m.id}`, data: m.data, comp: m.data.slice(0, 7), valor: v, hist: `${m.memo.slice(0, 120)} — ${m.conta}`, origemId: m.id, doc: 'Extrato', modulo: `Extrato bancário · ${entradaM ? 'entrada' : 'saída'}`, chaveRegra: chaveDoExtrato(m.memo), deb: entradaM ? '1.1.1.02' : '2.1.1.01', cred: entradaM ? '1.1.2.01' : '1.1.1.02', motivo: `Conciliado manualmente com o título ${manual.t.id} (${manual.t.nome})`, conf: 99, auto: true, tituloBaixado: manual.t.id, conciliadoManual: true });
+      continue;
+    }
     if (/MESMA TITUL|ENTRE CONTAS|TRANSF.*PROPRIA/.test(memo) || (proprios.length === 2 && proprios.every((w) => memo.includes(w)))) continue;
     const entrada = m.valor > 0;
     const tk = palavras(m.memo);

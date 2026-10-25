@@ -47,3 +47,15 @@ describe('Planejar pagamento', () => {
     expect(etapaAtingida({ alertas: 1, etapa: 'Título preparado' })).toBe(0);
   });
 });
+
+describe('Conciliação manual com o extrato', () => {
+  it('a baixa vinculada ao movimento não sai do banco duas vezes', () => {
+    const titulos = [{ id: 'CP-9', tipo: 'pagar' as const, nome: 'Fornecedor X', valor: 500, status: 'Pago', venc: '2026-08-01', competencia: '2026-08', baixas: [{ id: 'b9', data: '2026-10-10', valor: 500, extratoId: 'm1' }] }];
+    const extrato = [{ id: 'm1', conta: 'Bradesco', data: '2026-10-10', valor: -500, memo: 'PAG BOLETO DIVERSOS' }];
+    const l = gerarLancamentos({ titulos, extrato });
+    const banco = l.reduce((a, x) => a + (x.deb === '1.1.1.02' ? x.valor : 0) - (x.cred === '1.1.1.02' ? x.valor : 0), 0);
+    expect(banco).toBe(-500);
+    expect(l.find((x) => x.id === 'BKX|m1')).toMatchObject({ deb: '2.1.1.01', tituloBaixado: 'CP-9', conciliadoManual: true });
+    expect(l.some((x) => x.id === 'CP-9|pag')).toBe(false);
+  });
+});

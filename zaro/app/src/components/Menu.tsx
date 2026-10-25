@@ -1,6 +1,6 @@
 'use client';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import { Icone } from './Icone';
 
 // [endereço, nome, cor pastel da área (globals.css, [data-cor]), ícone, cor do ícone no protótipo]
@@ -24,16 +24,29 @@ const ITENS: ([string, string, string, string, string] | null)[] = [
   ['/auditoria', 'Auditoria', 'neutro', 'audit', '#5F5954'],
 ];
 
+// Submenus: aparecem abertos quando a área está ativa. [tipo na URL, nome]
+const SUB: Record<string, [string, string][]> = {
+  '/financeiro': [['pagar', 'Contas a Pagar'], ['receber', 'Contas a Receber'], ['emprestimos', 'Empréstimos e Financiamentos'], ['endividamento', 'Análise de endividamento'], ['extrato', 'Conciliação bancária']],
+};
+
 export function Menu() {
   const p = usePathname();
+  const tipo = useSearchParams().get('tipo') || 'pagar';
   return (
     <nav className="menu">
       {ITENS.map((i, k) =>
         i ? (
-          <Link key={i[0]} href={i[0]} data-cor={i[2]} title={i[1]} className={(i[0] === '/' ? p === '/' : p.startsWith(i[0])) ? 'ativo' : ''}>
-            <Icone nome={i[3]} cor={i[4]} />
-            <span className="nome">{i[1]}</span>
-          </Link>
+          <div key={i[0]} className="menu-item">
+            <Link href={i[0]} data-cor={i[2]} title={i[1]} className={(i[0] === '/' ? p === '/' : p.startsWith(i[0])) ? 'ativo' : ''}>
+              <Icone nome={i[3]} cor={i[4]} />
+              <span className="nome">{i[1]}</span>
+            </Link>
+            {SUB[i[0]] && p === i[0] && (
+              <div className="submenu">
+                {SUB[i[0]].map(([k, n]) => <Link key={k} href={`${i[0]}?tipo=${k}`} className={tipo === k ? 'sub-ativo' : ''} aria-current={tipo === k ? 'page' : undefined}>{n}</Link>)}
+              </div>
+            )}
+          </div>
         ) : (
           <div key={k} className="sep" />
         ),

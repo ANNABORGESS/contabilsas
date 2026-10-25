@@ -5,6 +5,7 @@ import { getDb } from '@/db';
 import { brl, numero } from '@/domain/dinheiro';
 import { exigirEdicao, exigirEmpresa } from '@/server/auth';
 import { definirSaldoInicial } from '@/server/banco';
+import { conciliarMovimento } from '@/server/financeiro-analises';
 import { moverPagamento } from '@/server/inteligencia';
 import { anexarComprovante, marcarPrioritario, parcelarTitulo, reagendarMais7, registrarPagamento, registrarPagamentosLote, rejeitar, renegociar, trocarConta } from '@/server/pagamentos';
 import { ajustarTitulo, cancelarTitulo, estornarBaixa, novoTitulo, registrarBaixa } from '@/server/financeiro';
@@ -113,4 +114,11 @@ export async function trocarContaSelecao(form: FormData) {
 }
 export async function comprovanteSelecao(form: FormData) {
   await executar(form, async ({ db, u, emp }) => `Comprovante anexado a ${await anexarComprovante(db, u, emp, ids(form), form.get('arquivo') as File | null)} título(s).`);
+}
+
+export async function conciliarAcao(form: FormData) {
+  await executar(form, async ({ db, u, emp }) => {
+    const r = await conciliarMovimento(db, u, emp, String(form.get('mov') || ''), String(form.get('titulo') || ''));
+    return `Extrato conciliado com ${r.codigo}: baixa de ${brl(r.valor)}${r.sobra > 0.009 ? ` (sobram ${brl(r.sobra)} do movimento sem título)` : ''}.`;
+  });
 }
