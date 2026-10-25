@@ -4,11 +4,14 @@ import { getDb, schema } from '@/db';
 import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import { ehAberto, FILTROS_TITULO, localizarChave, titulosFiltrados } from '@/server/consultas';
-import { baixar, cancelar, criar, definirSaldo, estornar, revisar } from './acoes';
+import { aprovarSelecao, baixar, cancelar, comprovanteSelecao, criar, definirSaldo, estornar, parcelarSelecao, prioritarioSelecao, programarSelecao, reagendarSelecao, registrarPagamentoAcao, rejeitarSelecao, renegociarSelecao, revisar, trocarContaSelecao } from './acoes';
+import { etapaAtingida, prioridade } from '@/domain/pagamento';
+import { dadosPlanejamento } from '@/server/pagamentos';
+import { PlanejarPagamento, RegistrarPagamento, type TituloPlano } from '@/components/financeiro/Pagamento';
 import { saldoBancario } from '@/server/banco';
 import { corStatus } from '@/components/status';
 
-type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string; chave?: string; novo?: string };
+type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string; chave?: string; novo?: string; pagar?: string };
 
 export default async function Financeiro({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
@@ -98,10 +101,25 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
     sp.chave ? localizarChave(db, emp.id, sp.chave) : null,
   ]);
   const mesAtual = hoje.slice(0, 7);
+  const planeja = tipo === 'pagar' && edita;
+  const sim = planeja ? await dadosPlanejamento(db, u, emp, hoje) : null;
+  const pagarIds = planeja && sp.pagar ? sp.pagar.split(',').filter(Boolean).slice(0, 50) : [];
+  const paraPagar = pagarIds.length ? await db.select().from(schema.titulos).where(and(eq(schema.titulos.empresaId, emp.id), eq(schema.titulos.tipo, 'pagar'), inArray(schema.titulos.id, pagarIds))) : [];
+  const bxPagar = paraPagar.length ? await db.select().from(schema.baixas).where(and(inArray(schema.baixas.tituloId, paraPagar.map((t) => t.id)), eq(schema.baixas.estornada, false))) : [];
   const ids = lista.slice(0, 300).map((t) => t.id);
   const bxs = ids.length ? await db.select().from(schema.baixas).where(and(inArray(schema.baixas.tituloId, ids))) : [];
   const porTit = new Map<string, typeof bxs>();
   for (const b of bxs) porTit.set(b.tituloId, [...(porTit.get(b.tituloId) || []), b]);
+  const pagDe = (t: (typeof lista)[number]) => ((t.dados as { pagamento?: { etapa?: string; agendadoPara?: string; prioritario?: boolean; conta?: string } })?.pagamento || {});
+  const saldoDe = (t: (typeof lista)[number]) => Math.max(0, t.valor - (porTit.get(t.id) || []).filter((b) => !b.estornada).reduce((a, b) => a + b.valor, 0));
+  const plano: Record<string, TituloPlano> = {};
+  if (planeja) for (const t of lista.slice(0, 300)) {
+    if (!ehAberto(t)) continue;
+    const p = pagDe(t);
+    const pr = prioridade({ venc: t.venc, nome: t.nome, categoria: t.categoria, descricao: t.descricao, prioritario: p.prioritario }, hoje);
+    const etapa = p.etapa || 'Título preparado';
+    plano[t.id] = { id: t.id, codigo: t.codigo, nome: t.nome, nf: t.nf, venc: t.venc, saldo: Math.round(saldoDe(t) * 100) / 100, prioridade: pr.nivel, motivo: pr.motivo, etapa, etapaIdx: etapaAtingida({ alertas: 0, etapa }), conta: p.conta || null, agendadoPara: p.agendadoPara || null };
+  }
   const aberto = todos.filter(ehAberto);
   const totAberto = aberto.reduce((a, t) => a + t.valor, 0);
   const totVencido = aberto.filter((t) => t.venc && t.venc < hoje).reduce((a, t) => a + t.valor, 0);
@@ -183,26 +201,37 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
           </details>
         )}
       </div>
+      {planeja && sim && (
+        <PlanejarPagamento titulos={plano} sim={sim} hoje={hoje} volta={volta}
+          acoes={{ aprovar: aprovarSelecao, programar: programarSelecao, rejeitar: rejeitarSelecao, reagendar: reagendarSelecao, parcelar: parcelarSelecao, renegociar: renegociarSelecao, prioritario: prioritarioSelecao, conta: trocarContaSelecao, comprovante: comprovanteSelecao }} />
+      )}
+      {paraPagar.length > 0 && (
+        <RegistrarPagamento empresa={emp.razao} hoje={hoje} contas={sim?.contas || []} volta={volta} fechar={volta} acao={registrarPagamentoAcao}
+          contaSugerida={paraPagar.map((t) => ((t.dados as { pagamento?: { conta?: string } })?.pagamento?.conta)).find(Boolean) || sim?.contas[0] || null}
+          titulos={paraPagar.filter(ehAberto).map((t) => ({ id: t.id, codigo: t.codigo, nome: t.nome, nf: t.nf, parcela: t.parcela, valor: t.valor, venc: t.venc, saldo: Math.round(Math.max(0, t.valor - bxPagar.filter((b) => b.tituloId === t.id).reduce((a, b) => a + b.valor, 0)) * 100) / 100 }))} />
+      )}
       <div className="card">
         {lista.length ? (
           <div className="tabela-wrap">
             <table>
-              <thead><tr><th>Título</th><th>{tipo === 'pagar' ? 'Fornecedor' : 'Cliente'}</th><th>NF</th><th>Parcela</th><th>Vencimento</th><th className="num">Valor</th><th className="num">Baixado</th><th>Status</th><th /></tr></thead>
+              <thead><tr>{planeja && <th aria-label="Selecionar" />}<th>Título</th><th>{tipo === 'pagar' ? 'Fornecedor' : 'Cliente'}</th><th>NF</th><th>Parcela</th><th>Vencimento</th><th className="num">Valor</th><th className="num">Baixado</th><th>Status</th><th /></tr></thead>
               <tbody>
                 {lista.slice(0, 300).map((t) => {
                   const bs = (porTit.get(t.id) || []).filter((b) => !b.estornada);
                   const baixado = bs.reduce((a, b) => a + b.valor, 0);
                   return (
-                    <tr key={t.id}>
+                    <tr key={t.id} className={plano[t.id] ? `prio-linha-${plano[t.id].prioridade}` : undefined}>
+                      {planeja && <td>{ehAberto(t) && <input type="checkbox" name="id" value={t.id} form="planejar" aria-label={`Selecionar ${t.codigo}`} />}</td>}
                       <td><b>{t.codigo}</b><div className="pequeno mudo">{t.categoria || t.origem}</div></td>
                       <td>{t.nome}{t.docParceiro && <div className="pequeno mudo">{formatarCnpj(t.docParceiro)}</div>}</td>
                       <td>{t.nf || '—'}</td>
                       <td>{t.parcela}</td>
-                      <td>{dataBr(t.venc)} {t.vencEstimado && <span className="tag at">revisar</span>}</td>
+                      <td>{dataBr(t.venc)} {t.vencEstimado && <span className="tag at">revisar</span>}{plano[t.id] && <div><span className={`tag prio-${plano[t.id].prioridade}`} title={plano[t.id].motivo}>{plano[t.id].prioridade}</span>{(plano[t.id].etapa !== 'Título preparado' || plano[t.id].agendadoPara) && <span className="pequeno mudo"> {plano[t.id].etapa === 'Título preparado' ? 'Para' : plano[t.id].etapa}{plano[t.id].agendadoPara ? ` ${dataBr(plano[t.id].agendadoPara)}` : ''}</span>}</div>}</td>
                       <td className="num">{brl(t.valor)}{t.retorno && t.valorFiscal ? <div className="pequeno mudo">fiscal {brl(t.valorFiscal)}</div> : null}</td>
                       <td className="num">{baixado ? brl(baixado) : '—'}</td>
                       <td><span className={`tag ${corStatus(t.status, t.venc, hoje)}`}>{t.status}</span></td>
                       <td style={{ minWidth: 120 }}>
+                        {planeja && ehAberto(t) && <Link className="btn mini primario" href={`${volta}&pagar=${t.id}`} style={{ marginBottom: 6 }}>Registrar pagamento</Link>}
                         <details>
                           <summary className="pequeno">Detalhes</summary>
                           <div className="campos" style={{ marginTop: 8, minWidth: 300 }}>

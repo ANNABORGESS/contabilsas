@@ -163,6 +163,7 @@ function CartaoIa() {
       <div className="linha"><span className="ind-icone ia"><Icone nome="brilho" tam={18} /></span><h2>ZARO IA</h2>{!iaDisponivel() && <span className="tag at">aguardando chave da Anthropic</span>}</div>
       <p className="pequeno mudo">Pergunte sobre os números desta empresa. A resposta cita a fonte, o período e o link para conferir.</p>
       <PerguntasIa perguntas={['Como está meu caixa hoje?', 'O que vence nos próximos 7 dias?', 'Quais impostos estão em aberto?', 'O fechamento está atrasado?', 'Como está o endividamento?']} />
+      <p className="pequeno" style={{ marginTop: 10 }}><Link href="/especialistas?q=crise">Diagnóstico de crise financeira →</Link> <span className="mudo">especialista que analisa liquidez, endividamento e propõe plano de recuperação</span></p>
     </div>
   );
 }

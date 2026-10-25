@@ -182,6 +182,13 @@ export const baixas = pgTable('baixas', {
   forma: text('forma'),
   obs: text('obs'),
   estornada: boolean('estornada').notNull().default(false),
+  // valor = principal abatido do título; a saída de caixa é valor − desconto + juros + multa
+  desconto: dinheiro('desconto').notNull().default(0),
+  juros: dinheiro('juros').notNull().default(0),
+  multa: dinheiro('multa').notNull().default(0),
+  conta: text('conta'), // conta ou caixa de origem
+  dados: jsonb('dados').$type<Record<string, unknown>>().notNull().default({}), // chave Pix, favorecido, ID da transação…
+  arquivoId: uuid('arquivo_id').references(() => arquivos.id, { onDelete: 'set null' }), // comprovante
   criadoEm: criadoEm(),
 });
 

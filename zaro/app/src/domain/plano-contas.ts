@@ -42,6 +42,9 @@ export const PLANO_PADRAO: Conta[] = [
   ['4.1.4.01', 'Tributos e taxas', 'D'],
   ['4.2.1.01', 'Despesas financeiras — juros', 'D'],
   ['4.2.1.02', 'Despesas bancárias — tarifas', 'D'],
+  ['4.2.1.03', 'Descontos obtidos e juros recebidos', 'D'],
+  ['4.2.1.04', 'Multas por atraso', 'D'],
+  ['4.2.1.05', 'Descontos concedidos', 'D'],
 ].map(([codigo, nome, natureza]) => ({ codigo, nome, natureza: natureza as 'D' | 'C' }));
 
 export const GRUPOS: Record<string, string> = {

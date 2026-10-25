@@ -3,6 +3,7 @@
 // A chamada à API da Anthropic acontece só aqui, no servidor (chave em ANTHROPIC_API_KEY).
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
+import { chamarIa } from './ia-erros';
 import { and, eq } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
@@ -104,7 +105,7 @@ export async function consultarConselho(db: Db, u: Usuario, emp: Empresa, pergun
     'Escreva tudo em português do Brasil, direto e sem jargão. Não recomende nada que viole lei trabalhista, tributária ou a LGPD.',
   ].join('\n');
 
-  const r = await client.beta.messages.create({
+  const r = await chamarIa(() => client.beta.messages.create({
     model: 'claude-opus-5-5',
     max_tokens: 16000,
     betas: ['server-side-fallback-2026-07-01'],
@@ -112,7 +113,7 @@ export async function consultarConselho(db: Db, u: Usuario, emp: Empresa, pergun
     output_config: { effort: 'medium', format: FORMATO },
     system: sistema,
     messages: [{ role: 'user', content: `Números da empresa:\n${numeros}\n\nDecisão em pauta:\n${q}` }],
-  });
+  }));
   if (r.stop_reason === 'refusal') throw new Error('A IA não quis opinar sobre esta pergunta. Reformule a decisão.');
   if (r.stop_reason === 'max_tokens') throw new Error('A resposta ficou longa demais. Tente uma pergunta mais objetiva.');
   const texto = r.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('');

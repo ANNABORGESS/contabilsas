@@ -2,7 +2,8 @@
 // O conteúdo licenciado fica só no banco do escritório; a chamada à Anthropic acontece só aqui no servidor.
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
-import { and, asc, desc, eq, sql } from 'drizzle-orm';
+import { chamarIa } from './ia-erros';
+import { and, asc, desc, eq, notInArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { formatarCnpj } from '@/domain/dinheiro';
@@ -10,6 +11,9 @@ import type { Especialista } from '@/domain/especialistas';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
 import { numerosDaEmpresa } from './conselho';
+import { NATIVOS } from '@/domain/especialistas-nativos';
+import { contextoIa } from './inteligencia';
+import { compPadrao, dadosDoPainel, resumoParaIa } from './painel';
 
 export const temChaveIA = () => !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 
@@ -30,7 +34,17 @@ export async function salvarEspecialistas(db: Db, u: Usuario, itens: Especialist
   return validos.length;
 }
 
+/** Garante que os especialistas nativos da ZARO existam no escritório (e fiquem atualizados). */
+export async function garantirNativos(db: Db, tenantId: string) {
+  for (const n of NATIVOS) {
+    const v = { nome: n.nome, descricao: n.descricao, conteudo: n.conteudo, pacote: 'ZARO (nativo)' };
+    await db.insert(schema.especialistas).values({ tenantId, tipo: n.tipo, slug: n.slug, ...v })
+      .onConflictDoUpdate({ target: [schema.especialistas.tenantId, schema.especialistas.tipo, schema.especialistas.slug], set: { ...v, ativo: true } });
+  }
+}
+
 export async function listarEspecialistas(db: Db, tenantId: string) {
+  await garantirNativos(db, tenantId);
   return db
     .select({ id: schema.especialistas.id, tipo: schema.especialistas.tipo, slug: schema.especialistas.slug, nome: schema.especialistas.nome, descricao: schema.especialistas.descricao, pacote: schema.especialistas.pacote })
     .from(schema.especialistas)
@@ -51,17 +65,24 @@ export async function consultasDoEspecialista(db: Db, empresaId: string, especia
 }
 
 export async function removerEspecialistas(db: Db, u: Usuario) {
-  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.especialistas).where(eq(schema.especialistas.tenantId, u.tenantId));
-  await db.delete(schema.especialistas).where(eq(schema.especialistas.tenantId, u.tenantId));
+  // os nativos da ZARO (e o histórico de consultas deles) ficam
+  const enviados = and(eq(schema.especialistas.tenantId, u.tenantId), notInArray(schema.especialistas.slug, NATIVOS.map((x) => x.slug)));
+  const [{ n }] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.especialistas).where(enviados);
+  await db.delete(schema.especialistas).where(enviados);
   await auditar(db, u, { acao: 'Removeu os especialistas enviados', depois: `${n} removido(s)` });
 }
 
-async function contextoDaEmpresa(db: Db, emp: Empresa) {
+async function contextoDaEmpresa(db: Db, u: Usuario, emp: Empresa, slug: string) {
   const hist = (emp.regimeHist || []) as { regime: string; de?: string; ate?: string }[];
+  const nativo = NATIVOS.find((n) => n.slug === slug);
+  const hoje = new Date().toISOString().slice(0, 10);
+  // especialista nativo recebe o retrato completo: painel + áreas da Inteligência Financeira
+  const extra = nativo ? [resumoParaIa(await dadosDoPainel(db, u, emp, compPadrao(hoje), hoje)), ...(await Promise.all(nativo.areas.map((a) => contextoIa(db, u, emp, hoje, a))))] : [];
   return [
     `CNPJ ${formatarCnpj(emp.cnpj)}${emp.ie ? ` · IE ${emp.ie}` : ''}.`,
     hist.length ? `Histórico de regime: ${hist.map((h) => `${h.regime}${h.de ? ` desde ${h.de}` : ''}${h.ate ? ` até ${h.ate}` : ''}`).join('; ')}. Use sempre o regime vigente na competência analisada.` : '',
     await numerosDaEmpresa(db, emp),
+    ...extra,
   ].filter(Boolean).join('\n');
 }
 
@@ -86,10 +107,10 @@ export async function perguntarEspecialista(db: Db, u: Usuario, emp: Empresa, es
     e.conteudo,
     '</especialidade>',
   ].join('\n');
-  const dados = usarDados ? `Dados da empresa ativa na ZARO (${emp.razao}):\n${await contextoDaEmpresa(db, emp)}\n\n` : '';
+  const dados = usarDados ? `Dados da empresa ativa na ZARO (${emp.razao}):\n${await contextoDaEmpresa(db, u, emp, e.slug)}\n\n` : '';
 
   const client = new Anthropic();
-  const r = await client.beta.messages.create({
+  const r = await chamarIa(() => client.beta.messages.create({
     model: 'claude-opus-5-5',
     max_tokens: 16000,
     betas: ['server-side-fallback-2026-07-01'],
@@ -97,7 +118,7 @@ export async function perguntarEspecialista(db: Db, u: Usuario, emp: Empresa, es
     output_config: { effort: 'medium' },
     system: sistema,
     messages: [{ role: 'user', content: `${dados}Pergunta do contador:\n${q}` }],
-  });
+  }));
   if (r.stop_reason === 'refusal') throw new Error('A IA não quis responder esta pergunta. Reformule.');
   const resposta = r.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('').trim()
     + (r.stop_reason === 'max_tokens' ? '\n\n_(A resposta foi cortada por tamanho. Peça a continuação ou faça uma pergunta mais específica.)_' : '');

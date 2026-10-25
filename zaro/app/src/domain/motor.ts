@@ -29,9 +29,14 @@ export interface Lancamento {
 }
 
 export interface BaixaMotor {
+  id?: string;
   data: string;
   valor: number;
   estornada?: boolean;
+  /** encargos e abatimentos do pagamento (fora do principal do título) */
+  desconto?: number;
+  juros?: number;
+  multa?: number;
 }
 export interface TituloMotor {
   id: string;
@@ -158,6 +163,20 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
     const dataPag = baixas.length ? baixas[baixas.length - 1].data : t.venc || data;
     const baixaNoExtrato = quitadosNoExtrato.has(t.id);
     const base = { origemId: t.id, doc };
+
+    // juros, multa e desconto de cada pagamento/recebimento: resultado financeiro, contra o banco
+    baixas.forEach((b, i) => {
+      const k = `${t.id}|enc|${b.id || i}`;
+      const comum = { ...base, data: b.data, comp: b.data.slice(0, 7), conf: 97, auto: true };
+      if (t.tipo === 'pagar') {
+        if (b.juros) add({ ...comum, id: `${k}|jur`, deb: '4.2.1.01', cred: '1.1.1.02', valor: b.juros, hist: `Juros pagos ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Juros informados no registro do pagamento' });
+        if (b.multa) add({ ...comum, id: `${k}|mul`, deb: '4.2.1.04', cred: '1.1.1.02', valor: b.multa, hist: `Multa por atraso ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Multa informada no registro do pagamento' });
+        if (b.desconto) add({ ...comum, id: `${k}|des`, deb: '1.1.1.02', cred: '4.2.1.03', valor: b.desconto, hist: `Desconto obtido ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Desconto informado no registro do pagamento' });
+      } else {
+        if ((b.juros || 0) + (b.multa || 0)) add({ ...comum, id: `${k}|jur`, deb: '1.1.1.02', cred: '4.2.1.03', valor: (b.juros || 0) + (b.multa || 0), hist: `Juros e multa recebidos ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Encargos informados no registro do recebimento' });
+        if (b.desconto) add({ ...comum, id: `${k}|des`, deb: '4.2.1.05', cred: '1.1.1.02', valor: b.desconto, hist: `Desconto concedido ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Desconto informado no registro do recebimento' });
+      }
+    });
 
     if (t.tipo === 'pagar') {
       if (t.origem === 'folha') {

@@ -532,3 +532,60 @@ details.conferencia summary { cursor: pointer; }
 .menu-acao-caixa { position: absolute; right: 0; top: 46px; width: 380px; z-index: 15; box-shadow: var(--sombra-alta); display: flex; flex-direction: column; gap: 8px; }
 .menu-acao-caixa .acao-rapida { display: block; font-weight: 600; }
 @media (max-width: 900px) { .menu-acao-caixa { right: auto; left: 0; width: min(380px, 90vw); } }
+/* Contas a Pagar: planejar e registrar pagamento */
+.planejar-dica { margin: 0 0 12px; }
+.planejar { margin-bottom: 16px; position: sticky; top: 8px; z-index: 6; box-shadow: var(--sombra-alta); }
+.planejar-topo { display: flex; align-items: center; gap: 12px; }
+.planejar-topo h2 { margin: 0; display: flex; align-items: center; gap: 8px; }
+.contador { display: inline-grid; place-items: center; min-width: 22px; height: 22px; border-radius: 999px; background: #6786a3; color: #fff; font-size: 12px; }
+.planejar-total { margin-left: auto; text-align: right; }
+.planejar-total span { display: block; font-size: 11px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--texto-3); font-weight: 600; }
+.planejar-total b { font-size: 24px; font-variant-numeric: tabular-nums; }
+.planejar-corpo { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; margin-top: 14px; }
+.planejar-lista { list-style: none; padding: 0; margin: 0; display: flex; flex-direction: column; gap: 8px; max-height: 260px; overflow: auto; }
+.planejar-lista li { display: flex; align-items: center; gap: 12px; padding: 10px 12px; border: 1px solid #eae4e1; border-radius: 14px; background: #fff; }
+.planejar-lista li > div { flex: 1; min-width: 0; }
+.planejar-lista .num { white-space: nowrap; }
+.planejar-lista .x { border: 0; background: none; font-size: 18px; color: var(--texto-3); cursor: pointer; }
+.etapa-txt { color: #45627d; }
+.tag.prio-Alta { background: #c5d3e0; color: #2f4a63; }
+.tag.prio-Média { background: #e8d0c2; color: #7a4a2e; }
+.tag.prio-Baixa { background: #e3efe6; color: #3f6e52; }
+.simulacao { background: #f6f1ec; border-radius: 16px; padding: 14px 16px; display: flex; flex-direction: column; gap: 6px; font-size: 13.5px; }
+.simulacao .lin { display: flex; justify-content: space-between; gap: 10px; font-variant-numeric: tabular-nums; }
+.simulacao .lin.total { border-top: 1px solid #eae4e1; padding-top: 8px; margin-top: 4px; font-size: 15px; }
+.simulacao .lin.total b { font-size: 20px; }
+.simulacao .links { justify-content: space-around; margin-top: 6px; font-weight: 600; }
+button.link { border: 0; background: none; color: var(--acento-forte); font-weight: 600; cursor: pointer; padding: 0; font: inherit; }
+.planejar-acoes { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 14px; padding-top: 14px; border-top: 1px solid #eae4e1; align-items: center; }
+.planejar-acoes .btn.ativo { background: #d8cde5; border-color: transparent; }
+.planejar-extra { margin-top: 10px; padding: 10px 12px; background: #faf7fd; border: 1px solid var(--ia-borda); border-radius: 14px; }
+.planejar-extra input:not([type='checkbox']) { width: auto; }
+.etapas-fluxo { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.chip-etapa { display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px; border-radius: 999px; border: 1px solid #eae4e1; font-size: 12px; color: var(--texto-3); background: #fff; }
+.chip-etapa i { width: 7px; height: 7px; border-radius: 50%; background: #d6cfca; }
+.chip-etapa.feito { color: #3f6e52; } .chip-etapa.feito i { background: #78c39c; }
+.chip-etapa.atual { background: #d8cde5; color: #3c3058; border-color: transparent; } .chip-etapa.atual i { background: #6786a3; }
+tr.prio-linha-Alta td:first-child { box-shadow: inset 3px 0 0 #9fb6cc; }
+/* janela Registrar pagamento */
+.modal-fundo { position: fixed; inset: 0; background: rgba(41, 38, 51, 0.18); z-index: 50; display: grid; place-items: center; padding: 16px; overflow: auto; }
+.modal { width: min(760px, 100%); max-height: calc(100vh - 32px); overflow: auto; display: flex; flex-direction: column; gap: 12px; background: #fcfaf8; }
+.modal-topo { display: flex; justify-content: space-between; align-items: flex-start; }
+.modal-topo h2 { margin: 2px 0 0; }
+.modal .fechar { font-weight: 600; }
+.faixa-info { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid #eae4e1; border-radius: 14px; overflow: hidden; background: #f6f1ec; }
+.faixa-info > div { padding: 10px 12px; border-left: 1px solid #eae4e1; display: flex; flex-direction: column; gap: 4px; font-size: 12px; }
+.faixa-info > div:first-child { border-left: 0; }
+.faixa-info span { color: var(--texto-3); }
+.grade-pag { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 10px; }
+.valor-final { display: inline-block; padding: 10px 16px; border: 1px solid #eae4e1; border-radius: 12px; background: #fff; font-weight: 700; font-size: 16px; min-width: 160px; }
+.abas-forma { display: inline-flex; gap: 4px; padding: 4px; border: 1px solid #eae4e1; border-radius: 14px; background: #fff; flex-wrap: wrap; align-self: flex-start; }
+.abas-forma button { border: 0; background: none; padding: 7px 14px; border-radius: 10px; font-weight: 600; cursor: pointer; color: var(--texto-2); }
+.abas-forma button.ativo { background: #6786a3; color: #fff; }
+.grade-forma { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
+.btn.anexar { cursor: pointer; white-space: nowrap; max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 900px) {
+  .planejar { position: static; }
+  .planejar-corpo { grid-template-columns: 1fr; }
+  .faixa-info, .grade-pag, .grade-forma { grid-template-columns: 1fr 1fr; }
+}

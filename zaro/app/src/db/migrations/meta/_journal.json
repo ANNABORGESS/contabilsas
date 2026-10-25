@@ -43,6 +43,13 @@
       "when": 1792784678906,
       "tag": "0005_inteligencia_financeira",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1792949582789,
+      "tag": "0006_pagamento_detalhado",
+      "breakpoints": true
     }
   ]
 }

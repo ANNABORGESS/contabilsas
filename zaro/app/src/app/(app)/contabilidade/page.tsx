@@ -62,7 +62,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
         <div><label>De (personalizado)</label><input type="month" name="de" defaultValue={sp.de} /></div>
         <div><label>Até (personalizado)</label><input type="month" name="ate" defaultValue={sp.ate} /></div>
         {aba === 'lancamentos' && <div><label>Status</label><select name="st" defaultValue={sp.st || 'Todos'}>{STATUS.map((s) => <option key={s}>{s}</option>)}</select></div>}
-        {aba === 'lancamentos' && <div style={{ flex: 1, minWidth: 160 }}><label>Busca</label><input name="q" defaultValue={sp.q} placeholder="Histórico, documento" /></div>}
+        {aba === 'lancamentos' && <div style={{ flex: 1, minWidth: 160 }}><label>Busca</label><input name="q" defaultValue={sp.q} placeholder="Histórico, documento, código do título" /></div>}
         {aba !== 'lancamentos' && <label className="linha" style={{ alignSelf: 'flex-end' }}><input type="checkbox" name="previa" value="1" defaultChecked={previa} /> Prévia (inclui não aprovados)</label>}
         <button className="btn" type="submit" style={{ alignSelf: 'flex-end' }}>Aplicar</button>
       </form>
@@ -77,7 +77,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
 
 function Lancamentos({ lancs, p, sp, edita, volta }: { lancs: Lancamento[]; p: Periodo; sp: SP; edita: boolean; volta: string }) {
   const q = (sp.q || '').toLowerCase();
-  const vis = lancs.filter((l) => l.comp >= p.de && l.comp <= p.ate && (!sp.st || sp.st === 'Todos' || l.status === sp.st) && (!q || `${l.hist} ${l.doc}`.toLowerCase().includes(q)));
+  const vis = lancs.filter((l) => l.comp >= p.de && l.comp <= p.ate && (!sp.st || sp.st === 'Todos' || l.status === sp.st) && (!q || `${l.hist} ${l.doc} ${l.origemId}`.toLowerCase().includes(q)));
   return (
     <div className="card">
       {edita && (

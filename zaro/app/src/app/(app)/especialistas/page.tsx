@@ -11,12 +11,13 @@ export default async function Especialistas({ searchParams }: { searchParams: Pr
   const todos = await listarEspecialistas(await getDb(), u.tenantId);
   const q = (sp.q || '').toLowerCase().trim();
   const t = sp.t === 'skill' || sp.t === 'agente' ? sp.t : '';
-  const lista = todos.filter((e) => (!t || e.tipo === t) && (!q || `${e.nome} ${e.slug} ${e.descricao}`.toLowerCase().includes(q)));
+  const lista = todos.filter((e) => (!t || e.tipo === t) && (!q || `${e.nome} ${e.slug} ${e.descricao}`.toLowerCase().includes(q)))
+    .sort((a, b) => Number(b.pacote === 'ZARO (nativo)') - Number(a.pacote === 'ZARO (nativo)'));
   const edita = podeEditar(u);
   const link = (tt: string) => `/especialistas?${new URLSearchParams({ ...(tt ? { t: tt } : {}), ...(q ? { q } : {}) })}`;
   return (
     <>
-      <div className="cabeca"><div><h1>Especialistas</h1><p>As skills e os agentes de contabilidade que você enviou, prontos para responder com os números da empresa ativa.</p></div></div>
+      <div className="cabeca"><div><h1>Especialistas</h1><p>O especialista nativo da ZARO e as skills e os agentes que você enviou, prontos para responder com os números da empresa ativa.</p></div></div>
       {sp.msg && <div className="aviso ok">{sp.msg}</div>}
       {!temChaveIA() && <div className="aviso at">Para os especialistas responderem, falta a chave da Anthropic: coloque <b>ANTHROPIC_API_KEY</b> nas configurações da Vercel (Settings → Environment Variables) e publique de novo.</div>}
       {edita && (

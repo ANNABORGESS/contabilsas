@@ -3,6 +3,7 @@
 // da conversa; nunca recebe dados de outra empresa. Mesma chamada da Anthropic usada no Conselho.
 import 'server-only';
 import Anthropic from '@anthropic-ai/sdk';
+import { chamarIa } from './ia-erros';
 import type { Db } from '@/db';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
@@ -38,7 +39,7 @@ export async function perguntarZaroIa(db: Db, u: Usuario, emp: Empresa, historic
     extra ? `\nDADOS DA ÁREA:\n${extra}` : '',
   ].join('\n');
   const client = new Anthropic();
-  const r = await client.beta.messages.create({
+  const r = await chamarIa(() => client.beta.messages.create({
     model: 'claude-opus-5-5',
     max_tokens: 16000,
     betas: ['server-side-fallback-2026-07-01'],
@@ -46,7 +47,7 @@ export async function perguntarZaroIa(db: Db, u: Usuario, emp: Empresa, historic
     output_config: { effort: 'medium' },
     system: sistema,
     messages: conversa.map((m) => ({ role: m.papel === 'usuario' ? ('user' as const) : ('assistant' as const), content: m.texto })),
-  });
+  }));
   if (r.stop_reason === 'refusal') throw new Error('A ZARO IA não pôde responder esta pergunta. Reformule.');
   const texto = r.content.flatMap((b) => (b.type === 'text' ? [b.text] : [])).join('').trim();
   if (!texto) throw new Error('A ZARO IA não devolveu resposta. Tente de novo.');
