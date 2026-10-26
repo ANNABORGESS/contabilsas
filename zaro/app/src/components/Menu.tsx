@@ -25,6 +25,10 @@ const ITENS: ([string, string, string, string, string] | null)[] = [
 // e apelidos (valores da URL que acendem o mesmo item, como cliente/fornecedor → Clientes e Fornecedores)
 const SUB: Record<string, { param: string; padrao: string; itens: [string, string][]; apelidos?: Record<string, string> }> = {
   '/financeiro': { param: 'tipo', padrao: 'pagar', itens: [['pagar', 'Contas a Pagar'], ['receber', 'Contas a Receber'], ['emprestimos', 'Empréstimos e Financiamentos'], ['endividamento', 'Análise de endividamento'], ['extrato', 'Conciliação bancária']] },
+  '/pessoal': {
+    param: 'aba', padrao: 'visao',
+    itens: [['visao', 'Visão Geral'], ['funcionarios', 'Funcionários'], ['folha', 'Conferência da Folha'], ['ferias', 'Férias, 13º e Rescisões'], ['encargos', 'Encargos e Guias'], ['esocial', 'eSocial'], ['convencoes', 'Convenções e Sindicatos'], ['relatorios', 'Auditoria e Relatórios']],
+  },
   '/comercial': {
     param: 't', padrao: 'visao', apelidos: { cliente: 'parceiros', fornecedor: 'parceiros' },
     itens: [['visao', 'Visão Geral'], ['parceiros', 'Clientes e Fornecedores'], ['compras', 'Compras e Cotações'], ['orcamentos', 'Orçamentos'], ['pedidos', 'Pedidos Aprovados'], ['vendas', 'Vendas e Faturamento'], ['produtos', 'Produtos e Estoque'], ['custos', 'Custos e Rentabilidade'], ['precos', 'Preços e Simulações']],

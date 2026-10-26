@@ -2,6 +2,7 @@
 // Orçamento). Toda consulta filtra pela empresa ativa, já conferida contra o escritório do usuário.
 import 'server-only';
 import { contextoSplit } from './split-payment';
+import { contextoDP, podeVerDP } from './dp';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
@@ -453,6 +454,7 @@ export async function aprovarVersao(db: Db, u: Usuario, emp: Empresa, id: string
 export async function contextoIa(db: Db, u: Usuario, emp: Empresa, hoje: string, area: string) {
   const ref = hoje.slice(0, 7);
   if (area === 'split') return contextoSplit(db, emp, hoje);
+  if (area === 'dp') return podeVerDP(u) ? contextoDP(db, emp, null) : 'O perfil deste usuário não tem acesso aos dados do Departamento Pessoal.';
   if (area === 'executivo') {
     const d = await dadosExecutivo(db, emp, mesesAte(ref, 2)[0], 'ano', 'centro', true);
     return [

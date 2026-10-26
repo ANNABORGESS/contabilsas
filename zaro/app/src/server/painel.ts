@@ -142,7 +142,7 @@ async function calcular(db: Db, u: Usuario, emp: Empresa, comp: string, hoje: st
     {
       chave: 'pessoal', nome: 'Departamento Pessoal', href: '/pessoal', modulo: 'Departamento Pessoal',
       tarefas: [
-        { ok: daFolha.length > 0, naoSeAplica: !ativos, texto: daFolha.length ? `Folha de ${compBr(comp)} lançada (${daFolha.length} título(s))` : `Folha de ${compBr(comp)} não lançada`, acao: 'Lançar folha', href: '/pessoal' },
+        { ok: daFolha.length > 0, naoSeAplica: !ativos, texto: daFolha.length ? `Folha de ${compBr(comp)} lançada (${daFolha.length} título(s))` : `Folha de ${compBr(comp)} não lançada`, acao: 'Conferir folha', href: '/pessoal?aba=folha' },
         { ok: encargos.length > 0, naoSeAplica: !ativos, texto: encargos.length ? `Encargos de ${compBr(comp)} lançados` : `INSS/FGTS de ${compBr(comp)} não lançados`, acao: 'Lançar encargos', href: '/financeiro?tipo=pagar' },
         { ok: !encargos.some((t) => ehAberto(t) && t.venc && t.venc < hoje), naoSeAplica: !ativos || !encargos.length, erro: true, texto: 'Guias da folha pagas no prazo', acao: 'Pagar guias', href: '/financeiro?tipo=pagar&f=vencidos' },
       ] as Tarefa[],

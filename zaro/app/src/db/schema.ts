@@ -416,6 +416,89 @@ export const splitOperacoes = pgTable(
   (t) => [uniqueIndex('split_chave').on(t.empresaId, t.chave), index('split_empresa_comp').on(t.empresaId, t.competencia)],
 );
 
+/** DP — documentos recebidos do sistema de folha externo (o arquivo original fica em arquivos). */
+export const dpDocumentos = pgTable(
+  'dp_documentos',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    competencia: text('competencia'),
+    tipo: text('tipo').notNull(), // holerites, folha_analitica, guia, comprovante, esocial, fgts, dctfweb, ferias, rescisao, convencao, outro
+    nome: text('nome').notNull(),
+    arquivoId: uuid('arquivo_id').references(() => arquivos.id, { onDelete: 'set null' }),
+    status: text('status').notNull().default('Recebido'), // Recebido, Lido, Sem leitura automática, Erro
+    resumo: jsonb('resumo').$type<Record<string, unknown>>().notNull().default({}),
+    usuario: text('usuario'),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('dp_doc_empresa').on(t.empresaId, t.competencia)],
+);
+
+/** DP — recibo de pagamento lido do documento; chave idempotente por empresa, competência, matrícula e tipo de folha.
+ *  CPF guardado só mascarado e com hash (para ligar ao cadastro sem expor o número). */
+export const dpHolerites = pgTable(
+  'dp_holerites',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    competencia: text('competencia').notNull(),
+    tipoFolha: text('tipo_folha').notNull().default('mensal'),
+    funcionarioId: uuid('funcionario_id').references(() => funcionarios.id, { onDelete: 'set null' }),
+    matricula: text('matricula').notNull(),
+    nome: text('nome').notNull(),
+    cpfMascara: text('cpf_mascara'),
+    cpfHash: text('cpf_hash'),
+    cargo: text('cargo'),
+    dados: jsonb('dados').$type<Record<string, unknown>>().notNull().default({}), // holerite lido (verbas, bases, totais)
+    conferencia: jsonb('conferencia').$type<Record<string, unknown>>().notNull().default({}),
+    documentoId: uuid('documento_id').references(() => dpDocumentos.id, { onDelete: 'set null' }),
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex('dp_holerite_chave').on(t.empresaId, t.competencia, t.matricula, t.tipoFolha)],
+);
+
+/** DP — registros de conferência: obrigações (declarado/guia), eventos eSocial, férias/13º/rescisões e convenções. */
+export const dpRegistros = pgTable(
+  'dp_registros',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    tipo: text('tipo').notNull(), // obrigacao, esocial, ferias, decimo, rescisao, convencao
+    competencia: text('competencia'),
+    chave: text('chave'), // idempotência (ex.: id do evento eSocial)
+    funcionarioId: uuid('funcionario_id').references(() => funcionarios.id, { onDelete: 'set null' }),
+    descricao: text('descricao').notNull(),
+    valor: dinheiro('valor'),
+    status: text('status'),
+    dados: jsonb('dados').$type<Record<string, unknown>>().notNull().default({}),
+    documentoId: uuid('documento_id').references(() => dpDocumentos.id, { onDelete: 'set null' }),
+    usuario: text('usuario'),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('dp_reg_empresa').on(t.empresaId, t.tipo, t.competencia), uniqueIndex('dp_reg_chave').on(t.empresaId, t.tipo, t.chave)],
+);
+
+/** DP — fechamento da conferência por competência (etapas, parecer, responsável). Concluir NÃO significa transmitido ou pago. */
+export const dpConferencias = pgTable(
+  'dp_conferencias',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    competencia: text('competencia').notNull(),
+    etapa: text('etapa').notNull().default('Importar documentos'),
+    parecer: text('parecer'),
+    responsavel: text('responsavel'),
+    concluidaEm: timestamp('concluida_em', { withTimezone: true }),
+    revisoes: jsonb('revisoes').$type<Record<string, unknown>>().notNull().default({}), // decisão humana por item
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex('dp_conf_comp').on(t.empresaId, t.competencia)],
+);
+
 /** Skills e agentes enviados pelo escritório (o conteúdo licenciado fica só no banco, nunca no repositório). */
 export const especialistas = pgTable(
   'especialistas',

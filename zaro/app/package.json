@@ -27,6 +27,7 @@
     "react": "19.2.9",
     "react-dom": "19.2.9",
     "server-only": "0.0.1",
+    "unpdf": "1.8.1",
     "xml-crypto": "6.3.3"
   },
   "devDependencies": {

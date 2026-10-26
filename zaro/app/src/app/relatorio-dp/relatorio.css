@@ -1,0 +1,23 @@
+/* Relatório de Auditoria DP — A4 em pé */
+@page { size: A4 portrait; margin: 14mm 12mm; }
+body:has(.rd) { background: #fff; }
+.rd { --tinta: #3f5a72; --mudo: #6b7280; --linha: #e5e7eb; max-width: 860px; margin: 0 auto; padding: 18px 24px 40px; font-family: 'Manrope', system-ui, sans-serif; color: #1f2937; font-size: 11px; background: #fff; }
+.rd .n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rd-acoes { display: flex; gap: 14px; align-items: center; padding: 10px 14px; margin-bottom: 18px; background: #f6f1ec; border-radius: 12px; font-size: 13px; flex-wrap: wrap; }
+.rd-acoes button { background: var(--tinta); color: #fff; border: 0; border-radius: 10px; padding: 8px 14px; font-weight: 700; cursor: pointer; }
+.rd-acoes span { color: var(--mudo); font-size: 12px; }
+.rd h1 { font-size: 19px; margin: 0; color: var(--tinta); }
+.rd h1::after { display: none; }
+.rd h2 { font-size: 12px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--tinta); margin: 18px 0 6px; }
+.rd-cab { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 3px solid var(--tinta); padding-bottom: 10px; }
+.rd-kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 12px; }
+.rd-kpis div { border: 1px solid var(--linha); border-radius: 10px; padding: 8px 10px; }
+.rd-kpis span { display: block; font-size: 9px; letter-spacing: 0.08em; text-transform: uppercase; color: var(--mudo); font-weight: 700; }
+.rd-kpis b { font-size: 15px; color: var(--tinta); }
+.rd table { width: 100%; border-collapse: collapse; }
+.rd th { text-align: left; font-size: 9px; text-transform: uppercase; letter-spacing: 0.06em; color: #fff; background: var(--tinta); padding: 5px 6px; }
+.rd td { padding: 5px 6px; border-bottom: 1px solid var(--linha); vertical-align: top; }
+.rd .neg { color: #b42318; font-weight: 700; } .rd .ok { color: #2f8a5d; font-weight: 700; } .rd .at { color: #a15c07; font-weight: 700; }
+.rd-ass { margin-top: 40px; display: grid; grid-template-columns: 1fr 1fr; gap: 40px; text-align: center; color: var(--mudo); }
+.rd-ass span { display: block; border-top: 1px solid #9ca3af; margin-bottom: 4px; }
+@media print { .rd-acoes { display: none; } .rd { padding: 0; max-width: none; } }
