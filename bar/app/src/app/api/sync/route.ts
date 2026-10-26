@@ -7,6 +7,7 @@ import { ErroAcesso, exigir } from '@/server/auth';
 import { sinal, versaoAtual } from '@/server/eventos';
 
 export const dynamic = 'force-dynamic';
+export const maxDuration = 300; // na nuvem a conexão fica aberta até 5 min e o navegador reconecta
 
 export async function GET(req: NextRequest) {
   try {

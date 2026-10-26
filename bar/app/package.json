@@ -9,7 +9,7 @@
     "start": "next start -H 0.0.0.0 -p 3100",
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "db:generate": "drizzle-kit generate"
+    "db:generate": "drizzle-kit generate && node scripts/sem-schema-public.mjs"
   },
   "engines": {
     "node": ">=20.9"

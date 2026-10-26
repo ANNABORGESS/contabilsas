@@ -30,15 +30,43 @@ async function conectar(): Promise<Db> {
     const { Pool } = await import('pg');
     const { drizzle } = await import('drizzle-orm/node-postgres');
     const { migrate } = await import('drizzle-orm/node-postgres/migrator');
-    const local = /sslmode=disable/.test(url) || /localhost|127\.0\.0\.1/.test(url);
-    const pool = new Pool({ connectionString: url, max: Number(process.env.BAR_DB_CONEXOES || 5), ssl: local ? undefined : { rejectUnauthorized: false } });
+    const pool = await abrirPool(Pool, url);
     const db = drizzle(pool, { schema });
-    await migrate(db, { migrationsFolder: MIGRACOES });
+    // num banco compartilhado (ex.: o mesmo Supabase de outro sistema), o bar fica no seu schema
+    await migrate(db, { migrationsFolder: MIGRACOES, migrationsSchema: SCHEMA || 'drizzle' });
     return db as unknown as Db;
   }
   // na Vercel o disco é só leitura: sem DATABASE_URL não há onde guardar os dados
   if (process.env.VERCEL) throw new Error('Falta a variável DATABASE_URL nas configurações da Vercel.');
   return abrirPglite(path.join(PASTA_DADOS, 'banco'));
+}
+
+const SCHEMA = /^[a-z_][a-z0-9_]*$/.test(process.env.BAR_DB_SCHEMA || '') ? process.env.BAR_DB_SCHEMA! : '';
+
+type PoolCtor = typeof import('pg').Pool;
+
+/** O pooler do Supabase fica em aws-0, aws-1 ou aws-2 conforme o projeto: tenta cada um. */
+function candidatos(url: string): string[] {
+  const m = url.match(/@aws-(\d)-([a-z0-9-]+)\.pooler\.supabase\.com/);
+  if (!m) return [url];
+  return [m[1], ...['0', '1', '2'].filter((n) => n !== m[1])].map((n) => url.replace(`@aws-${m[1]}-${m[2]}.`, `@aws-${n}-${m[2]}.`));
+}
+
+async function abrirPool(Pool: PoolCtor, url: string) {
+  let ultimo: unknown;
+  for (const u of candidatos(url)) {
+    const local = /sslmode=disable/.test(u) || /localhost|127\.0\.0\.1/.test(u);
+    const pool = new Pool({ connectionString: u, max: Number(process.env.BAR_DB_CONEXOES || 3), ssl: local ? undefined : { rejectUnauthorized: false } });
+    if (SCHEMA) pool.on('connect', (c) => void c.query(`set search_path to "${SCHEMA}"`).catch(() => {}));
+    try {
+      await pool.query('select 1');
+      return pool;
+    } catch (e) {
+      ultimo = e;
+      await pool.end().catch(() => {});
+    }
+  }
+  throw ultimo;
 }
 
 export function getDb(): Promise<Db> {

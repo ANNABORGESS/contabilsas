@@ -99,18 +99,18 @@ CREATE TABLE "usuarios" (
 	"criado_em" timestamp with time zone DEFAULT now() NOT NULL
 );
 --> statement-breakpoint
-ALTER TABLE "eventos" ADD CONSTRAINT "eventos_pedido_id_pedidos_id_fk" FOREIGN KEY ("pedido_id") REFERENCES "public"."pedidos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "eventos" ADD CONSTRAINT "eventos_usuario_id_usuarios_id_fk" FOREIGN KEY ("usuario_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pedido_itens" ADD CONSTRAINT "pedido_itens_pedido_id_pedidos_id_fk" FOREIGN KEY ("pedido_id") REFERENCES "public"."pedidos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pedido_itens" ADD CONSTRAINT "pedido_itens_produto_id_produtos_id_fk" FOREIGN KEY ("produto_id") REFERENCES "public"."produtos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pedidos" ADD CONSTRAINT "pedidos_mesa_id_mesas_id_fk" FOREIGN KEY ("mesa_id") REFERENCES "public"."mesas"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pedidos" ADD CONSTRAINT "pedidos_garcom_id_usuarios_id_fk" FOREIGN KEY ("garcom_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "pedidos" ADD CONSTRAINT "pedidos_encerrado_por_id_usuarios_id_fk" FOREIGN KEY ("encerrado_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "preparos" ADD CONSTRAINT "preparos_pedido_id_pedidos_id_fk" FOREIGN KEY ("pedido_id") REFERENCES "public"."pedidos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "sessoes" ADD CONSTRAINT "sessoes_usuario_id_usuarios_id_fk" FOREIGN KEY ("usuario_id") REFERENCES "public"."usuarios"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "solicitacoes" ADD CONSTRAINT "solicitacoes_pedido_id_pedidos_id_fk" FOREIGN KEY ("pedido_id") REFERENCES "public"."pedidos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "solicitacoes" ADD CONSTRAINT "solicitacoes_solicitante_id_usuarios_id_fk" FOREIGN KEY ("solicitante_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
-ALTER TABLE "solicitacoes" ADD CONSTRAINT "solicitacoes_decidido_por_id_usuarios_id_fk" FOREIGN KEY ("decidido_por_id") REFERENCES "public"."usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "eventos" ADD CONSTRAINT "eventos_pedido_id_pedidos_id_fk" FOREIGN KEY ("pedido_id") REFERENCES "pedidos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "eventos" ADD CONSTRAINT "eventos_usuario_id_usuarios_id_fk" FOREIGN KEY ("usuario_id") REFERENCES "usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pedido_itens" ADD CONSTRAINT "pedido_itens_pedido_id_pedidos_id_fk" FOREIGN KEY ("pedido_id") REFERENCES "pedidos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pedido_itens" ADD CONSTRAINT "pedido_itens_produto_id_produtos_id_fk" FOREIGN KEY ("produto_id") REFERENCES "produtos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pedidos" ADD CONSTRAINT "pedidos_mesa_id_mesas_id_fk" FOREIGN KEY ("mesa_id") REFERENCES "mesas"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pedidos" ADD CONSTRAINT "pedidos_garcom_id_usuarios_id_fk" FOREIGN KEY ("garcom_id") REFERENCES "usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "pedidos" ADD CONSTRAINT "pedidos_encerrado_por_id_usuarios_id_fk" FOREIGN KEY ("encerrado_por_id") REFERENCES "usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "preparos" ADD CONSTRAINT "preparos_pedido_id_pedidos_id_fk" FOREIGN KEY ("pedido_id") REFERENCES "pedidos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "sessoes" ADD CONSTRAINT "sessoes_usuario_id_usuarios_id_fk" FOREIGN KEY ("usuario_id") REFERENCES "usuarios"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "solicitacoes" ADD CONSTRAINT "solicitacoes_pedido_id_pedidos_id_fk" FOREIGN KEY ("pedido_id") REFERENCES "pedidos"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "solicitacoes" ADD CONSTRAINT "solicitacoes_solicitante_id_usuarios_id_fk" FOREIGN KEY ("solicitante_id") REFERENCES "usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "solicitacoes" ADD CONSTRAINT "solicitacoes_decidido_por_id_usuarios_id_fk" FOREIGN KEY ("decidido_por_id") REFERENCES "usuarios"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "eventos_pedido_idx" ON "eventos" USING btree ("pedido_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "mesas_numero_uq" ON "mesas" USING btree ("numero");--> statement-breakpoint
 CREATE INDEX "pedido_itens_pedido_idx" ON "pedido_itens" USING btree ("pedido_id");--> statement-breakpoint
