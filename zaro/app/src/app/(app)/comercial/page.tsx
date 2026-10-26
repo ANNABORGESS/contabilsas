@@ -11,6 +11,11 @@ import { Compras } from './compras';
 import { Orcamentos } from './orcamentos';
 import { Parceiros } from './parceiros';
 import { Pedidos } from './pedidos';
+import { Custos } from './custos';
+import { Precos } from './precos';
+import { Produtos } from './produtos';
+import { VisaoComercial } from './visao';
+import { mesAtivo } from '@/server/mes';
 
 async function Vendas({ empId, edita, msg, erro }: { empId: string; edita: boolean; msg?: string; erro?: string }) {
   const db = await getDb();
@@ -29,7 +34,7 @@ async function Vendas({ empId, edita, msg, erro }: { empId: string; edita: boole
         <div className="card">
           <details open={!vendas.length}>
             <summary>Nova venda</summary>
-            <p className="pequeno mudo" style={{ margin: '8px 0 0' }}>Cada parcela vira um título no Contas a Receber. Deixe o preço em branco para usar o preço do cadastro.{!catalogo.length && <> Cadastre seus produtos e serviços em <Link href="/estoque">Produtos e Estoque</Link>, ou digite o nome do item na linha.</>}</p>
+            <p className="pequeno mudo" style={{ margin: '8px 0 0' }}>Cada parcela vira um título no Contas a Receber. Deixe o preço em branco para usar o preço do cadastro.{!catalogo.length && <> Cadastre seus produtos e serviços em <Link href="/comercial?t=produtos&aba=cadastro">Produtos e Estoque</Link>, ou digite o nome do item na linha.</>}</p>
             <form action={vender} className="campos" style={{ marginTop: 12 }}>
               <div className="grade g4">
                 <div><label>Data da venda</label><input type="date" name="data" defaultValue={hoje} required /></div>
@@ -95,7 +100,7 @@ async function Vendas({ empId, edita, msg, erro }: { empId: string; edita: boole
   );
 }
 
-type SP = { t?: string; msg?: string; erro?: string; novo?: string; editar?: string; q?: string };
+type SP = Record<string, string | undefined>;
 
 export default async function Comercial({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
@@ -103,11 +108,15 @@ export default async function Comercial({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const edita = podeEditar(u);
   const hoje = new Date().toISOString().slice(0, 10);
-  const t = sp.t || 'cliente';
+  const t = sp.t || 'visao';
+  if (t === 'visao') return <VisaoComercial emp={emp} mes={(await mesAtivo()) || hoje.slice(0, 7)} msg={sp.msg} erro={sp.erro} />;
+  if (t === 'produtos') return <Produtos emp={emp} edita={edita} sp={sp} />;
+  if (t === 'custos') return <Custos emp={emp} edita={edita} sp={sp} />;
+  if (t === 'precos') return <Precos emp={emp} sp={sp} />;
   if (t === 'vendas') {
     return (
       <>
-        <Cabeca titulo="Vendas e faturamento" sub="Vendas lançadas aqui geram as parcelas no Contas a Receber e entram na contabilidade como receita. Pedidos faturados aparecem aqui também." />
+        <Cabeca titulo="Vendas e Faturamento" sub="Vendas lançadas aqui e pedidos faturados geram as parcelas no Contas a Receber e entram na contabilidade como receita. As NFs emitidas entram pelo Autopilot." />
         <Vendas empId={emp.id} edita={edita} msg={sp.msg} erro={sp.erro} />
       </>
     );

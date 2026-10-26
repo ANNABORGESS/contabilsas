@@ -12,22 +12,23 @@ const ITENS: ([string, string, string, string, string] | null)[] = [
   ['/financeiro', 'Financeiro', 'menta', 'fin', '#5FA67C'],
   ['/inteligencia', 'Inteligência Financeira', 'lavanda', 'intel', '#8A6BBF'],
   ['/comercial', 'Comercial', 'rosa', 'com', '#5FA67C'],
-  ['/estoque', 'Produtos e Estoque', 'agua', 'est', '#7FA9A3'],
-  ['/custos', 'Custos e Preços', 'lilas', 'cst', '#B49CCB'],
   ['/contabilidade', 'Contabilidade', 'ceu', 'cnt', '#7F98AE'],
   ['/fiscal', 'Fiscal e Tributário', 'lavanda', 'fis', '#9B82BD'],
   ['/especialistas', 'Especialistas', 'pessego', 'espec', '#C9956F'],
   ['/conselho', 'Conselho ZARO', 'lilas', 'cons', '#9B82BD'],
-  ['/documentos', 'Documentos', 'lilas', 'doc', '#B49CCB'],
   null,
   ['/configuracoes', 'Configurações', 'neutro', 'cfg', '#7C756F'],
   ['/auditoria', 'Auditoria', 'neutro', 'audit', '#5F5954'],
 ];
 
-// Submenus: aparecem abertos quando a área está ativa. Parâmetro da URL, valor padrão e [valor, nome]
-const SUB: Record<string, { param: string; padrao: string; itens: [string, string][] }> = {
+// Submenus: aparecem abertos quando a área está ativa. Parâmetro da URL, valor padrão, [valor, nome]
+// e apelidos (valores da URL que acendem o mesmo item, como cliente/fornecedor → Clientes e Fornecedores)
+const SUB: Record<string, { param: string; padrao: string; itens: [string, string][]; apelidos?: Record<string, string> }> = {
   '/financeiro': { param: 'tipo', padrao: 'pagar', itens: [['pagar', 'Contas a Pagar'], ['receber', 'Contas a Receber'], ['emprestimos', 'Empréstimos e Financiamentos'], ['endividamento', 'Análise de endividamento'], ['extrato', 'Conciliação bancária']] },
-  '/comercial': { param: 't', padrao: 'cliente', itens: [['cliente', 'Clientes'], ['fornecedor', 'Fornecedores'], ['compras', 'Compras e cotação'], ['orcamentos', 'Orçamentos'], ['pedidos', 'Pedidos aprovados'], ['vendas', 'Vendas e faturamento']] },
+  '/comercial': {
+    param: 't', padrao: 'visao', apelidos: { cliente: 'parceiros', fornecedor: 'parceiros' },
+    itens: [['visao', 'Visão Geral'], ['parceiros', 'Clientes e Fornecedores'], ['compras', 'Compras e Cotações'], ['orcamentos', 'Orçamentos'], ['pedidos', 'Pedidos Aprovados'], ['vendas', 'Vendas e Faturamento'], ['produtos', 'Produtos e Estoque'], ['custos', 'Custos e Rentabilidade'], ['precos', 'Preços e Simulações']],
+  },
 };
 
 export function Menu() {
@@ -43,11 +44,12 @@ export function Menu() {
               <span className="nome">{i[1]}</span>
             </Link>
             {SUB[i[0]] && p === i[0] && (() => {
-              const { param, padrao, itens } = SUB[i[0]];
-              const atual = busca.get(param) || padrao;
+              const { param, padrao, itens, apelidos } = SUB[i[0]];
+              const v = busca.get(param) || padrao;
+              const atual = apelidos?.[v] || v;
               return (
                 <div className="submenu">
-                  {itens.map(([k, n]) => <Link key={k} href={`${i[0]}?${param}=${k}`} className={atual === k ? 'sub-ativo' : ''} aria-current={atual === k ? 'page' : undefined}>{n}</Link>)}
+                  {itens.map(([k, n]) => <Link key={k} href={`${i[0]}?${param}=${k === 'parceiros' ? 'cliente' : k}`} className={atual === k ? 'sub-ativo' : ''} aria-current={atual === k ? 'page' : undefined}>{n}</Link>)}
                 </div>
               );
             })()}

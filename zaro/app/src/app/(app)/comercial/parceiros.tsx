@@ -27,9 +27,10 @@ export async function Parceiros({ empId, tipo, edita, novo, editar, q, msg, erro
   const rotulo = tipo === 'cliente' ? 'cliente' : 'fornecedor';
   return (
     <>
-      <Cabeca titulo="Cadastro de clientes e fornecedores" sub="Clientes e fornecedores da empresa. Os que vêm nas NFs são cadastrados sozinhos ao aprovar no Autopilot; os demais você cadastra aqui.">
+      <Cabeca titulo="Clientes e Fornecedores" sub="Clientes e fornecedores da empresa. Os que vêm nas NFs são cadastrados sozinhos ao aprovar no Autopilot; os demais você cadastra aqui.">
         {edita && <><Link className="btn primario" href="/comercial?t=cliente&novo=cliente">+ Novo cliente</Link><Link className="btn primario" href="/comercial?t=fornecedor&novo=fornecedor">+ Novo fornecedor</Link></>}
       </Cabeca>
+      <div className="abas"><Link href="/comercial?t=cliente" className={tipo === 'cliente' ? 'ativo' : ''}>Clientes</Link><Link href="/comercial?t=fornecedor" className={tipo === 'fornecedor' ? 'ativo' : ''}>Fornecedores</Link></div>
       <Avisos msg={msg} erro={erro} />
       {abrir && (
         <div className="card" style={{ marginBottom: 16 }}>

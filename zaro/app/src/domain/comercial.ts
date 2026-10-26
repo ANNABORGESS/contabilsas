@@ -17,6 +17,9 @@ export const FLUXO: Record<TipoDoc, Record<string, string[]>> = {
   compra: { Emitido: ['Recebido', 'Cancelado'], Recebido: [], Cancelado: [] },
 };
 
+/** Andamento do pedido do cliente: a empresa produz por demanda de cada pedido. */
+export const ETAPAS_EXECUCAO = ['Aguardando início', 'Em produção', 'Pronto para entrega', 'Entregue'];
+
 export const STATUS_INICIAL: Record<TipoDoc, string> = { orcamento: 'Rascunho', pedido: 'A faturar', solicitacao: 'Rascunho', compra: 'Emitido' };
 
 export function podeMudar(tipo: TipoDoc, de: string, para: string) {

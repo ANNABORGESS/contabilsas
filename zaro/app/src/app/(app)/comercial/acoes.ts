@@ -7,7 +7,8 @@ import { brl, numero } from '@/domain/dinheiro';
 import { LINHAS_VENDA } from '@/domain/venda';
 import { type Empresa, exigirEdicao, exigirEmpresa, type Usuario } from '@/server/auth';
 import { cancelarVenda, lancarVenda } from '@/server/comercial';
-import { converterEmPedido, criarDoc, faturarPedido, gerarPedidoCompra, mudarStatus, receberCompra, salvarCotacoes, salvarParceiro } from '@/server/comercial-docs';
+import { converterEmPedido, criarDoc, faturarPedido, gerarPedidoCompra, mudarEtapa, mudarStatus, novaVersao, receberCompra, salvarCotacoes, salvarParceiro } from '@/server/comercial-docs';
+import { normPedido, vincularCusto } from '@/server/rentabilidade';
 
 const txt = (f: FormData, k: string) => String(f.get(k) || '');
 
@@ -46,7 +47,7 @@ export async function cancelar(form: FormData) {
 }
 
 // ——— Cadastro, orçamentos, pedidos e compras ———
-type Volta = 'cliente' | 'fornecedor' | 'compras' | 'orcamentos' | 'pedidos';
+type Volta = 'cliente' | 'fornecedor' | 'compras' | 'orcamentos' | 'pedidos' | 'custos';
 
 async function executar(volta: Volta, fn: (db: Db, u: Usuario, emp: Empresa) => Promise<string>) {
   try {
@@ -81,7 +82,7 @@ export async function criarDocAcao(form: FormData) {
     const d = await criarDoc(db, u, emp, tipo, {
       data: txt(form, 'data'), prazo: txt(form, 'prazo'), parceiroId: txt(form, 'parceiro'), novoParceiro: txt(form, 'novoParceiro'), novoDoc: txt(form, 'novoDoc'),
       referencia: txt(form, 'referencia'), itens, condicao: txt(form, 'condicao'), obs: txt(form, 'obs'),
-      dados: tipo === 'solicitacao' ? { centro: txt(form, 'centro') || null, prioridade: txt(form, 'prioridade') || 'Normal', fornecedorSugerido: txt(form, 'fornecedorSugerido') || null } : {},
+      dados: tipo === 'solicitacao' ? { centro: txt(form, 'centro') || null, prioridade: txt(form, 'prioridade') || 'Normal', fornecedorSugerido: txt(form, 'fornecedorSugerido') || null, pedido: normPedido(txt(form, 'pedidoCliente')) || null } : {},
     });
     return `${rotuloDoc(tipo, d.numero)} criado: ${brl(d.total)}.`;
   });
@@ -111,4 +112,25 @@ export async function gerarCompraAcao(form: FormData) {
 
 export async function receberCompraAcao(form: FormData) {
   await executar('compras', (db, u, emp) => receberCompra(db, u, emp, txt(form, 'id'), { data: txt(form, 'data'), venc: txt(form, 'venc'), nf: txt(form, 'nf'), lancarTitulo: form.get('lancar') === 'on' }));
+}
+
+export async function etapaAcao(form: FormData) {
+  await executar('pedidos', (db, u, emp) => mudarEtapa(db, u, emp, txt(form, 'id'), txt(form, 'etapa')));
+}
+
+export async function novaVersaoAcao(form: FormData) {
+  await executar('orcamentos', (db, u, emp) => novaVersao(db, u, emp, txt(form, 'id')));
+}
+
+export async function vincularCustoAcao(form: FormData) {
+  try {
+    const u = await exigirEdicao();
+    const emp = await exigirEmpresa(u);
+    const msg = await vincularCusto(await getDb(), u, emp, txt(form, 'titulo'), txt(form, 'pedido'));
+    revalidatePath('/comercial');
+    redirect(`/comercial?t=custos&aba=pedido&msg=${encodeURIComponent(msg)}`);
+  } catch (e) {
+    unstable_rethrow(e);
+    redirect(`/comercial?t=custos&aba=pedido&erro=${encodeURIComponent((e as Error).message)}`);
+  }
 }

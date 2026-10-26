@@ -17,11 +17,11 @@ export async function salvar(form: FormData) {
       id: txt(form, 'id') || undefined, tipo: txt(form, 'tipo') === 'produto' ? 'produto' : 'servico', nome: txt(form, 'nome'), unidade: txt(form, 'unidade'),
       ncm: txt(form, 'ncm'), categoria: txt(form, 'categoria'), preco: numero(form.get('preco')), custo: numero(form.get('custo')), descricao: txt(form, 'descricao'),
     });
-    revalidatePath('/estoque');
-    redirect(`/estoque?aba=cadastro&msg=${encodeURIComponent(form.get('id') ? 'Item alterado.' : 'Item cadastrado.')}`);
+    revalidatePath('/comercial');
+    redirect(`/comercial?t=produtos&aba=cadastro&msg=${encodeURIComponent(form.get('id') ? 'Item alterado.' : 'Item cadastrado.')}`);
   } catch (e) {
     unstable_rethrow(e);
-    redirect(`/estoque?aba=cadastro&erro=${encodeURIComponent((e as Error).message)}`);
+    redirect(`/comercial?t=produtos&aba=cadastro&erro=${encodeURIComponent((e as Error).message)}`);
   }
 }
 
@@ -30,11 +30,11 @@ export async function alternar(form: FormData) {
     const u = await exigirEdicao();
     const emp = await exigirEmpresa(u);
     const r = await alternarItem(await getDb(), u, emp, txt(form, 'id'));
-    revalidatePath('/estoque');
-    redirect(`/estoque?aba=cadastro&inativos=1&msg=${encodeURIComponent(`Item ${r}.`)}`);
+    revalidatePath('/comercial');
+    redirect(`/comercial?t=produtos&aba=cadastro&inativos=1&msg=${encodeURIComponent(`Item ${r}.`)}`);
   } catch (e) {
     unstable_rethrow(e);
-    redirect(`/estoque?aba=cadastro&erro=${encodeURIComponent((e as Error).message)}`);
+    redirect(`/comercial?t=produtos&aba=cadastro&erro=${encodeURIComponent((e as Error).message)}`);
   }
 }
 
@@ -43,11 +43,10 @@ export async function trazer() {
     const u = await exigirEdicao();
     const emp = await exigirEmpresa(u);
     const msg = await trazerParaCadastro(await getDb(), u, emp);
-    revalidatePath('/estoque');
     revalidatePath('/comercial');
-    redirect(`/estoque?aba=cadastro&msg=${encodeURIComponent(msg)}`);
+    redirect(`/comercial?t=produtos&aba=cadastro&msg=${encodeURIComponent(msg)}`);
   } catch (e) {
     unstable_rethrow(e);
-    redirect(`/estoque?erro=${encodeURIComponent((e as Error).message)}`);
+    redirect(`/comercial?t=produtos&erro=${encodeURIComponent((e as Error).message)}`);
   }
 }

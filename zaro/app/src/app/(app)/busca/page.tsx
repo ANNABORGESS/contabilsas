@@ -1,5 +1,6 @@
 import Link from 'next/link';
 import { getDb } from '@/db';
+import { rotuloDoc, type TipoDoc } from '@/domain/comercial';
 import { brl, formatarCnpj } from '@/domain/dinheiro';
 import { exigirEmpresa, exigirUsuario } from '@/server/auth';
 import { buscar } from '@/server/consultas';
@@ -20,7 +21,7 @@ export default async function Busca({ searchParams }: { searchParams: Promise<{ 
           <p>{q ? <>Resultados para “{q}” em {emp.fantasia || emp.razao}</> : 'Digite ao menos 2 letras na busca do topo.'}</p>
         </div>
       </div>
-      {q.length >= 2 && !r.titulos.length && !r.parceiros.length && <div className="card vazio">Nada encontrado.</div>}
+      {q.length >= 2 && !r.titulos.length && !r.parceiros.length && !r.docs.length && !r.produtos.length && <div className="card vazio">Nada encontrado.</div>}
       {r.titulos.length > 0 && (
         <div className="card">
           <h2>Títulos</h2>
@@ -52,7 +53,7 @@ export default async function Busca({ searchParams }: { searchParams: Promise<{ 
               <tbody>
                 {r.parceiros.map((p) => (
                   <tr key={p.id}>
-                    <td><Link href={`/comercial?t=${p.tipo}`}>{p.razao}</Link></td>
+                    <td><Link href={`/comercial?t=${p.tipo}&editar=${p.id}`}>{p.razao}</Link></td>
                     <td>{p.doc ? formatarCnpj(p.doc) : '—'}</td>
                     <td>{p.tipo === 'cliente' ? 'Cliente' : 'Fornecedor'}</td>
                   </tr>
@@ -60,6 +61,27 @@ export default async function Busca({ searchParams }: { searchParams: Promise<{ 
               </tbody>
             </table>
           </div>
+        </div>
+      )}
+      {r.docs.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h2>Comercial</h2>
+          <div className="tabela-wrap" style={{ marginTop: 10 }}><table>
+            <thead><tr><th>Documento</th><th>Cliente / fornecedor</th><th>Data</th><th className="num">Total</th><th>Status</th></tr></thead>
+            <tbody>{r.docs.map((d) => {
+              const aba = d.tipo === 'orcamento' ? 'orcamentos' : d.tipo === 'pedido' ? 'pedidos' : 'compras';
+              return <tr key={d.id}><td><Link href={`/comercial?t=${aba}`}><b>{rotuloDoc(d.tipo as TipoDoc, d.numero)}</b></Link>{d.referencia && <span className="pequeno mudo"> · ref. {d.referencia}</span>}</td><td>{d.parceiro || '—'}</td><td>{data(d.data)}</td><td className="num">{brl(d.total)}</td><td>{d.status}</td></tr>;
+            })}</tbody>
+          </table></div>
+        </div>
+      )}
+      {r.produtos.length > 0 && (
+        <div className="card" style={{ marginTop: 16 }}>
+          <h2>Produtos e serviços</h2>
+          <div className="tabela-wrap" style={{ marginTop: 10 }}><table>
+            <thead><tr><th>Item</th><th>NCM</th><th className="num">Custo</th><th className="num">Preço</th></tr></thead>
+            <tbody>{r.produtos.map((p) => <tr key={p.id}><td><Link href="/comercial?t=produtos&aba=cadastro">{p.nome}</Link></td><td>{p.ncm || '—'}</td><td className="num">{p.custo ? brl(p.custo) : '—'}</td><td className="num">{p.preco ? brl(p.preco) : '—'}</td></tr>)}</tbody>
+          </table></div>
         </div>
       )}
     </>

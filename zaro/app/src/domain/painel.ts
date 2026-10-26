@@ -167,6 +167,7 @@ export function moduloDaAcao(acao: string) {
   const a = acao.toLowerCase();
   if (/\bnf\b|nota|autopilot|xml|sefaz|evento/.test(a)) return 'Fiscal';
   if (/folha|holerite|funcion/.test(a)) return 'Departamento Pessoal';
+  if (/orçamento|pedido|cotação|solicitação|compra|produto|serviço do cadastro|cliente|fornecedor|custo ao pedido|custo do pedido/.test(a)) return 'Comercial';
   if (/lançamento|conta contábil|balancete|dre|balanço|estorn.*lanç|regra/.test(a)) return 'Contabilidade';
   if (/baixa|título|pagamento|recebimento|extrato|empréstimo|financiamento|venda/.test(a)) return 'Financeiro';
   if (/especialista|conselho|ia\b/.test(a)) return 'ZARO IA';

@@ -4,7 +4,7 @@ import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import type { ItemComercial } from '@/db/schema';
-import { compararCotacoes, podeMudar, rotuloDoc, STATUS_INICIAL, totais, type Cotacao, type TipoDoc } from '@/domain/comercial';
+import { compararCotacoes, ETAPAS_EXECUCAO, podeMudar, rotuloDoc, STATUS_INICIAL, totais, type Cotacao, type TipoDoc } from '@/domain/comercial';
 import { arred, brl, dataBr, soDigitos } from '@/domain/dinheiro';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
@@ -217,7 +217,7 @@ export async function gerarPedidoCompra(db: Db, u: Usuario, emp: Empresa, id: st
     const itens = [{ ...item, preco: unitario, total: arred(item.qtd * unitario) }];
     await t.insert(schema.docsComerciais).values({
       tenantId: u.tenantId, empresaId: emp.id, tipo: 'compra', numero, data: new Date().toISOString().slice(0, 10), prazo: v.prazo || null, parceiroId: p!.id, parceiro: p!.razao, docParceiro: p!.doc,
-      itens, total: itens[0].total, condicao: condicao || null, status: STATUS_INICIAL.compra, origemId: s.id, obs: s.obs, dados: { centro: s.dados.centro || null },
+      itens, total: itens[0].total, condicao: condicao || null, status: STATUS_INICIAL.compra, origemId: s.id, obs: s.obs, dados: { centro: s.dados.centro || null, pedido: s.dados.pedido || null },
     });
     await t.update(schema.docsComerciais).set({ status: 'Pedido gerado', dados: { ...s.dados, compra: rotuloDoc('compra', numero) } }).where(eq(schema.docsComerciais.id, s.id));
     await auditar(t, u, { empresaId: emp.id, acao: 'Gerou pedido de compra', entidade: `${rotuloDoc('solicitacao', s.numero)} → ${rotuloDoc('compra', numero)} · ${p!.razao}`, depois: brl(itens[0].total) });
@@ -244,7 +244,7 @@ export async function receberCompra(db: Db, u: Usuario, emp: Empresa, id: string
         tenantId: u.tenantId, empresaId: emp.id, codigo, tipo: 'pagar', parceiroId: c.parceiroId, nome: c.parceiro || 'Fornecedor', docParceiro: c.docParceiro, nf: v.nf.trim() || null,
         descricao: `Compra ${rotulo} · ${c.itens.map((i) => `${i.qtd} × ${i.nome}`).join(', ')}`.slice(0, 300), parcela: '1/1', venc: v.venc, valor: c.total, status: 'A pagar',
         competencia: v.data.slice(0, 7), categoria: servico ? 'Serviço de terceiros' : 'Compra de material', centro: (c.dados.centro as string) || null,
-        contaContabil: servico ? '4.1.3.06' : emp.semEstoque === false ? '1.1.3.01' : '4.1.1.01', origem: 'compra', dados: { compra: c.id, compraNumero: rotulo },
+        contaContabil: servico ? '4.1.3.06' : emp.semEstoque === false ? '1.1.3.01' : '4.1.1.01', origem: 'compra', dados: { compra: c.id, compraNumero: rotulo, ...(c.dados.pedido ? { pedido: c.dados.pedido } : {}) },
       });
     }
     await t.update(schema.docsComerciais).set({ status: 'Recebido', dados: { ...c.dados, recebidoEm: v.data, nf: v.nf.trim() || null, titulo: codigo || null } }).where(eq(schema.docsComerciais.id, id));
@@ -292,4 +292,35 @@ export async function salvarParceiro(db: Db, u: Usuario, emp: Empresa, v: DadosP
   await db.insert(schema.parceiros).values({ tenantId: u.tenantId, empresaId: emp.id, tipo: v.tipo, ...campos, origem: 'Cadastro manual', dados: contato });
   await auditar(db, u, { empresaId: emp.id, acao: `Cadastrou ${rotulo}`, entidade: `${razao}${doc ? ` · ${doc}` : ''}` });
   return `${v.tipo === 'cliente' ? 'Cliente' : 'Fornecedor'} ${razao} cadastrado.`;
+}
+
+/** Andamento da produção/serviço do pedido do cliente (a empresa produz por pedido). */
+export async function mudarEtapa(db: Db, u: Usuario, emp: Empresa, id: string, etapa: string) {
+  const p = await docDaEmpresa(db, emp.id, id);
+  if (p.tipo !== 'pedido') throw new Error('Andamento é do pedido do cliente.');
+  if (!ETAPAS_EXECUCAO.includes(etapa)) throw new Error('Etapa inválida.');
+  if (p.status === 'Cancelado') throw new Error('Pedido cancelado.');
+  const antes = String(p.dados.etapa || ETAPAS_EXECUCAO[0]);
+  await db.update(schema.docsComerciais).set({ dados: { ...p.dados, etapa, etapaEm: new Date().toISOString().slice(0, 10) } }).where(eq(schema.docsComerciais.id, id));
+  await auditar(db, u, { empresaId: emp.id, acao: 'Atualizou andamento do pedido', entidade: `${rotuloDoc('pedido', p.numero)} · ${p.parceiro}`, antes, depois: etapa });
+  return `${rotuloDoc('pedido', p.numero)}: ${etapa}.`;
+}
+
+/** Nova versão do orçamento: copia itens e condições para um rascunho; a versão anterior fica no histórico. */
+export async function novaVersao(db: Db, u: Usuario, emp: Empresa, id: string) {
+  const o = await docDaEmpresa(db, emp.id, id);
+  if (o.tipo !== 'orcamento') throw new Error('Só orçamento tem versão.');
+  const raiz = String(o.dados.versaoDe || o.id);
+  const irmas = (await docsDaEmpresa(db, emp.id, ['orcamento'])).filter((d) => d.id === raiz || d.dados.versaoDe === raiz);
+  const versao = Math.max(...irmas.map((d) => Number(d.dados.versao || 1))) + 1;
+  return db.transaction(async (tx) => {
+    const t = tx as unknown as Db;
+    const numero = await proximoNumero(t, emp.id, 'orcamento');
+    await t.insert(schema.docsComerciais).values({
+      tenantId: u.tenantId, empresaId: emp.id, tipo: 'orcamento', numero, data: new Date().toISOString().slice(0, 10), prazo: o.prazo, parceiroId: o.parceiroId, parceiro: o.parceiro, docParceiro: o.docParceiro,
+      referencia: o.referencia, itens: o.itens, total: o.total, condicao: o.condicao, status: STATUS_INICIAL.orcamento, origemId: o.id, obs: o.obs, dados: { versaoDe: raiz, versao },
+    });
+    await auditar(t, u, { empresaId: emp.id, acao: 'Criou nova versão do orçamento', entidade: `${rotuloDoc('orcamento', o.numero)} → ${rotuloDoc('orcamento', numero)} (v${versao}) · ${o.parceiro}` });
+    return `Versão ${versao} criada como ${rotuloDoc('orcamento', numero)} (rascunho). Ajuste os itens criando um novo orçamento se precisar mudar quantidades.`;
+  });
 }

@@ -1,9 +1,9 @@
 import { FecharMenu } from '@/components/FecharMenu';
 import { getDb } from '@/db';
-import { pedidosDasNotas, rotuloDoc, situacaoPedido } from '@/domain/comercial';
+import { ETAPAS_EXECUCAO, pedidosDasNotas, rotuloDoc, situacaoPedido } from '@/domain/comercial';
 import { addDias, brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { docsDaEmpresa, movimentoDosPedidos, titulosComPedido } from '@/server/comercial-docs';
-import { criarDocAcao, faturarAcao, mudarStatusAcao } from './acoes';
+import { criarDocAcao, etapaAcao, faturarAcao, mudarStatusAcao } from './acoes';
 import { Avisos, BotoesStatus, Cabeca, EscolherParceiro, type ItemCatalogo, Kpis, LinhasItens, type Parceiro, tagStatus } from './comum';
 
 export async function Pedidos({ empId, edita, clientes, catalogo, hoje, msg, erro }: { empId: string; edita: boolean; clientes: Parceiro[]; catalogo: ItemCatalogo[]; hoje: string; msg?: string; erro?: string }) {
@@ -20,7 +20,7 @@ export async function Pedidos({ empId, edita, clientes, catalogo, hoje, msg, err
   const aReceberNotas = soma(dasNotas.map((p) => p.aReceber));
   return (
     <>
-      <Cabeca titulo="Pedidos aprovados" sub="Pedido do cliente → faturamento → Contas a Receber → recebimento. Orçamentos aprovados viram pedido em Orçamentos." />
+      <Cabeca titulo="Pedidos Aprovados" sub="Pedido do cliente → produção/serviço (por demanda) → faturamento → Contas a Receber → recebimento. Orçamentos aprovados viram pedido em Orçamentos." />
       <Avisos msg={msg} erro={erro} />
       <Kpis itens={[
         ['Pedidos aprovados', brl(soma(ativos.map((p) => p.total))), `${ativos.length} pedido(s) no ZARO`],
@@ -55,7 +55,7 @@ export async function Pedidos({ empId, edita, clientes, catalogo, hoje, msg, err
         <h2>Pedidos no ZARO</h2>
         {pedidos.length ? (
           <div className="tabela-wrap" style={{ marginTop: 10 }}><table>
-            <thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Previsão entrega</th><th className="num">Valor</th><th className="num">Faturado</th><th className="num">Saldo a faturar</th><th className="num">Recebido</th><th>Status</th><th>Ações</th></tr></thead>
+            <thead><tr><th>Pedido</th><th>Cliente</th><th>Data</th><th>Previsão entrega</th><th className="num">Valor</th><th className="num">Faturado</th><th className="num">Saldo a faturar</th><th className="num">Recebido</th><th>Produção / serviço</th><th>Status</th><th>Ações</th></tr></thead>
             <tbody>{pedidos.map((p) => (
               <tr key={p.id}>
                 <td><b>{rotuloDoc('pedido', p.numero)}</b>{p.referencia && <div className="pequeno mudo">Cliente: {p.referencia}</div>}{p.origemId && origens.get(p.origemId) && <div className="pequeno mudo">de {origens.get(p.origemId)}</div>}</td>
@@ -66,6 +66,13 @@ export async function Pedidos({ empId, edita, clientes, catalogo, hoje, msg, err
                 <td className="num">{brl(p.faturado)}</td>
                 <td className="num">{brl(p.saldo)}</td>
                 <td className="num">{brl(p.recebido)}</td>
+                <td>{p.status === 'Cancelado' ? '—' : edita ? (
+                  <form action={etapaAcao} className="linha" style={{ gap: 4, flexWrap: 'nowrap' }}>
+                    <input type="hidden" name="id" value={p.id} />
+                    <select name="etapa" defaultValue={String(p.dados.etapa || ETAPAS_EXECUCAO[0])} aria-label="Andamento" style={{ minWidth: 150 }}>{ETAPAS_EXECUCAO.map((e) => <option key={e}>{e}</option>)}</select>
+                    <button className="btn mini" type="submit">OK</button>
+                  </form>
+                ) : String(p.dados.etapa || ETAPAS_EXECUCAO[0])}{typeof p.dados.etapaEm === 'string' && <div className="pequeno mudo">desde {dataBr(p.dados.etapaEm)}</div>}</td>
                 <td><span className={`tag ${tagStatus(p.status)}`}>{p.status}</span></td>
                 <td><div className="linha" style={{ gap: 6 }}>
                   {edita && p.status === 'A faturar' && (

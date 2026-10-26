@@ -604,3 +604,12 @@ tr.prio-linha-Alta td:first-child { box-shadow: inset 3px 0 0 #9fb6cc; }
 .acoes-cabeca .menu-acao:nth-child(-n + 2) .menu-acao-caixa { left: 0; right: auto; }
 .seletor-mes { min-width: 190px; margin-left: 10px; }
 @media (max-width: 900px) { .seletor-mes { margin-left: 0; } }
+
+/* Comercial — visão geral: fluxo do cliente à rentabilidade */
+.fluxo-comercial { display: grid; grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); gap: 8px; margin-top: 12px; }
+.fluxo-etapa { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border-radius: 14px; background: var(--acento-bg); color: inherit; text-decoration: none; position: relative; transition: transform 0.15s, box-shadow 0.15s; }
+.fluxo-etapa:nth-child(3n + 2) { background: var(--pos-bg); }
+.fluxo-etapa:nth-child(3n) { background: var(--ia-bg); }
+.fluxo-etapa b { font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fluxo-etapa:hover, .atalho-comercial:hover { transform: translateY(-2px); box-shadow: var(--sombra-alta); }
+.atalho-comercial { display: flex; flex-direction: column; gap: 4px; color: inherit; text-decoration: none; transition: transform 0.15s, box-shadow 0.15s; }

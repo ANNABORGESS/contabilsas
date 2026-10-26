@@ -13,13 +13,14 @@ export async function Compras({ empId, edita, fornecedores, catalogo, hoje, msg,
   const etapas = etapasCompra(sols, compras);
   return (
     <>
-      <Cabeca titulo="Compras e cotação" sub="Solicitação → aprovação → cotação com até 3 fornecedores → pedido de compra → recebimento → Contas a Pagar." />
+      <Cabeca titulo="Compras e Cotações" sub="Solicitação → aprovação → cotação com até 3 fornecedores → pedido de compra → recebimento → Contas a Pagar." />
       <Avisos msg={msg} erro={erro} />
       <div className="grade" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', marginBottom: 16 }}>
         {etapas.map((e, k) => (
           <div key={e.nome} className="card kpi"><div className="rotulo">{k + 1}. {e.nome}</div><div className="v">{e.qtd}</div><div className="s">{k < 3 ? 'solicitação(ões)' : 'pedido(s) de compra'}</div></div>
         ))}
       </div>
+      <div className="abas"><a href="#solicitacoes">Solicitações</a><a href="#cotacoes">Cotações</a><a href="#compras">Compras</a></div>
       <datalist id="fornecedores">{fornecedores.map((f) => <option key={f.id} value={f.razao} />)}</datalist>
       {edita && (
         <div className="card" style={{ marginBottom: 16 }}>
@@ -32,8 +33,9 @@ export async function Compras({ empId, edita, fornecedores, catalogo, hoje, msg,
                 <div><label>Precisa até</label><input type="date" name="prazo" defaultValue={addDias(hoje, 10)} /></div>
                 <div><label>Fornecedor sugerido</label><input name="fornecedorSugerido" list="fornecedores" /></div>
                 <div><label>Centro de custo</label><input name="centro" placeholder="Ex.: Produção" /></div>
+                <div><label>Pedido do cliente (opcional)</label><input name="pedidoCliente" placeholder="Compra para qual pedido?" /></div>
                 <div><label>Prioridade</label><select name="prioridade" defaultValue="Normal"><option>Baixa</option><option>Normal</option><option>Alta</option><option>Urgente</option></select></div>
-                <div style={{ gridColumn: 'span 3' }}><label>Justificativa</label><input name="obs" placeholder="Para que é a compra" /></div>
+                <div style={{ gridColumn: 'span 2' }}><label>Justificativa</label><input name="obs" placeholder="Para que é a compra" /></div>
               </div>
               <LinhasItens catalogo={catalogo} linhas={1} />
               <p className="pequeno mudo" style={{ margin: 0 }}>O preço aqui é a estimativa; o valor final vem da cotação.</p>
@@ -43,7 +45,7 @@ export async function Compras({ empId, edita, fornecedores, catalogo, hoje, msg,
         </div>
       )}
       <div className="card" style={{ marginBottom: 16 }}>
-        <h2>Solicitações</h2>
+        <h2 id="solicitacoes">Solicitações</h2>
         {sols.length ? (
           <div className="tabela-wrap" style={{ marginTop: 10 }}><table>
             <thead><tr><th>Solicitação</th><th>Produto</th><th className="num">Qtd</th><th className="num">Valor estimado</th><th>Cotação</th><th>Centro / prioridade</th><th>Status</th><th>Ações</th></tr></thead>
@@ -51,7 +53,7 @@ export async function Compras({ empId, edita, fornecedores, catalogo, hoje, msg,
               const item = s.itens[0];
               const cots = compararCotacoes((s.dados.cotacoes as Cotacao[] | undefined) || [], item?.qtd || 1);
               const melhor = cots.find((c) => c.recomendada);
-              const d = s.dados as { centro?: string; prioridade?: string; fornecedorSugerido?: string; compra?: string };
+              const d = s.dados as { centro?: string; prioridade?: string; fornecedorSugerido?: string; compra?: string; pedido?: string };
               const aberta = !['Pedido gerado', 'Rejeitada', 'Cancelada'].includes(s.status);
               return (
                 <tr key={s.id}>
@@ -63,7 +65,7 @@ export async function Compras({ empId, edita, fornecedores, catalogo, hoje, msg,
                     {cots.length ? cots.map((c) => <div key={c.fornecedor}>{c.recomendada ? '★ ' : ''}{c.fornecedor}: <b>{brl(c.total)}</b>{c.prazoDias != null && ` · ${c.prazoDias}d`}{c.diferenca > 0 && <span className="mudo"> (+{brl(c.diferenca)})</span>}</div>) : d.fornecedorSugerido ? <span className="mudo">Sugerido: {d.fornecedorSugerido}</span> : <span className="mudo">—</span>}
                     {d.compra && <div><span className="tag pos">{d.compra}</span></div>}
                   </td>
-                  <td className="pequeno">{d.centro || '—'}<div><span className={`tag ${/Urgente|Alta/.test(d.prioridade || '') ? 'neg' : ''}`}>{d.prioridade || 'Normal'}</span></div></td>
+                  <td className="pequeno">{d.centro || '—'}{d.pedido && <div>Pedido {d.pedido}</div>}<div><span className={`tag ${/Urgente|Alta/.test(d.prioridade || '') ? 'neg' : ''}`}>{d.prioridade || 'Normal'}</span></div></td>
                   <td><span className={`tag ${tagStatus(s.status)}`}>{s.status}</span></td>
                   <td><div className="linha" style={{ gap: 6 }}>
                     {edita && aberta && (
@@ -109,19 +111,34 @@ export async function Compras({ empId, edita, fornecedores, catalogo, hoje, msg,
           </table></div>
         ) : <div className="vazio">Nenhuma solicitação de compra ainda.</div>}
       </div>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2 id="cotacoes">Cotações</h2>
+        {sols.some((s) => ((s.dados.cotacoes as Cotacao[] | undefined) || []).length) ? (
+          <div className="tabela-wrap" style={{ marginTop: 10 }}><table>
+            <thead><tr><th>Solicitação</th><th>Produto</th><th>Fornecedor</th><th className="num">Unitário</th><th className="num">Total</th><th className="num">Prazo</th><th>Condição</th><th>Recomendação</th></tr></thead>
+            <tbody>{sols.flatMap((s) => compararCotacoes((s.dados.cotacoes as Cotacao[] | undefined) || [], s.itens[0]?.qtd || 1).map((c) => (
+              <tr key={s.id + c.fornecedor}>
+                <td><b>{rotuloDoc('solicitacao', s.numero)}</b></td><td>{s.itens[0]?.nome}</td><td>{c.fornecedor}</td>
+                <td className="num">{brl(c.unitario)}</td><td className="num">{brl(c.total)}</td><td className="num">{c.prazoDias != null ? `${c.prazoDias} dias` : '—'}</td><td className="pequeno">{c.condicao || '—'}</td>
+                <td>{c.recomendada ? <span className="tag pos">★ Melhor preço</span> : <span className="pequeno mudo">+{brl(c.diferenca)}</span>}</td>
+              </tr>
+            )))}</tbody>
+          </table></div>
+        ) : <div className="vazio">Nenhuma cotação registrada. Use o botão <b>Cotação</b> numa solicitação.</div>}
+      </div>
       <div className="card">
-        <h2>Pedidos de compra</h2>
+        <h2 id="compras">Compras (pedidos de compra)</h2>
         {compras.length ? (
           <div className="tabela-wrap" style={{ marginTop: 10 }}><table>
             <thead><tr><th>Pedido</th><th>Fornecedor</th><th>Produto</th><th className="num">Qtd</th><th className="num">Valor</th><th>Condição</th><th>Previsão</th><th>Recebido</th><th>Status</th><th>Ação</th></tr></thead>
             <tbody>{compras.map((c) => {
-              const d = c.dados as { recebidoEm?: string; nf?: string; titulo?: string };
+              const d = c.dados as { recebidoEm?: string; nf?: string; titulo?: string; pedido?: string };
               const atrasado = c.status === 'Emitido' && c.prazo && c.prazo < hoje;
               return (
                 <tr key={c.id}>
                   <td><b>{rotuloDoc('compra', c.numero)}</b><div className="pequeno mudo">{dataBr(c.data)}</div></td>
                   <td>{c.parceiro}</td>
-                  <td>{c.itens.map((i) => i.nome).join(', ')}</td>
+                  <td>{c.itens.map((i) => i.nome).join(', ')}{d.pedido && <div className="pequeno mudo">Pedido do cliente {d.pedido}</div>}</td>
                   <td className="num">{c.itens.reduce((a, i) => a + i.qtd, 0)}</td>
                   <td className="num">{brl(c.total)}</td>
                   <td className="pequeno">{c.condicao || '—'}</td>

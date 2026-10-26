@@ -4,7 +4,7 @@ import { FLUXO, rotuloDoc, totais } from '@/domain/comercial';
 import { addDias, brl, dataBr } from '@/domain/dinheiro';
 import { docsDaEmpresa } from '@/server/comercial-docs';
 import { getDb } from '@/db';
-import { converterAcao, criarDocAcao, mudarStatusAcao } from './acoes';
+import { converterAcao, criarDocAcao, mudarStatusAcao, novaVersaoAcao } from './acoes';
 import { Avisos, BotoesStatus, Cabeca, EscolherParceiro, type ItemCatalogo, Kpis, LinhasItens, type Parceiro, tagStatus } from './comum';
 
 export async function Orcamentos({ empId, edita, clientes, catalogo, hoje, msg, erro }: { empId: string; edita: boolean; clientes: Parceiro[]; catalogo: ItemCatalogo[]; hoje: string; msg?: string; erro?: string }) {
@@ -16,7 +16,7 @@ export async function Orcamentos({ empId, edita, clientes, catalogo, hoje, msg, 
   const vencendo = abertos.filter((o) => o.prazo && o.prazo >= hoje && o.prazo <= addDias(hoje, 7)).length;
   return (
     <>
-      <Cabeca titulo="Orçamentos" sub="Orçamento → aprovação do cliente → pedido → faturamento → Contas a Receber → recebimento." />
+      <Cabeca titulo="Orçamentos" sub="Criação, versões, aprovação do cliente e histórico. Orçamento aprovado vira pedido → faturamento → Contas a Receber." />
       <Avisos msg={msg} erro={erro} />
       <Kpis itens={[
         ['Em aberto', brl(abertos.reduce((a, o) => a + o.total, 0)), `${abertos.length} orçamento(s)`],
@@ -28,7 +28,7 @@ export async function Orcamentos({ empId, edita, clientes, catalogo, hoje, msg, 
         <div className="card" style={{ marginBottom: 16 }}>
           <details open={!lista.length}>
             <summary>Novo orçamento</summary>
-            <p className="pequeno mudo" style={{ margin: '8px 0 0' }}>Itens do cadastro trazem preço e custo, e a margem aparece na lista. Deixe o preço em branco para usar o do cadastro.{!catalogo.length && <> Cadastre produtos e serviços em <Link href="/estoque">Produtos e Estoque</Link>, ou digite a descrição.</>}</p>
+            <p className="pequeno mudo" style={{ margin: '8px 0 0' }}>Itens do cadastro trazem preço e custo, e a margem aparece na lista. Deixe o preço em branco para usar o do cadastro.{!catalogo.length && <> Cadastre produtos e serviços em <Link href="/comercial?t=produtos&aba=cadastro">Produtos e Estoque</Link>, ou digite a descrição.</>}</p>
             <form action={criarDocAcao} className="campos" style={{ marginTop: 12 }}>
               <input type="hidden" name="tipo" value="orcamento" />
               <div className="grade g4">
@@ -56,7 +56,13 @@ export async function Orcamentos({ empId, edita, clientes, catalogo, hoje, msg, 
               const proximos = FLUXO.orcamento[o.status].filter((s) => s !== 'Convertido');
               return (
                 <tr key={o.id}>
-                  <td><b>{rotuloDoc('orcamento', o.numero)}</b>{o.referencia && <div className="pequeno mudo">Ref. {o.referencia}</div>}</td>
+                  <td><b>{rotuloDoc('orcamento', o.numero)}</b>{Number(o.dados.versao) > 1 && <span className="tag ia" style={{ marginLeft: 4 }}>v{String(o.dados.versao)}</span>}{o.referencia && <div className="pequeno mudo">Ref. {o.referencia}</div>}
+                    {((o.dados.historico as { de: string; para: string; em: string; por: string; motivo?: string }[] | undefined) || []).length > 0 && (
+                      <details><summary className="pequeno">Histórico</summary>
+                        {(o.dados.historico as { de: string; para: string; em: string; por: string; motivo?: string }[]).map((h, k) => <div key={k} className="pequeno mudo">{dataBr(h.em.slice(0, 10))} · {h.para} · {h.por}{h.motivo ? ` · ${h.motivo}` : ''}</div>)}
+                      </details>
+                    )}
+                  </td>
                   <td>{o.parceiro}</td>
                   <td>{dataBr(o.data)}</td>
                   <td>{o.prazo ? dataBr(o.prazo) : '—'}{vencido && <div><span className="tag neg">Vencido</span></div>}</td>
@@ -67,6 +73,7 @@ export async function Orcamentos({ empId, edita, clientes, catalogo, hoje, msg, 
                   <td><div className="linha" style={{ gap: 6 }}>
                     <Link className="btn mini" href={`/proposta/${o.id}`} target="_blank">PDF</Link>
                     {edita && <BotoesStatus id={o.id} volta="orcamentos" opcoes={proximos} acao={mudarStatusAcao} />}
+                    {edita && <form action={novaVersaoAcao} style={{ display: 'inline' }}><input type="hidden" name="id" value={o.id} /><button className="btn mini" type="submit" title="Copia este orçamento como nova versão em rascunho">Nova versão</button></form>}
                     {edita && o.status === 'Aprovado' && (
                       <details className="menu-acao"><summary className="btn mini primario">Converter em pedido</summary>
                         <form action={converterAcao} className="card menu-acao-caixa" style={{ width: 300, top: 34 }}>

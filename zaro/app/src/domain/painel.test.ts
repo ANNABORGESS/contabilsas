@@ -77,5 +77,7 @@ describe('dashboard', () => {
     expect(moduloDaAcao('Importou lista de NF da SEFAZ')).toBe('Fiscal');
     expect(moduloDaAcao('Lançou venda')).toBe('Financeiro');
     expect(moduloDaAcao('Importou folha (PDF)')).toBe('Departamento Pessoal');
+    expect(moduloDaAcao('Converteu orçamento em pedido')).toBe('Comercial');
+    expect(moduloDaAcao('Recebeu pedido de compra')).toBe('Comercial');
   });
 });

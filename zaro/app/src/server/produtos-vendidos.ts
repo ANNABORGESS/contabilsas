@@ -1,6 +1,6 @@
 // Produtos vendidos: itens das NFs de venda do Contas a Receber e das NFs de saída aprovadas no Autopilot.
 import 'server-only';
-import { and, eq, like } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { arred } from '@/domain/dinheiro';
@@ -16,7 +16,7 @@ export async function notasDeVenda(db: Db, empresaId: string) {
   const [tits, docs] = await Promise.all([
     db.select().from(schema.titulos).where(and(eq(schema.titulos.empresaId, empresaId), eq(schema.titulos.tipo, 'receber'))),
     db.select({ chave: schema.documentosEntrada.chave, dados: schema.documentosEntrada.dados }).from(schema.documentosEntrada)
-      .where(and(eq(schema.documentosEntrada.empresaId, empresaId), eq(schema.documentosEntrada.status, 'Aprovado'), like(schema.documentosEntrada.tipo, '%saída%'))),
+      .where(and(eq(schema.documentosEntrada.empresaId, empresaId), eq(schema.documentosEntrada.status, 'Aprovado'))),
   ]);
   const notas = new Map<string, NotaComItens>();
   const semItens = new Map<string, { nf: string; cliente: string; valor: number; codigo: string }>();
@@ -35,7 +35,7 @@ export async function notasDeVenda(db: Db, empresaId: string) {
   for (const doc of docs) {
     const dd = doc.dados as DadosDocumento;
     const n = dd.nota;
-    if (!n || dd.retorno || !n.itens?.length) continue;
+    if (!n || dd.direcao !== 'saida' || dd.retorno || !n.itens?.length) continue;
     const chave = n.dados.chave || doc.chave || '';
     if (notas.has(chave)) continue;
     notas.set(chave, { nf: n.dados.numero, chave, tipo: n.tipo, cliente: n.dados.cliNome, pedido: (n.dados.pedido || '').replace(/^0+(?=\d+$)/, ''), emissao: n.dados.emissao, itens: n.itens.map((i) => ({ desc: i.desc, ncm: i.ncm, un: i.un, qtd: i.qtd, unit: i.unit, total: i.total })) });
