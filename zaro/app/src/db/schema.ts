@@ -343,6 +343,43 @@ export const vendas = pgTable(
   (t) => [uniqueIndex('vendas_numero').on(t.empresaId, t.numero)],
 );
 
+export interface ItemComercial {
+  catalogoId: string | null;
+  tipo: 'produto' | 'servico';
+  nome: string;
+  qtd: number;
+  preco: number;
+  custo: number | null;
+  total: number;
+}
+
+/** Documentos do Comercial: orçamento, pedido do cliente, solicitação de compra e pedido de compra. */
+export const docsComerciais = pgTable(
+  'docs_comerciais',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    tipo: text('tipo').notNull(), // 'orcamento' | 'pedido' | 'solicitacao' | 'compra'
+    numero: integer('numero').notNull(),
+    data: date('data', { mode: 'string' }).notNull(),
+    prazo: date('prazo', { mode: 'string' }), // validade do orçamento ou previsão de entrega
+    parceiroId: uuid('parceiro_id').references(() => parceiros.id, { onDelete: 'set null' }),
+    parceiro: text('parceiro'),
+    docParceiro: text('doc_parceiro'),
+    referencia: text('referencia'), // nº do pedido do cliente
+    itens: jsonb('itens').$type<ItemComercial[]>().notNull().default([]),
+    total: dinheiro('total').notNull().default(0),
+    condicao: text('condicao'),
+    status: text('status').notNull(),
+    origemId: uuid('origem_id'), // orçamento que virou pedido; solicitação que virou pedido de compra
+    obs: text('obs'),
+    dados: jsonb('dados').$type<Record<string, unknown>>().notNull().default({}),
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex('docs_comerciais_numero').on(t.empresaId, t.tipo, t.numero), index('docs_comerciais_empresa').on(t.empresaId, t.tipo)],
+);
+
 /** Skills e agentes enviados pelo escritório (o conteúdo licenciado fica só no banco, nunca no repositório). */
 export const especialistas = pgTable(
   'especialistas',

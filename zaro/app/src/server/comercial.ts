@@ -54,6 +54,8 @@ export interface DadosVenda {
   parcelas: number;
   primeiroVenc: string;
   obs: string;
+  /** venda que fatura um pedido do Comercial: os títulos ficam ligados ao pedido */
+  pedido?: { id: string; rotulo: string; referencia: string | null };
 }
 
 export async function lancarVenda(db: Db, u: Usuario, emp: Empresa, v: DadosVenda) {
@@ -96,7 +98,8 @@ export async function lancarVenda(db: Db, u: Usuario, emp: Empresa, v: DadosVend
       tenantId: u.tenantId, empresaId: emp.id, numero, data: v.data, parceiroId: parceiro.id, cliente: parceiro.razao, docCliente: parceiro.doc,
       itens, total, parcelas: parcelas.length, primeiroVenc: v.primeiroVenc, obs: v.obs.trim() || null,
     }).returning({ id: schema.vendas.id });
-    const descricao = `Venda ${rotulo} · ${itens.map((i) => `${i.qtd} × ${i.nome}`).join(', ')}`.slice(0, 300);
+    const pedido = v.pedido ? ` · Pedido ${v.pedido.rotulo}${v.pedido.referencia ? ` (cliente ${v.pedido.referencia})` : ''}` : '';
+    const descricao = `Venda ${rotulo}${pedido} · ${itens.map((i) => `${i.qtd} × ${i.nome}`).join(', ')}`.slice(0, 300);
     const categoria = categoriaDaVenda(itens.map((i) => i.tipo));
     const codigos: string[] = [];
     for (const p of parcelas) {
@@ -105,7 +108,7 @@ export async function lancarVenda(db: Db, u: Usuario, emp: Empresa, v: DadosVend
       codigos.push(codigo);
       await t.insert(schema.titulos).values({
         tenantId: u.tenantId, empresaId: emp.id, codigo, tipo: 'receber', parceiroId: parceiro.id, nome: parceiro.razao, docParceiro: parceiro.doc, descricao, parcela: p.parcela,
-        venc: p.venc, valor: p.valor, status: 'A receber', competencia: v.data.slice(0, 7), categoria, centro: 'Comercial', contaContabil: '3.1.1.01', origem: 'venda', dados: { venda: venda.id, vendaNumero: rotulo },
+        venc: p.venc, valor: p.valor, status: 'A receber', competencia: v.data.slice(0, 7), categoria, centro: 'Comercial', contaContabil: '3.1.1.01', origem: 'venda', dados: { venda: venda.id, vendaNumero: rotulo, ...(v.pedido && { pedidoDoc: v.pedido.id, pedidoNumero: v.pedido.rotulo, pedido: v.pedido.referencia || v.pedido.rotulo }) },
       });
     }
     await auditar(t, u, { empresaId: emp.id, acao: 'Lançou venda', entidade: `${rotulo} · ${parceiro.razao}`, depois: `${brl(total)} em ${parcelas.length}x · 1º venc. ${dataBr(v.primeiroVenc)} · ${codigos.join(', ')}` });

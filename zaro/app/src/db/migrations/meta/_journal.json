@@ -50,6 +50,13 @@
       "when": 1792949582789,
       "tag": "0006_pagamento_detalhado",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793024396921,
+      "tag": "0007_comercial",
+      "breakpoints": true
     }
   ]
 }

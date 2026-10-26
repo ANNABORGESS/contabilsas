@@ -6,16 +6,11 @@ import { LINHAS_VENDA } from '@/domain/venda';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import { vendasDaEmpresa } from '@/server/comercial';
 import { cancelar, vender } from './acoes';
-
-function Abas({ t }: { t: string }) {
-  return (
-    <div className="abas">
-      <Link href="/comercial?t=cliente" className={t === 'cliente' ? 'ativo' : ''}>Clientes</Link>
-      <Link href="/comercial?t=fornecedor" className={t === 'fornecedor' ? 'ativo' : ''}>Fornecedores</Link>
-      <Link href="/comercial?t=vendas" className={t === 'vendas' ? 'ativo' : ''}>Vendas</Link>
-    </div>
-  );
-}
+import { Cabeca } from './comum';
+import { Compras } from './compras';
+import { Orcamentos } from './orcamentos';
+import { Parceiros } from './parceiros';
+import { Pedidos } from './pedidos';
 
 async function Vendas({ empId, edita, msg, erro }: { empId: string; edita: boolean; msg?: string; erro?: string }) {
   const db = await getDb();
@@ -100,40 +95,33 @@ async function Vendas({ empId, edita, msg, erro }: { empId: string; edita: boole
   );
 }
 
-export default async function Comercial({ searchParams }: { searchParams: Promise<{ t?: string; msg?: string; erro?: string }> }) {
+type SP = { t?: string; msg?: string; erro?: string; novo?: string; editar?: string; q?: string };
+
+export default async function Comercial({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
   const emp = await exigirEmpresa(u);
-  const { t, msg, erro } = await searchParams;
+  const sp = await searchParams;
+  const edita = podeEditar(u);
+  const hoje = new Date().toISOString().slice(0, 10);
+  const t = sp.t || 'cliente';
   if (t === 'vendas') {
     return (
       <>
-        <div className="cabeca"><div><h1>Comercial</h1><p>Vendas lançadas aqui geram as parcelas no Contas a Receber e entram na contabilidade como receita.</p></div></div>
-        <Abas t="vendas" />
-        <Vendas empId={emp.id} edita={podeEditar(u)} msg={msg} erro={erro} />
+        <Cabeca titulo="Vendas e faturamento" sub="Vendas lançadas aqui geram as parcelas no Contas a Receber e entram na contabilidade como receita. Pedidos faturados aparecem aqui também." />
+        <Vendas empId={emp.id} edita={edita} msg={sp.msg} erro={sp.erro} />
       </>
     );
   }
-  const tipo = t === 'fornecedor' ? 'fornecedor' : 'cliente';
-  const db = await getDb();
-  const lista = await db.select().from(schema.parceiros).where(and(eq(schema.parceiros.empresaId, emp.id), eq(schema.parceiros.tipo, tipo))).orderBy(asc(schema.parceiros.razao));
-  const tot = await db
-    .select({ doc: schema.titulos.docParceiro, total: sql<string>`sum(coalesce(${schema.titulos.valorFiscal}, ${schema.titulos.valor}))`, n: sql<number>`count(distinct ${schema.titulos.nf})::int` })
-    .from(schema.titulos)
-    .where(and(eq(schema.titulos.empresaId, emp.id), eq(schema.titulos.tipo, tipo === 'cliente' ? 'receber' : 'pagar'), sql`${schema.titulos.status} not ilike '%cancel%'`))
-    .groupBy(schema.titulos.docParceiro);
-  const porDoc = new Map(tot.map((x) => [x.doc, x]));
-  return (
-    <>
-      <div className="cabeca"><div><h1>Comercial</h1><p>Clientes e fornecedores. Novos cadastros são criados automaticamente ao aprovar NF no Autopilot.</p></div></div>
-      <Abas t={tipo} />
-      <div className="card">
-        {lista.length ? (
-          <div className="tabela-wrap"><table>
-            <thead><tr><th>Nome</th><th>CNPJ/CPF</th><th>Categoria</th><th>Origem</th><th className="num">NFs</th><th className="num">Movimento total</th></tr></thead>
-            <tbody>{lista.map((p) => { const x = p.doc ? porDoc.get(p.doc) : undefined; return <tr key={p.id}><td>{p.razao}{p.fantasia && <div className="pequeno mudo">{p.fantasia}</div>}</td><td>{p.doc ? formatarCnpj(p.doc) : '—'}</td><td>{p.categoria || '—'}</td><td className="pequeno">{p.origem || '—'}</td><td className="num">{x?.n || 0}</td><td className="num">{x ? brl(Number(x.total)) : '—'}</td></tr>; })}</tbody>
-          </table></div>
-        ) : <div className="vazio">Nenhum {tipo} cadastrado ainda.</div>}
-      </div>
-    </>
-  );
+  if (t === 'compras' || t === 'orcamentos' || t === 'pedidos') {
+    const db = await getDb();
+    const [parceiros, catalogo] = await Promise.all([
+      db.select({ id: schema.parceiros.id, razao: schema.parceiros.razao, doc: schema.parceiros.doc }).from(schema.parceiros).where(and(eq(schema.parceiros.empresaId, emp.id), eq(schema.parceiros.tipo, t === 'compras' ? 'fornecedor' : 'cliente'))).orderBy(asc(schema.parceiros.razao)),
+      db.select({ id: schema.catalogo.id, nome: schema.catalogo.nome, preco: schema.catalogo.preco, custo: schema.catalogo.custo, tipo: schema.catalogo.tipo }).from(schema.catalogo).where(and(eq(schema.catalogo.empresaId, emp.id), eq(schema.catalogo.ativo, true))).orderBy(asc(schema.catalogo.nome)),
+    ]);
+    const base = { empId: emp.id, edita, catalogo, hoje, msg: sp.msg, erro: sp.erro };
+    if (t === 'compras') return <Compras {...base} fornecedores={parceiros} />;
+    if (t === 'orcamentos') return <Orcamentos {...base} clientes={parceiros} />;
+    return <Pedidos {...base} clientes={parceiros} />;
+  }
+  return <Parceiros empId={emp.id} tipo={t === 'fornecedor' ? 'fornecedor' : 'cliente'} edita={edita} novo={sp.novo} editar={sp.editar} q={sp.q} msg={sp.msg} erro={sp.erro} />;
 }

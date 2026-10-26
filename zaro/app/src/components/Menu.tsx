@@ -24,14 +24,15 @@ const ITENS: ([string, string, string, string, string] | null)[] = [
   ['/auditoria', 'Auditoria', 'neutro', 'audit', '#5F5954'],
 ];
 
-// Submenus: aparecem abertos quando a área está ativa. [tipo na URL, nome]
-const SUB: Record<string, [string, string][]> = {
-  '/financeiro': [['pagar', 'Contas a Pagar'], ['receber', 'Contas a Receber'], ['emprestimos', 'Empréstimos e Financiamentos'], ['endividamento', 'Análise de endividamento'], ['extrato', 'Conciliação bancária']],
+// Submenus: aparecem abertos quando a área está ativa. Parâmetro da URL, valor padrão e [valor, nome]
+const SUB: Record<string, { param: string; padrao: string; itens: [string, string][] }> = {
+  '/financeiro': { param: 'tipo', padrao: 'pagar', itens: [['pagar', 'Contas a Pagar'], ['receber', 'Contas a Receber'], ['emprestimos', 'Empréstimos e Financiamentos'], ['endividamento', 'Análise de endividamento'], ['extrato', 'Conciliação bancária']] },
+  '/comercial': { param: 't', padrao: 'cliente', itens: [['cliente', 'Clientes'], ['fornecedor', 'Fornecedores'], ['compras', 'Compras e cotação'], ['orcamentos', 'Orçamentos'], ['pedidos', 'Pedidos aprovados'], ['vendas', 'Vendas e faturamento']] },
 };
 
 export function Menu() {
   const p = usePathname();
-  const tipo = useSearchParams().get('tipo') || 'pagar';
+  const busca = useSearchParams();
   return (
     <nav className="menu">
       {ITENS.map((i, k) =>
@@ -41,11 +42,15 @@ export function Menu() {
               <Icone nome={i[3]} cor={i[4]} />
               <span className="nome">{i[1]}</span>
             </Link>
-            {SUB[i[0]] && p === i[0] && (
-              <div className="submenu">
-                {SUB[i[0]].map(([k, n]) => <Link key={k} href={`${i[0]}?tipo=${k}`} className={tipo === k ? 'sub-ativo' : ''} aria-current={tipo === k ? 'page' : undefined}>{n}</Link>)}
-              </div>
-            )}
+            {SUB[i[0]] && p === i[0] && (() => {
+              const { param, padrao, itens } = SUB[i[0]];
+              const atual = busca.get(param) || padrao;
+              return (
+                <div className="submenu">
+                  {itens.map(([k, n]) => <Link key={k} href={`${i[0]}?${param}=${k}`} className={atual === k ? 'sub-ativo' : ''} aria-current={atual === k ? 'page' : undefined}>{n}</Link>)}
+                </div>
+              );
+            })()}
           </div>
         ) : (
           <div key={k} className="sep" />
