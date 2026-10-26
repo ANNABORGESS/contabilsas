@@ -174,3 +174,25 @@ describe('extrato bancário', () => {
     expect(L.filter((l) => l.cred === '1.1.1.02').map((l) => l.id).sort()).toEqual(['BKX|m1', 'CP-2|pag']);
   });
 });
+
+describe('split payment na contabilidade', () => {
+  it('recebimento confirmado: banco pelo líquido, IBS/CBS extinguem a obrigação, taxa é despesa; receita pelo total', async () => {
+    const { gerarLancamentos } = await import('./motor');
+    const l = gerarLancamentos({
+      titulos: [{ id: 'CR-1', tipo: 'receber', nome: 'Cliente', nf: '10', valor: 1000, status: 'Recebido', competencia: '2026-11', emissao: '2026-11-01', impostos: [{ nome: 'IBS', valor: 1 }, { nome: 'CBS', valor: 9 }],
+        baixas: [{ id: 'b1', data: '2026-11-10', valor: 1000, split: { ibs: 1, cbs: 9, taxa: 20 } }] }],
+      imobilizado: [], contratos: [], decisoes: { status: {}, contas: {}, estornos: {}, regras: {} }, extrato: [], empresaNome: 'X',
+    } as never);
+    const v = (id: string) => l.find((x) => x.id === id);
+    expect(v('CR-1|prov')).toMatchObject({ deb: '1.1.2.01', cred: '3.1.1.01', valor: 1000 });
+    expect(v('CR-1|pag')).toMatchObject({ deb: '1.1.1.02', cred: '1.1.2.01', valor: 970 });
+    expect(v('CR-1|spl|b1|trib')).toMatchObject({ deb: '2.1.4.01', cred: '1.1.2.01', valor: 10 });
+    expect(v('CR-1|spl|b1|taxa')).toMatchObject({ deb: '4.2.1.02', cred: '1.1.2.01', valor: 20 });
+    const clientes = l.filter((x) => x.deb === '1.1.2.01' || x.cred === '1.1.2.01').reduce((a, x) => a + (x.deb === '1.1.2.01' ? x.valor : -x.valor), 0);
+    expect(Math.round(clientes * 100) / 100).toBe(0);
+    // sem split confirmado nada muda
+    const s = gerarLancamentos({ titulos: [{ id: 'CR-2', tipo: 'receber', nome: 'C', nf: '11', valor: 500, status: 'Recebido', competencia: '2026-11', baixas: [{ id: 'b', data: '2026-11-10', valor: 500 }] }], imobilizado: [], contratos: [], decisoes: { status: {}, contas: {}, estornos: {}, regras: {} }, extrato: [], empresaNome: 'X' } as never);
+    expect(s.find((x) => x.id === 'CR-2|pag')?.valor).toBe(500);
+    expect(s.some((x) => x.id.includes('|spl|'))).toBe(false);
+  });
+});

@@ -19,7 +19,7 @@ export default async function Fiscal({ searchParams }: { searchParams: Promise<{
   return (
     <>
       <div className="cabeca"><div><h1>Fiscal e Tributário</h1><p>Regime por vigência, estimativa do Lucro Presumido e passivo da dívida ativa. Nunca se usa DAS, anexo ou Fator R em competência do Presumido.</p></div></div>
-      <div className="abas"><Link href="/fiscal" className="ativo">Apuração</Link><Link href="/fiscal/notas">NF da SEFAZ</Link></div>
+      <div className="abas"><Link href="/fiscal" className="ativo">Apuração</Link><Link href="/fiscal/notas">NF da SEFAZ</Link><Link href="/fiscal/reforma">Reforma Tributária</Link></div>
       <form className="card linha" style={{ marginBottom: 16 }}>
         <div><label>Ano</label><input name="ano" defaultValue={ano} style={{ width: 100 }} /></div>
         <button className="btn" style={{ alignSelf: 'flex-end' }}>Aplicar</button>

@@ -2,12 +2,14 @@ import Link from 'next/link';
 import { getDb } from '@/db';
 import { brl, dataBr } from '@/domain/dinheiro';
 import { dadosCaixa } from '@/server/inteligencia';
+import { dadosSplit } from '@/server/split-payment';
 import { SimuladorCaixa } from '@/components/painel/Inteligencia';
 import { salvarCaixaMinimo, salvarSaldoConta } from './acoes';
 import { Card, type Props } from './comum';
 
 export async function Caixa({ u, emp, hoje, edita }: Props) {
   const d = await dadosCaixa(await getDb(), u, emp, hoje);
+  const split = await dadosSplit(await getDb(), emp, hoje);
   return (
     <>
       {!d.temSaldo && <div className="aviso">Sem saldo bancário: informe o saldo inicial em <Link href="/financeiro?tipo=extrato#saldo">Financeiro → Extrato</Link>. Até lá, a projeção parte de zero.</div>}
@@ -68,6 +70,14 @@ export async function Caixa({ u, emp, hoje, edita }: Props) {
             </table></div>
           ) : <div className="vazio">Nenhuma saída prevista nos próximos 90 dias.</div>}
         </div>
+      </div>
+      <div className="card" style={{ marginTop: 16 }}>
+        <div className="linha" style={{ justifyContent: 'space-between' }}><h2>Split Payment · impacto estimado nos recebimentos</h2><Link className="pequeno" href="/fiscal/reforma">Abrir Split Payment</Link></div>
+        <p className="pequeno mudo" style={{ margin: '4px 0 10px' }}>Estimativa pelos IBS/CBS destacados nas NFs dos títulos a receber. Ainda não está em operação; tributo segregado não é despesa bancária.</p>
+        <div className="tabela-wrap"><table>
+          <thead><tr><th>Horizonte</th><th className="num">Recebimento bruto previsto</th><th className="num">Segregação estimada</th><th className="num">Recebimento líquido previsto</th></tr></thead>
+          <tbody>{split.projecao.map((p) => <tr key={p.dias}><td>{p.dias} dias</td><td className="num">{brl(p.bruto)}</td><td className="num">{brl(p.segregacao)}</td><td className="num">{brl(p.liquido)}</td></tr>)}</tbody>
+        </table></div>
       </div>
     </>
   );

@@ -57,6 +57,13 @@
       "when": 1793024396921,
       "tag": "0007_comercial",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793040864776,
+      "tag": "0008_split_payment",
+      "breakpoints": true
     }
   ]
 }

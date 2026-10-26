@@ -41,6 +41,8 @@ export interface BaixaMotor {
   multa?: number;
   /** movimento do extrato conciliado manualmente com esta baixa (o banco sai uma vez só) */
   extratoId?: string | null;
+  /** split payment CONFIRMADO com evidência: IBS/CBS segregados na liquidação e taxa do meio de pagamento */
+  split?: { ibs: number; cbs: number; taxa: number } | null;
 }
 export interface TituloMotor {
   id: string;
@@ -212,7 +214,17 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
       add({ ...base, id: `${t.id}|prov`, data, comp, deb: '1.1.2.01', cred: ajustada || '3.1.1.01', valor: v, hist: `${t.nf ? `Venda NF ${t.nf}` : `Título ${t.id}`} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: t.nf ? 'NF de saída vinculada ao título (natureza de venda)' : 'Título a receber sem NF vinculada: confirme a natureza', conf: t.nf ? 95 : 68, auto: !!t.nf, editavel: true });
       const tributos = (t.impostos || []).filter((x) => /icms|pis|cofins|\biss|ipi|ibs|cbs/i.test(x.nome)).reduce((a, x) => a + (Number(x.valor) || 0), 0);
       if (tributos > 0) add({ ...base, id: `${t.id}|ded`, data, comp, deb: '3.2.1.01', cred: '2.1.4.01', valor: tributos, hist: `Tributos destacados ${doc} — ${(t.impostos || []).filter((x) => x.valor > 0).map((x) => x.nome).join(', ')}`, modulo: 'Fiscal → NF de saída', motivo: 'Impostos destacados no XML da NF de saída', conf: 95, auto: true });
-      if (pagoV > 0 && !baixaNoExtrato) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '1.1.1.02', cred: '1.1.2.01', valor: pagoV, hist: `Recebimento ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Recebimento registrado no Contas a Receber', conf: 97, auto: true });
+      // split payment confirmado: o cliente pagou o total, o banco recebeu o líquido; a parte segregada extingue
+      // a obrigação de IBS/CBS e a taxa do meio de pagamento é despesa bancária (não é tributo)
+      const retido = semExtrato.reduce((a, b) => a + (b.split ? b.split.ibs + b.split.cbs + b.split.taxa : 0), 0);
+      if (pagoV > 0 && !baixaNoExtrato && pagoV - retido > 0.004) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '1.1.1.02', cred: '1.1.2.01', valor: Math.round((pagoV - retido) * 100) / 100, hist: `Recebimento ${doc} — ${t.nome}${retido ? ' (líquido do split payment)' : ''}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Recebimento registrado no Contas a Receber', conf: 97, auto: true });
+      baixas.forEach((b, i) => {
+        if (!b.split) return;
+        const k = `${t.id}|spl|${b.id || i}`;
+        const comum = { ...base, data: b.data, comp: b.data.slice(0, 7), conf: 95, auto: true, modulo: 'Fiscal → Split Payment' };
+        if (b.split.ibs + b.split.cbs > 0) add({ ...comum, id: `${k}|trib`, deb: '2.1.4.01', cred: '1.1.2.01', valor: Math.round((b.split.ibs + b.split.cbs) * 100) / 100, hist: `IBS ${b.split.ibs.toFixed(2)} + CBS ${b.split.cbs.toFixed(2)} segregados no pagamento ${doc} — ${t.nome}`, motivo: 'Split payment confirmado com evidência: extinção da obrigação na liquidação' });
+        if (b.split.taxa > 0) add({ ...comum, id: `${k}|taxa`, deb: '4.2.1.02', cred: '1.1.2.01', valor: b.split.taxa, hist: `Taxa do meio de pagamento ${doc} — ${t.nome}`, motivo: 'Taxa do PSP informada na liquidação (despesa bancária)' });
+      });
     }
   }
 

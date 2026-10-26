@@ -1,4 +1,4 @@
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNotNull } from 'drizzle-orm';
 import Link from 'next/link';
 import { getDb, schema } from '@/db';
 import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
@@ -77,11 +77,19 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
   }
 
   const tipo = aba;
-  const [filtrados, achado, mesTopo] = await Promise.all([
+  const [filtrados, achado, mesTopo, splits] = await Promise.all([
     titulosFiltrados(db, emp.id, tipo, sp.chave ? 'todos' : sp.f, sp.chave ? sp.chave.replace(/\D/g, '') : sp.q, hoje),
     sp.chave ? localizarChave(db, emp.id, sp.chave) : null,
     mesAtivo(),
+    tipo === 'receber' ? db.select({ tituloId: schema.splitOperacoes.tituloId, ibs: schema.splitOperacoes.ibsSegregado, cbs: schema.splitOperacoes.cbsSegregado, liquido: schema.splitOperacoes.valorLiquido, status: schema.splitOperacoes.status }).from(schema.splitOperacoes).where(and(eq(schema.splitOperacoes.empresaId, emp.id), isNotNull(schema.splitOperacoes.tituloId))) : [],
   ]);
+  // split payment ligado aos recebimentos (só leitura: não cria título nem lançamento)
+  const splitDe = new Map<string, { seg: number; liquido: number; confirmado: boolean }>();
+  for (const x of splits) {
+    if (x.ibs == null && x.cbs == null) continue;
+    const a = splitDe.get(x.tituloId!) || { seg: 0, liquido: 0, confirmado: true };
+    splitDe.set(x.tituloId!, { seg: a.seg + (x.ibs || 0) + (x.cbs || 0), liquido: a.liquido + (x.liquido || 0), confirmado: a.confirmado && x.status === 'confirmado' });
+  }
   // mês escolhido no topo: só os títulos que vencem nele (a busca por chave ignora o mês)
   const doMes = <T extends { venc: string | null }>(l: T[]) => (mesTopo && !sp.chave ? l.filter((t) => t.venc?.startsWith(mesTopo)) : l);
   const { f, q } = filtrados;
@@ -271,7 +279,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
                       <td>{dataBr(t.venc)} {t.vencEstimado && <span className="tag at">revisar</span>}{plano[t.id] && <div><span className={`tag prio-${plano[t.id].prioridade}`} title={plano[t.id].motivo}>{plano[t.id].prioridade}</span>{(plano[t.id].etapa !== 'Título preparado' || plano[t.id].agendadoPara) && <span className="pequeno mudo"> {plano[t.id].etapa === 'Título preparado' ? 'Para' : plano[t.id].etapa}{plano[t.id].agendadoPara ? ` ${dataBr(plano[t.id].agendadoPara)}` : ''}</span>}</div>}</td>
                       <td className="num">{brl(t.valor)}{t.retorno && t.valorFiscal ? <div className="pequeno mudo">fiscal {brl(t.valorFiscal)}</div> : null}</td>
                       <td className="num">{baixado ? brl(baixado) : '—'}</td>
-                      <td><span className={`tag ${corStatus(t.status, t.venc, hoje)}`}>{t.status}</span></td>
+                      <td><span className={`tag ${corStatus(t.status, t.venc, hoje)}`}>{t.status}</span>{splitDe.get(t.id) && <div className="pequeno"><Link href="/fiscal/reforma?aba=segregados" title={`Líquido recebido ${brl(splitDe.get(t.id)!.liquido)}`}>Split: {brl(splitDe.get(t.id)!.seg)} IBS/CBS {splitDe.get(t.id)!.confirmado ? 'confirmado' : 'informado pelo PSP'}</Link></div>}</td>
                       <td style={{ minWidth: 120 }}>
                         {planeja && ehAberto(t) && <Link className="btn mini primario" href={`${volta}&pagar=${t.id}`} style={{ marginBottom: 6 }}>Registrar pagamento</Link>}
                         <details>

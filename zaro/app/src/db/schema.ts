@@ -380,6 +380,42 @@ export const docsComerciais = pgTable(
   (t) => [uniqueIndex('docs_comerciais_numero').on(t.empresaId, t.tipo, t.numero), index('docs_comerciais_empresa').on(t.empresaId, t.tipo)],
 );
 
+/** Split Payment: cada transação de pagamento com a segregação de IBS/CBS informada (PSP ou comprovante).
+ *  chave é idempotente (baixa:<id> ou psp:<psp>:<transação>), para importar de novo sem duplicar. */
+export const splitOperacoes = pgTable(
+  'split_operacoes',
+  {
+    id: id(),
+    tenantId: tenant(),
+    empresaId: empresa(),
+    chave: text('chave').notNull(),
+    origem: text('origem').notNull(), // recebimento | psp | manual
+    evento: text('evento').notNull().default('pagamento'), // pagamento | parcial | estorno | devolucao | antecipacao
+    data: date('data', { mode: 'string' }).notNull(),
+    competencia: text('competencia').notNull(),
+    tituloId: uuid('titulo_id').references(() => titulos.id, { onDelete: 'set null' }),
+    baixaId: uuid('baixa_id'),
+    nf: text('nf'),
+    nfChave: text('nf_chave'),
+    valorDocumento: dinheiro('valor_documento'),
+    valorBruto: dinheiro('valor_bruto').notNull(),
+    ibsDestacado: dinheiro('ibs_destacado'),
+    cbsDestacado: dinheiro('cbs_destacado'),
+    ibsSegregado: dinheiro('ibs_segregado'),
+    cbsSegregado: dinheiro('cbs_segregado'),
+    taxaPsp: dinheiro('taxa_psp'),
+    valorLiquido: dinheiro('valor_liquido'),
+    psp: text('psp'),
+    idTransacao: text('id_transacao'),
+    status: text('status').notNull().default('nao_informado'), // nao_informado | informado_psp | confirmado
+    extratoId: uuid('extrato_id'),
+    regraVersao: text('regra_versao'),
+    dados: jsonb('dados').$type<Record<string, unknown>>().notNull().default({}),
+    criadoEm: criadoEm(),
+  },
+  (t) => [uniqueIndex('split_chave').on(t.empresaId, t.chave), index('split_empresa_comp').on(t.empresaId, t.competencia)],
+);
+
 /** Skills e agentes enviados pelo escritório (o conteúdo licenciado fica só no banco, nunca no repositório). */
 export const especialistas = pgTable(
   'especialistas',

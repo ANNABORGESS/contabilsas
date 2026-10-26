@@ -18,7 +18,7 @@ export default async function NotasSefaz({ searchParams }: { searchParams: Promi
   return (
     <>
       <div className="cabeca"><div><h1>Fiscal e Tributário</h1><p>Lista de NF do portal da SEFAZ-AM: recebimento da mercadoria (com selagem e pedido) e controle do que já foi lançado.</p></div></div>
-      <div className="abas"><Link href="/fiscal">Apuração</Link><Link href="/fiscal/notas" className="ativo">NF da SEFAZ</Link></div>
+      <div className="abas"><Link href="/fiscal">Apuração</Link><Link href="/fiscal/notas" className="ativo">NF da SEFAZ</Link><Link href="/fiscal/reforma">Reforma Tributária</Link></div>
       {sp.msg && <div className="aviso ok">{sp.msg}</div>}
       {sp.erro && <div className="aviso erro">{sp.erro}</div>}
       <div className="card faixa" style={{ marginTop: 0, marginBottom: 16 }}>

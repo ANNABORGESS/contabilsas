@@ -8,6 +8,7 @@ import { gerarLancamentos, type Lancamento, type StatusLanc } from '@/domain/mot
 import { rotuloConta } from '@/domain/plano-contas';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
+import { splitConfirmadoPorBaixa } from './split-payment';
 
 export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancamento[]> {
   const [tits, bxs, imob, ctrs, decs, regras, extrato] = await Promise.all([
@@ -20,8 +21,10 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     db.select().from(schema.regrasClassificacao).where(eq(schema.regrasClassificacao.empresaId, emp.id)),
     db.select({ id: schema.extratoMovimentos.id, conta: schema.extratoMovimentos.conta, data: schema.extratoMovimentos.data, valor: schema.extratoMovimentos.valor, memo: schema.extratoMovimentos.memo }).from(schema.extratoMovimentos).where(eq(schema.extratoMovimentos.empresaId, emp.id)),
   ]);
-  const baixasPor = new Map<string, { id: string; data: string; valor: number; estornada: boolean; desconto: number; juros: number; multa: number; extratoId: string | null }[]>();
-  for (const b of bxs) baixasPor.set(b.tituloId, [...(baixasPor.get(b.tituloId) || []), { ...b, extratoId: ((b.dados || {}) as { extratoId?: string }).extratoId || null }]);
+  // split payment só entra na contabilidade quando confirmado com evidência
+  const split = await splitConfirmadoPorBaixa(db, emp.id);
+  const baixasPor = new Map<string, { id: string; data: string; valor: number; estornada: boolean; desconto: number; juros: number; multa: number; extratoId: string | null; split: { ibs: number; cbs: number; taxa: number } | null }[]>();
+  for (const b of bxs) baixasPor.set(b.tituloId, [...(baixasPor.get(b.tituloId) || []), { ...b, extratoId: ((b.dados || {}) as { extratoId?: string }).extratoId || null, split: split.get(b.id) || null }]);
   const status: Record<string, StatusLanc> = {};
   const contas: Record<string, string> = {};
   const estornos: Record<string, { motivo: string; data: string }> = {};
