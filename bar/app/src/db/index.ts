@@ -24,8 +24,16 @@ export async function abrirPglite(pasta?: string): Promise<Db> {
   return db as unknown as Db;
 }
 
+/** Endereço do banco. Aceita o valor colado com texto em volta (ex.: "DATABASE_URL=postgresql://..."). */
+export function urlDoBanco(bruto = process.env.DATABASE_URL): string | undefined {
+  if (!bruto?.trim()) return undefined;
+  const achado = bruto.match(/postgres(?:ql)?:\/\/[^\s"'<>]+/);
+  if (!achado) throw new Error('O valor de DATABASE_URL não é um endereço de banco: ele deve começar com postgresql://');
+  return achado[0];
+}
+
 async function conectar(): Promise<Db> {
-  const url = process.env.DATABASE_URL;
+  const url = urlDoBanco();
   if (url) {
     const { Pool } = await import('pg');
     const { drizzle } = await import('drizzle-orm/node-postgres');
