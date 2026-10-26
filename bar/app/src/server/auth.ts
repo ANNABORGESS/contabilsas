@@ -50,7 +50,7 @@ export async function entrar(login: string, senha: string, perfil?: Papel): Prom
   const expiraEm = new Date(Date.now() + HORAS_SESSAO * 36e5);
   await db.insert(schema.sessoes).values({ id: hashToken(token), usuarioId: u.id, expiraEm });
   await registrar(db, { tipo: 'login', descricao: `${u.nome} entrou`, usuarioId: u.id });
-  (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.BAR_COOKIE_SEGURO === '1', path: '/', expires: expiraEm });
+  (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.BAR_COOKIE_SEGURO === '1' || !!process.env.VERCEL, path: '/', expires: expiraEm });
   return { id: u.id, nome: u.nome, usuario: u.usuario, papel: u.papel };
 }
 

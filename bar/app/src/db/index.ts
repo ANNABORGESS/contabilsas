@@ -41,7 +41,8 @@ async function conectar(): Promise<Db> {
   return abrirPglite(path.join(PASTA_DADOS, 'banco'));
 }
 
-const SCHEMA = /^[a-z_][a-z0-9_]*$/.test(process.env.BAR_DB_SCHEMA || '') ? process.env.BAR_DB_SCHEMA! : '';
+// na Vercel o bar usa o schema "bar" do banco compartilhado, sem precisar configurar
+const SCHEMA = /^[a-z_][a-z0-9_]*$/.test(process.env.BAR_DB_SCHEMA || '') ? process.env.BAR_DB_SCHEMA! : process.env.VERCEL ? 'bar' : '';
 
 type PoolCtor = typeof import('pg').Pool;
 
