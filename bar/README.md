@@ -9,6 +9,19 @@ Sistema para bar em que o cliente **paga na mesa, na hora do pedido**, na maquin
 | **Bar** (tablet/TV) | `/bar` | Só bebidas de pedidos **pagos**, por ordem de chegada, com a mesa. |
 | **Computador** | `/admin` | Visão do turno, mesas e histórico, vendas, cancelamentos/estornos, cardápio, funcionários, relatórios (CSV e PDF) e auditoria. |
 
+## Entrada (login e senha por perfil)
+
+A primeira tela pergunta **como o aparelho vai ser usado**: Garçom, Cozinha, Bar ou Administrador. Cada opção tem seu link, para salvar nos favoritos ou na tela inicial do aparelho:
+
+| Perfil | Link |
+|---|---|
+| Garçom | `http://IP-DO-COMPUTADOR:3100/login/garcom` |
+| Cozinha | `http://IP-DO-COMPUTADOR:3100/login/cozinha` |
+| Bar | `http://IP-DO-COMPUTADOR:3100/login/bar` |
+| Administrador | `http://IP-DO-COMPUTADOR:3100/login/admin` |
+
+Cada link pede usuário e senha (ou PIN) e só aceita quem é daquele perfil (o administrador entra em todos). Os links prontos para copiar ficam em **Administração → Funcionários → Links de acesso**. Ao sair, o aparelho volta para a entrada do mesmo perfil.
+
 ## Fluxo
 
 1. O garçom seleciona a mesa e adiciona petiscos e bebidas com as quantidades.

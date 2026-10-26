@@ -2,8 +2,9 @@
 import { useState } from 'react';
 import { api } from '@/cliente/api';
 import { Aviso } from '@/cliente/ui';
+import type { Papel } from '@/domain/papeis';
 
-export default function FormLogin() {
+export default function FormLogin({ perfil }: { perfil: Papel }) {
   const [erro, setErro] = useState('');
   const [enviando, setEnviando] = useState(false);
   async function enviar(e: React.FormEvent<HTMLFormElement>) {
@@ -12,7 +13,7 @@ export default function FormLogin() {
     setEnviando(true);
     setErro('');
     try {
-      const r = await api<{ destino: string }>('/api/auth/entrar', 'POST', { usuario: f.get('usuario'), senha: f.get('senha') });
+      const r = await api<{ destino: string }>('/api/auth/entrar', 'POST', { usuario: f.get('usuario'), senha: f.get('senha'), perfil });
       window.location.href = r.destino;
     } catch (e) {
       setErro((e as Error).message);

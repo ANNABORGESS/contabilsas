@@ -6,7 +6,7 @@ import { and, eq, gt, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { getDb, schema, type Db } from '@/db';
-import { ehPapel, pode, type Papel } from '@/domain/papeis';
+import { NOME_PAPEL, ehPapel, pode, type Papel } from '@/domain/papeis';
 import { registrar } from './eventos';
 
 const scrypt = promisify(crypto.scrypt) as (s: string, salt: Buffer, len: number) => Promise<Buffer>;
@@ -36,14 +36,16 @@ export interface Usuario {
   papel: Papel;
 }
 
-export async function entrar(login: string, senha: string): Promise<Usuario | null> {
+/** Entra com usuário e senha. Com um perfil escolhido (garçom, cozinha...), só aceita quem é desse perfil ou administrador. */
+export async function entrar(login: string, senha: string, perfil?: Papel): Promise<Usuario | { erro: string }> {
   const db = await getDb();
   const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.usuario, login.trim().toLowerCase()));
   const ok = u && u.ativo && (await conferirSenha(senha, u.senhaHash));
   if (!ok || !ehPapel(u.papel)) {
     await new Promise((r) => setTimeout(r, 400)); // freia tentativas em sequência
-    return null;
+    return { erro: 'Usuário ou senha incorretos.' };
   }
+  if (perfil && !pode(u.papel, perfil)) return { erro: `Este usuário é de ${NOME_PAPEL[u.papel]}, não de ${NOME_PAPEL[perfil]}. Volte e escolha o perfil certo.` };
   const token = crypto.randomBytes(32).toString('base64url');
   const expiraEm = new Date(Date.now() + HORAS_SESSAO * 36e5);
   await db.insert(schema.sessoes).values({ id: hashToken(token), usuarioId: u.id, expiraEm });

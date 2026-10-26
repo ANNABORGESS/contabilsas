@@ -21,7 +21,10 @@ export async function api<T = unknown>(url: string, metodo: 'GET' | 'POST' | 'PA
     throw new ErroApi('Sem conexão com o servidor. Confira o Wi-Fi e tente de novo.', 0);
   }
   const dados = (await r.json().catch(() => ({}))) as { erro?: string };
-  if (r.status === 401 && typeof window !== 'undefined') window.location.href = '/login';
+  if (r.status === 401 && typeof window !== 'undefined') {
+    const area = window.location.pathname.split('/')[1];
+    window.location.href = ['garcom', 'cozinha', 'bar', 'admin'].includes(area) ? `/login/${area}` : '/login';
+  }
   if (!r.ok) throw new ErroApi(dados.erro || 'Não foi possível concluir.', r.status);
   return dados as T;
 }
@@ -154,5 +157,6 @@ export function bipar(vezes = 2) {
 
 export async function sairDoSistema() {
   await api('/api/auth/sair', 'POST', {}).catch(() => {});
-  window.location.href = '/login';
+  const area = window.location.pathname.split('/')[1];
+  window.location.href = ['garcom', 'cozinha', 'bar', 'admin'].includes(area) ? `/login/${area}` : '/login';
 }

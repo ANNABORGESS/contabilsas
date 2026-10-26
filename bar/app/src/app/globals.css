@@ -1214,3 +1214,43 @@ table.tabela {
     background: #fff;
   }
 }
+
+/* ---------- escolha do perfil na entrada ---------- */
+.perfis {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.perfil {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  column-gap: 12px;
+  align-items: center;
+  padding: 14px 16px;
+  border-radius: var(--raio);
+  border: 1px solid var(--borda);
+  background: var(--superficie-2);
+  color: var(--texto);
+  transition: border-color 0.15s, transform 0.06s;
+}
+.perfil .icone {
+  grid-row: span 2;
+}
+.perfil:hover {
+  border-color: var(--marca);
+}
+.perfil:active {
+  transform: scale(0.98);
+}
+.perfil .icone {
+  font-size: 30px;
+  line-height: 1;
+}
+.perfil b {
+  font-size: 18px;
+}
+@media (max-width: 420px) {
+  .perfis {
+    grid-template-columns: 1fr;
+  }
+}

@@ -43,6 +43,7 @@ export default function Lateral({ nome, children }: { nome: string; children: Re
           </a>
         ))}
         <div className="sep">Telas de operação</div>
+        <a href="/admin/equipe#links">Links de acesso</a>
         <a href="/garcom" target="_blank" rel="noreferrer">
           Celular do garçom ↗
         </a>
