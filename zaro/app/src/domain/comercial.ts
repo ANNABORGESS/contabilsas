@@ -85,7 +85,7 @@ export function pedidosDasNotas(titulos: TituloComPedido[]) {
   const mapa = new Map<string, { cliente: string; doc: string | null; pedido: string; nfs: Set<string>; faturado: number; liquido: number; recebido: number; primeira: string | null }>();
   for (const t of titulos) {
     if (!t.pedido.trim() || /cancel/i.test(t.status)) continue;
-    const pedido = t.pedido.trim().replace(/^0+(?=\d)/, '');
+    const pedido = t.pedido.trim().replace(/^0+(?=\d+$)/, '');
     const chave = `${t.docParceiro || t.nome}|${pedido}`;
     const g = mapa.get(chave) || { cliente: t.nome, doc: t.docParceiro, pedido, nfs: new Set<string>(), faturado: 0, liquido: 0, recebido: 0, primeira: t.emissao };
     if (t.nf && !g.nfs.has(t.nf)) {

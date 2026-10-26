@@ -5,6 +5,7 @@ import { getDb } from '@/db';
 import { numero } from '@/domain/dinheiro';
 import { exigirEdicao, exigirEmpresa } from '@/server/auth';
 import { alternarItem, salvarItem } from '@/server/comercial';
+import { trazerParaCadastro } from '@/server/produtos-vendidos';
 
 const txt = (f: FormData, k: string) => String(f.get(k) || '');
 
@@ -17,10 +18,10 @@ export async function salvar(form: FormData) {
       ncm: txt(form, 'ncm'), categoria: txt(form, 'categoria'), preco: numero(form.get('preco')), custo: numero(form.get('custo')), descricao: txt(form, 'descricao'),
     });
     revalidatePath('/estoque');
-    redirect(`/estoque?msg=${encodeURIComponent(form.get('id') ? 'Item alterado.' : 'Item cadastrado.')}`);
+    redirect(`/estoque?aba=cadastro&msg=${encodeURIComponent(form.get('id') ? 'Item alterado.' : 'Item cadastrado.')}`);
   } catch (e) {
     unstable_rethrow(e);
-    redirect(`/estoque?erro=${encodeURIComponent((e as Error).message)}`);
+    redirect(`/estoque?aba=cadastro&erro=${encodeURIComponent((e as Error).message)}`);
   }
 }
 
@@ -30,7 +31,21 @@ export async function alternar(form: FormData) {
     const emp = await exigirEmpresa(u);
     const r = await alternarItem(await getDb(), u, emp, txt(form, 'id'));
     revalidatePath('/estoque');
-    redirect(`/estoque?inativos=1&msg=${encodeURIComponent(`Item ${r}.`)}`);
+    redirect(`/estoque?aba=cadastro&inativos=1&msg=${encodeURIComponent(`Item ${r}.`)}`);
+  } catch (e) {
+    unstable_rethrow(e);
+    redirect(`/estoque?aba=cadastro&erro=${encodeURIComponent((e as Error).message)}`);
+  }
+}
+
+export async function trazer() {
+  try {
+    const u = await exigirEdicao();
+    const emp = await exigirEmpresa(u);
+    const msg = await trazerParaCadastro(await getDb(), u, emp);
+    revalidatePath('/estoque');
+    revalidatePath('/comercial');
+    redirect(`/estoque?aba=cadastro&msg=${encodeURIComponent(msg)}`);
   } catch (e) {
     unstable_rethrow(e);
     redirect(`/estoque?erro=${encodeURIComponent((e as Error).message)}`);
