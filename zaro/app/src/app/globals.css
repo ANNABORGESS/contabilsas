@@ -602,3 +602,5 @@ tr.prio-linha-Alta td:first-child { box-shadow: inset 3px 0 0 #9fb6cc; }
 .fechar-menu:hover { background: #f3eeea; color: var(--texto); }
 .personalizar-caixa, .cobrar-caixa { position: absolute; }
 .acoes-cabeca .menu-acao:nth-child(-n + 2) .menu-acao-caixa { left: 0; right: auto; }
+.seletor-mes { min-width: 190px; margin-left: 10px; }
+@media (max-width: 900px) { .seletor-mes { margin-left: 0; } }

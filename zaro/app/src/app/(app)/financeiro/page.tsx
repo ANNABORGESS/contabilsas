@@ -11,6 +11,7 @@ import { PlanejarPagamento, RegistrarPagamento, type TituloPlano } from '@/compo
 import { saldoBancario } from '@/server/banco';
 import { corStatus } from '@/components/status';
 import { FecharMenu } from '@/components/FecharMenu';
+import { mesAtivo } from '@/server/mes';
 import { Conciliacao } from './conciliacao';
 import { Endividamento } from './endividamento';
 
@@ -76,11 +77,18 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
   }
 
   const tipo = aba;
-  const [{ f, q, todos, lista }, achado] = await Promise.all([
+  const [filtrados, achado, mesTopo] = await Promise.all([
     titulosFiltrados(db, emp.id, tipo, sp.chave ? 'todos' : sp.f, sp.chave ? sp.chave.replace(/\D/g, '') : sp.q, hoje),
     sp.chave ? localizarChave(db, emp.id, sp.chave) : null,
+    mesAtivo(),
   ]);
-  const mesAtual = hoje.slice(0, 7);
+  // mês escolhido no topo: só os títulos que vencem nele (a busca por chave ignora o mês)
+  const doMes = <T extends { venc: string | null }>(l: T[]) => (mesTopo && !sp.chave ? l.filter((t) => t.venc?.startsWith(mesTopo)) : l);
+  const { f, q } = filtrados;
+  const todos = doMes(filtrados.todos);
+  const lista = doMes(filtrados.lista);
+  const nomeMesTopo = mesTopo ? new Date(`${mesTopo}-15T12:00:00Z`).toLocaleDateString('pt-BR', { month: 'long', year: 'numeric', timeZone: 'UTC' }) : null;
+  const mesAtual = mesTopo || hoje.slice(0, 7);
   const planeja = tipo === 'pagar' && edita;
   const sim = edita && (tipo === 'pagar' || sp.confirmar) ? await dadosPlanejamento(db, u, emp, hoje) : null;
   const confirmar = tipo === 'receber' && edita && /^\d{4}-\d{2}-\d{2}$/.test(sp.confirmar || '') ? { ate: sp.confirmar!, lista: await receberAte(db, emp, sp.confirmar!) } : null;
@@ -122,7 +130,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
               <label htmlFor="mes-rel">Mês</label>
               <input id="mes-rel" type="month" name="mes" form="form-rel-pdf" defaultValue={mesAtual} required />
               <form id="form-rel-pdf" action="/relatorio-mensal" target="_blank" className="linha">
-                <input type="hidden" name="pdf" value="1" /><input type="hidden" name="tipo" value={tipo} />
+                <input type="hidden" name="pdf" value="1" /><input type="hidden" name="tipo" value={tipo} /><input type="hidden" name="f" value="todos" />
                 <button className="btn primario mini" type="submit">Relatório em PDF</button>
                 <button className="btn mini" type="submit" formAction="/financeiro/exportar" formTarget="_self" name="tipo" value={tipo}>Planilha Excel</button>
               </form>
@@ -165,6 +173,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
       </div>
       {abas}
       {avisos}
+      {nomeMesTopo && !sp.chave && <div className="aviso">Mostrando só os títulos com vencimento em <b>{nomeMesTopo}</b> (mês escolhido no topo). Para ver todos, escolha “Todos os meses”.</div>}
       {confirmar && (
         <form className="card confirmar-lote" action={confirmarRecebimentosAcao} style={{ marginBottom: 16 }}>
           <input type="hidden" name="volta" value="/financeiro?tipo=receber&f=quitados" />
@@ -215,8 +224,8 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
           <select name="f" defaultValue={f} style={{ width: 180 }}>{FILTROS_TITULO.map(([k, n]) => <option key={k} value={k}>{n}</option>)}</select>
           <input name="q" defaultValue={sp.q} placeholder="Buscar por código, nome, NF" style={{ flex: 1, minWidth: 200 }} />
           <button className="btn" type="submit">Filtrar</button>
-          <a className="btn" href={`/financeiro/exportar?tipo=${tipo}&f=${f}${q ? `&q=${encodeURIComponent(q)}` : ''}`} title="Baixar a lista filtrada em planilha">Excel</a>
-          <a className="btn" href={`/financeiro/relatorio?tipo=${tipo}&f=${f}${q ? `&q=${encodeURIComponent(q)}` : ''}`} target="_blank" rel="noopener" title="Abrir relatório para imprimir ou salvar em PDF">PDF</a>
+          <a className="btn" href={`/financeiro/exportar?tipo=${tipo}&f=${f}${q ? `&q=${encodeURIComponent(q)}` : ''}${mesTopo ? `&mes=${mesTopo}` : ''}`} title="Baixar a lista filtrada em planilha">Excel</a>
+          <a className="btn" href={`/financeiro/relatorio?tipo=${tipo}&f=${f}${q ? `&q=${encodeURIComponent(q)}` : ''}${mesTopo ? `&mes=${mesTopo}` : ''}`} target="_blank" rel="noopener" title="Abrir relatório para imprimir ou salvar em PDF">PDF</a>
         </form>
         {edita && (
           <details id="lancar" style={{ marginTop: 12 }} open={sp.novo === '1'}>

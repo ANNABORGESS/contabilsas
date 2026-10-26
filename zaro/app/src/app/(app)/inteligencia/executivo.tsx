@@ -4,6 +4,7 @@ import { brl } from '@/domain/dinheiro';
 import { mesesAte } from '@/domain/painel';
 import { rotuloConta } from '@/domain/plano-contas';
 import { dadosExecutivo } from '@/server/inteligencia';
+import { mesAtivo } from '@/server/mes';
 import { BarrasH, Grafico } from '@/components/painel/Grafico';
 import { COR } from '@/components/painel/cores';
 import { Card, compBr, mesCurto, Var, type Props } from './comum';
@@ -12,7 +13,8 @@ const PASTEL = ['#e8956a', '#a48fd6', '#5f9fdc', '#d7b46f', '#e992ab', '#6fc196'
 
 export async function Executivo({ emp, sp, hoje }: Props) {
   const opcoes = mesesAte(hoje.slice(0, 7), 24).reverse();
-  const ref = sp.ref && opcoes.includes(sp.ref) ? sp.ref : opcoes[1];
+  const mesTopo = await mesAtivo();
+  const ref = sp.ref && opcoes.includes(sp.ref) ? sp.ref : mesTopo && opcoes.includes(mesTopo) ? mesTopo : opcoes[1];
   const periodo = sp.per === 'mes' ? 'mes' : 'ano';
   const detalhe = sp.det === 'categoria' ? 'categoria' : 'centro';
   const previa = sp.previa !== '0';

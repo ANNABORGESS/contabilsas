@@ -7,6 +7,7 @@ import { exigirEmpresa, exigirUsuario, podeEditar, type Empresa, type Usuario } 
 import { compPadrao, dadosDoPainel, type DadosPainel } from '@/server/painel';
 import { BLOCOS, prefPainel, type Bloco } from '@/server/preferencias';
 import { iaDisponivel } from '@/server/zaro-ia';
+import { mesAtivo } from '@/server/mes';
 import { Icone } from '@/components/Icone';
 import { PerguntasIa } from '@/components/ZaroIa';
 import { Grafico } from '@/components/painel/Grafico';
@@ -29,7 +30,8 @@ export default async function Dashboard({ searchParams }: { searchParams: Promis
   const sp = await searchParams;
   const hoje = new Date().toISOString().slice(0, 10);
   const opcoes = mesesAte(hoje.slice(0, 7), 24).reverse();
-  const comp = sp.comp && opcoes.includes(sp.comp) ? sp.comp : compPadrao(hoje);
+  const mesTopo = await mesAtivo();
+  const comp = sp.comp && opcoes.includes(sp.comp) ? sp.comp : mesTopo && opcoes.includes(mesTopo) ? mesTopo : compPadrao(hoje);
   const pref = await prefPainel(await getDb(), u);
 
   return (

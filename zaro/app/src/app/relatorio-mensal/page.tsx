@@ -4,6 +4,7 @@ import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { nomeMes, semanasDoMes } from '@/domain/relatorio';
 import { exigirEmpresa, exigirUsuario } from '@/server/auth';
 import { dadosRelatorioMensal } from '@/server/relatorio-mensal';
+import { mesAtivo } from '@/server/mes';
 import { Acoes } from './Acoes';
 import './relatorio.css';
 
@@ -13,7 +14,7 @@ export async function generateMetadata({ searchParams }: { searchParams: Promise
   const u = await exigirUsuario();
   const emp = await exigirEmpresa(u);
   const sp = await searchParams;
-  const mes = /^\d{4}-\d{2}$/.test(sp.mes || '') ? sp.mes! : new Date().toISOString().slice(0, 7);
+  const mes = /^\d{4}-\d{2}$/.test(sp.mes || '') ? sp.mes! : (await mesAtivo()) || new Date().toISOString().slice(0, 7);
   // o título vira o nome do arquivo ao salvar em PDF
   return { title: `Financeiro_${nomeMes(mes)[0].toUpperCase()}${nomeMes(mes).slice(1)}_${mes.slice(0, 4)}_${emp.razao.replace(/[^\w]+/g, '_')}` };
 }
@@ -25,7 +26,7 @@ export default async function RelatorioMensal({ searchParams }: { searchParams: 
   const emp = await exigirEmpresa(u);
   const sp = await searchParams;
   const hoje = new Date().toISOString().slice(0, 10);
-  const mes = /^\d{4}-\d{2}$/.test(sp.mes || '') ? sp.mes! : hoje.slice(0, 7);
+  const mes = /^\d{4}-\d{2}$/.test(sp.mes || '') ? sp.mes! : (await mesAtivo()) || hoje.slice(0, 7);
   const d = await dadosRelatorioMensal(await getDb(), emp, mes, hoje);
   const agora = new Date();
   const quando = `${agora.toLocaleDateString('pt-BR', { timeZone: 'America/Manaus' })} às ${agora.toLocaleTimeString('pt-BR', { timeZone: 'America/Manaus', hour: '2-digit', minute: '2-digit' })}`;

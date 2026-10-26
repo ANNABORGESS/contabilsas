@@ -7,13 +7,15 @@ import { MenusAcao } from '@/components/FecharMenu';
 import { empresaAtiva, empresasDoEscritorio, exigirUsuario } from '@/server/auth';
 import { alertasDaEmpresa } from '@/server/consultas';
 import { sair } from '../(acesso)/acoes';
-import { trocarEmpresa } from './acoes-comuns';
+import { trocarEmpresa, trocarMes } from './acoes-comuns';
+import { SeletorMes } from '@/components/SeletorMes';
+import { mesAtivo, opcoesMes } from '@/server/mes';
 
 export const dynamic = 'force-dynamic';
 
 export default async function LayoutApp({ children }: { children: React.ReactNode }) {
   const u = await exigirUsuario();
-  const [lista, ativa] = await Promise.all([empresasDoEscritorio(u.tenantId), empresaAtiva(u)]);
+  const [lista, ativa, mes] = await Promise.all([empresasDoEscritorio(u.tenantId), empresaAtiva(u), mesAtivo()]);
   const alertas = ativa ? await alertasDaEmpresa(await getDb(), ativa.id, new Date().toISOString().slice(0, 10)) : { vencidos: 0, documentos: 0 };
   return (
     <div className="app">
@@ -33,6 +35,7 @@ export default async function LayoutApp({ children }: { children: React.ReactNod
         <header className="topo">
           <div className="topo-linha">
             <SeletorEmpresa empresas={lista.map((e) => ({ id: e.id, nome: e.fantasia || e.razao }))} ativa={ativa?.id} acao={trocarEmpresa} />
+            <SeletorMes mes={mes} opcoes={opcoesMes(new Date().toISOString().slice(0, 10))} acao={trocarMes} />
             <div className="cresce" />
             <Alertas {...alertas} />
             <div className="usuario pequeno">

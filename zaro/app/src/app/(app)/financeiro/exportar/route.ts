@@ -16,10 +16,10 @@ export async function GET(req: Request) {
   const db = await getDb();
   // "Gerar planilha do mês": todos os títulos (qualquer situação) com vencimento no mês pedido
   const mes = /^\d{4}-\d{2}$/.test(sp.get('mes') || '') ? sp.get('mes')! : null;
-  const [r, pagos] = await Promise.all([titulosFiltrados(db, emp.id, tipo, mes ? 'todos' : sp.get('f') || undefined, mes ? undefined : sp.get('q') || undefined, hoje), pagosPorTitulo(db, emp.id)]);
+  const [r, pagos] = await Promise.all([titulosFiltrados(db, emp.id, tipo, sp.get('f') || (mes ? 'todos' : undefined), sp.get('q') || undefined, hoje), pagosPorTitulo(db, emp.id)]);
   const { q } = r;
-  const lista = mes ? r.lista.filter((t) => t.venc?.startsWith(mes) && !/cancel/i.test(t.status)) : r.lista;
-  const nomeFiltro = mes ? `Vencimentos de ${mes.split('-').reverse().join('/')} (sem cancelados)` : r.nomeFiltro;
+  const lista = mes ? r.lista.filter((t) => t.venc?.startsWith(mes) && (r.f !== 'todos' || !/cancel/i.test(t.status))) : r.lista;
+  const nomeFiltro = mes ? `${r.f === 'todos' ? 'Todos (sem cancelados)' : r.nomeFiltro} · vencimentos de ${mes.split('-').reverse().join('/')}` : r.nomeFiltro;
 
   const wb = new ExcelJS.Workbook();
   wb.creator = 'ZARO';
