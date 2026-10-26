@@ -10,6 +10,7 @@ import { dadosPlanejamento, receberAte } from '@/server/pagamentos';
 import { PlanejarPagamento, RegistrarPagamento, type TituloPlano } from '@/components/financeiro/Pagamento';
 import { saldoBancario } from '@/server/banco';
 import { corStatus } from '@/components/status';
+import { FecharMenu } from '@/components/FecharMenu';
 import { Conciliacao } from './conciliacao';
 import { Endividamento } from './endividamento';
 
@@ -117,6 +118,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
           <details className="menu-acao">
             <summary className="btn">Gerar planilha do mês</summary>
             <div className="card menu-acao-caixa">
+                <FecharMenu />
               <label htmlFor="mes-rel">Mês</label>
               <input id="mes-rel" type="month" name="mes" form="form-rel-pdf" defaultValue={mesAtual} required />
               <form id="form-rel-pdf" action="/relatorio-mensal" target="_blank" className="linha">
@@ -130,6 +132,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
           <details className="menu-acao">
             <summary className="btn">Localizar pela chave</summary>
             <form className="card menu-acao-caixa" action="/financeiro">
+                <FecharMenu />
               <input type="hidden" name="tipo" value={tipo} />
               <label htmlFor="chave">Chave de acesso da NF (44 números)</label>
               <input id="chave" name="chave" defaultValue={sp.chave} inputMode="numeric" placeholder="1326 1008 2019 1100 0199 5500 1000 0012 3410 0012 3456" required />
@@ -139,6 +142,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
           <details className="menu-acao">
             <summary className="btn">{tipo === 'pagar' ? 'Importar NF/XML/boleto' : 'Importar NF/XML'}</summary>
             <div className="card menu-acao-caixa">
+                <FecharMenu />
               <Link href="/autopilot" className="acao-rapida">NF-e, NFS-e ou ZIP de XML<span className="pequeno mudo"> · Autopilot lê, confere e prepara o título</span></Link>
               {tipo === 'pagar' && <Link href="/inteligencia?aba=pagamentos" className="acao-rapida">Boleto (linha digitável)<span className="pequeno mudo"> · confere valor, vencimento e duplicidade</span></Link>}
               <Link href="/fiscal/notas" className="acao-rapida">Planilha de NF da SEFAZ<span className="pequeno mudo"> · notas do portal que ainda não estão na ZARO</span></Link>
@@ -148,6 +152,7 @@ export default async function Financeiro({ searchParams }: { searchParams: Promi
             <details className="menu-acao">
               <summary className="btn">Confirmar recebimentos</summary>
               <form className="card menu-acao-caixa" action="/financeiro">
+                <FecharMenu />
                 <input type="hidden" name="tipo" value="receber" />
                 <label htmlFor="confirmar">Títulos em aberto que vencem até</label>
                 <input id="confirmar" type="date" name="confirmar" defaultValue={sp.confirmar || hoje} required />

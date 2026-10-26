@@ -6,6 +6,7 @@ import { dadosInadimplencia } from '@/server/inteligencia';
 import { BarrasH, Grafico } from '@/components/painel/Grafico';
 import { COR } from '@/components/painel/cores';
 import { novaCobranca } from './acoes';
+import { FecharMenu } from '@/components/FecharMenu';
 import { Card, compBr, mesCurto, type Props } from './comum';
 
 const FAIXA_COR = ['#c5d3e0', '#a48fd6', '#e8956a', '#e992ab', '#ea9585'];
@@ -58,6 +59,7 @@ export async function Inadimplencia({ u, emp, hoje, edita, sp }: Props) {
                     <details className="cobrar">
                       <summary className="btn mini">Cobrança</summary>
                       <div className="card cobrar-caixa">
+                        <FecharMenu />
                         <div className="linha pequeno">
                           {c.email && <a className="btn mini" href={`mailto:${c.email}?subject=${encodeURIComponent(`Títulos em aberto · ${emp.fantasia || emp.razao}`)}`}>E-mail</a>}
                           {c.telefone && <a className="btn mini" target="_blank" rel="noreferrer" href={`https://wa.me/55${soDigitos(c.telefone).replace(/^55/, '')}`}>WhatsApp</a>}

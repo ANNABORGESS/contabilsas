@@ -2,6 +2,7 @@
 import { useRouter } from 'next/navigation';
 import { useState, useTransition } from 'react';
 import { salvarPainel } from '@/app/(app)/acoes-painel';
+import { FecharMenu } from '../FecharMenu';
 
 type B = { chave: string; nome: string };
 
@@ -17,6 +18,7 @@ export function Personalizar({ blocos, ordem, ocultos }: { blocos: B[]; ordem: s
     <details className="personalizar">
       <summary className="btn mini">Personalizar</summary>
       <div className="personalizar-caixa card">
+        <FecharMenu />
         <b>Blocos do Dashboard</b>
         <p className="pequeno mudo">Mostre, esconda e reordene. Fica salvo para o seu usuário.</p>
         <ul>
