@@ -3,7 +3,8 @@ import { EmpresaForm } from '@/components/EmpresaForm';
 import { formatarCnpj } from '@/domain/dinheiro';
 import { regimeEm } from '@/domain/regime';
 import { empresasDoEscritorio, exigirUsuario, podeEditar } from '@/server/auth';
-import { consultarCnpj, salvarEmpresa } from './acoes';
+import { situacaoCertificado } from '@/domain/certificado';
+import { consultarCnpj, lerCertificado, salvarEmpresa } from './acoes';
 
 export default async function Empresas({ searchParams }: { searchParams: Promise<{ nova?: string; editar?: string; erro?: string; ok?: string }> }) {
   const u = await exigirUsuario();
@@ -23,14 +24,14 @@ export default async function Empresas({ searchParams }: { searchParams: Promise
       {formAberto && (
         <div className="card" style={{ marginBottom: 16 }}>
           <h2 style={{ marginBottom: 14 }}>{editando ? `Editar ${editando.fantasia || editando.razao}` : 'Nova empresa'}</h2>
-          <EmpresaForm empresa={editando || {}} salvar={salvarEmpresa} consultar={consultarCnpj} />
+          <EmpresaForm empresa={editando || {}} salvar={salvarEmpresa} consultar={consultarCnpj} lerCertificado={lerCertificado} />
         </div>
       )}
       <div className="card">
         {lista.length ? (
           <div className="tabela-wrap">
             <table>
-              <thead><tr><th>Empresa</th><th>CNPJ</th><th>Regime hoje</th><th>Cidade</th><th /></tr></thead>
+              <thead><tr><th>Empresa</th><th>CNPJ</th><th>Regime hoje</th><th>Cidade</th><th>Certificado A1</th><th /></tr></thead>
               <tbody>
                 {lista.map((e) => (
                   <tr key={e.id}>
@@ -38,6 +39,7 @@ export default async function Empresas({ searchParams }: { searchParams: Promise
                     <td className="num">{formatarCnpj(e.cnpj)}</td>
                     <td>{regimeEm(e, hoje) || '—'}{e.regimeHist.length > 1 && <div className="pequeno mudo">{e.regimeHist.map((h) => `${h.regime}${h.de ? ` desde ${h.de.split('-').reverse().join('/')}` : ''}${h.ate ? ` até ${h.ate.split('-').reverse().join('/')}` : ''}`).join(' · ')}</div>}</td>
                     <td>{[e.cidade, e.uf].filter(Boolean).join('/') || '—'}</td>
+                    <td><Certificado validoAte={(e.dados?.certificado as { validoAte?: string } | undefined)?.validoAte} hoje={hoje} /></td>
                     <td className="num">{podeEditar(u) && <Link className="btn mini" href={`/empresas?editar=${e.id}`}>Editar</Link>}</td>
                   </tr>
                 ))}
@@ -50,4 +52,10 @@ export default async function Empresas({ searchParams }: { searchParams: Promise
       </div>
     </>
   );
+}
+
+function Certificado({ validoAte, hoje }: { validoAte?: string; hoje: string }) {
+  if (!validoAte) return <span className="mudo">—</span>;
+  const s = situacaoCertificado(validoAte, hoje);
+  return <span className={`tag ${s.nivel === 'ok' ? 'pos' : s.nivel === 'atencao' ? 'at' : 'neg'}`} title={s.texto}>{s.nivel === 'vencido' ? 'Vencido' : 'Válido'} até {validoAte.split('-').reverse().join('/')}</span>;
 }

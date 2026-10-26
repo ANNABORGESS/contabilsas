@@ -33,6 +33,7 @@ Crie o arquivo `app\.env` (copie de `app\.env.example`) e coloque a sua chave da
 - **Auditoria** de todas as ações.
 
 ## Novidades
+- **Cadastro com certificado digital A1**: em Empresas e Filiais → Nova empresa (ou Editar), escolha o arquivo .pfx, digite a senha e clique em **Ler certificado**. O ZARO preenche CNPJ e razão social, busca o resto na Receita e, ao salvar, guarda só a validade. O arquivo e a senha não ficam gravados. A lista mostra a validade e o Dashboard avisa 30 dias antes de vencer.
 - **Dashboard executivo**: saldo bancário, contas a receber e a pagar, tributos e resultado (com variação), gráficos de evolução e de fluxo projetado, fechamento da competência por área, alertas e atividades. Botão **Personalizar** para esconder e reordenar blocos (fica salvo no seu usuário). Para ver o saldo do banco, informe o **saldo inicial** em Financeiro → Extrato.
 - **ZARO IA**: botão de brilho no topo abre o assistente; ele responde só com os números da empresa ativa, dizendo fonte, período e link. Precisa da chave ANTHROPIC_API_KEY.
 - **Inteligência Financeira** (menu): abas Executivo (faturamento, lucro, margem, EBITDA), Caixa (projeção de 30 a 180 dias com cenários e caixa mínimo), Inadimplência (faixas de atraso, devedores e registro de cobrança), Pagamentos (conferência de documentos, aprovação e agendamento, leitura de linha digitável) e Orçamento (versões, orçado x realizado por centro de custo, semáforo e exportação).

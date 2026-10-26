@@ -6,6 +6,7 @@ import { and, desc, eq, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { addDias, arred, brl, dataBr } from '@/domain/dinheiro';
+import { situacaoCertificado } from '@/domain/certificado';
 import { balancete, dre } from '@/domain/demonstracoes';
 import { STATUS_NO_LIVRO } from '@/domain/motor';
 import { ehTributo, emAbertoEm, fluxoProjetado, gerarInsights, mesesAte, moduloDaAcao, ordenarAlertas, progresso, serieMensal, type Alerta, type Tarefa } from '@/domain/painel';
@@ -184,6 +185,9 @@ async function calcular(db: Db, u: Usuario, emp: Empresa, comp: string, hoje: st
   if (revisaoTotal) alertas.push({ titulo: `${revisaoTotal} lançamento(s) sem classificação segura`, detalhe: 'O motor não teve confiança para escolher a conta', href: '/contabilidade?st=Em%20revis%C3%A3o', gravidade: 2, dias: null, valor: 0, modulo: 'Contabilidade' });
   const totalDivida = arred(dividas.reduce((a, d) => a + (d.valor || 0), 0));
   if (totalDivida > 0) alertas.push({ titulo: `Dívida ativa na PGFN: ${brl(totalDivida)}`, detalhe: `${dividas.length} inscrição(ões) cadastrada(s)`, href: '/fiscal', gravidade: 2, dias: null, valor: totalDivida, modulo: 'Fiscal' });
+  const validadeCert = (emp.dados?.certificado as { validoAte?: string } | undefined)?.validoAte;
+  const cert = validadeCert ? situacaoCertificado(validadeCert, hoje) : null;
+  if (cert && cert.nivel !== 'ok') alertas.push({ titulo: cert.texto, detalhe: 'Sem certificado válido não há busca de NF-e na SEFAZ nem envio de obrigações. Renove e cadastre o novo .pfx em Empresas.', href: `/empresas?editar=${emp.id}`, gravidade: cert.nivel === 'vencido' ? 3 : 2, dias: -cert.dias, valor: 0, modulo: 'Fiscal' });
   if (sefaz.resumo.foraZaro) alertas.push({ titulo: `${sefaz.resumo.foraZaro} NF da SEFAZ fora da ZARO`, detalhe: 'Na lista do portal, sem título nem XML', href: '/fiscal/notas?f=forazaro', gravidade: 1, dias: null, valor: 0, modulo: 'Fiscal' });
   const ordenados = ordenarAlertas(alertas);
 
