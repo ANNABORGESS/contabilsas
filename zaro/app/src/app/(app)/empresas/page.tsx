@@ -6,7 +6,7 @@ import { empresasDoEscritorio, exigirUsuario, podeEditar } from '@/server/auth';
 import { situacaoCertificado } from '@/domain/certificado';
 import { consultarCnpj, lerCertificado, salvarEmpresa } from './acoes';
 
-export default async function Empresas({ searchParams }: { searchParams: Promise<{ nova?: string; editar?: string; erro?: string; ok?: string }> }) {
+export default async function Empresas({ searchParams }: { searchParams: Promise<{ nova?: string; editar?: string; erro?: string; ok?: string; sefaz?: string }> }) {
   const u = await exigirUsuario();
   const sp = await searchParams;
   const lista = await empresasDoEscritorio(u.tenantId);
@@ -20,7 +20,7 @@ export default async function Empresas({ searchParams }: { searchParams: Promise
         {podeEditar(u) && !formAberto && <Link className="btn primario" href="/empresas?nova=1">Nova empresa</Link>}
       </div>
       {sp.erro && <div className="aviso erro">{sp.erro}</div>}
-      {sp.ok && <div className="aviso ok">Empresa salva.</div>}
+      {sp.ok && <div className="aviso ok">Empresa salva.{sp.sefaz && <> Certificado guardado: a integração com a SEFAZ está pronta em <Link href="/configuracoes?aba=sefaz">Configurações → Integração SEFAZ</Link>.</>}</div>}
       {formAberto && (
         <div className="card" style={{ marginBottom: 16 }}>
           <h2 style={{ marginBottom: 14 }}>{editando ? `Editar ${editando.fantasia || editando.razao}` : 'Nova empresa'}</h2>

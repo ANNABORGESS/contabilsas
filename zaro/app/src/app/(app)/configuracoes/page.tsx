@@ -4,7 +4,12 @@ import { getDb, schema } from '@/db';
 import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
 import { empresaAtiva, exigirUsuario, podeEditar } from '@/server/auth';
 import { configSefaz, resumosSefaz, ultimaSincronizacao } from '@/server/sefaz';
-import { alternarUsuario, criarUsuario, importar, manifestarNota, salvarSefaz, sincronizar, testar, trocarSenha } from './acoes';
+import { infoCertificado } from '@/server/sefaz-nuvem';
+import { situacaoCertificado } from '@/domain/certificado';
+import { alternarUsuario, apagarCertificado, criarUsuario, guardarCertificadoAcao, importar, manifestarNota, salvarSefaz, sincronizar, testar, trocarSenha } from './acoes';
+
+// busca de NF-e na SEFAZ pode levar alguns lotes: dá mais tempo à função na nuvem
+export const maxDuration = 60;
 
 export default async function Configuracoes({ searchParams }: { searchParams: Promise<{ aba?: string; msg?: string; erro?: string }> }) {
   const u = await exigirUsuario();
@@ -57,10 +62,44 @@ async function Sefaz({ tenantId, empresa, edita }: { tenantId: string; empresa: 
   const cfg = await configSefaz(db, tenantId);
   const resumos = empresa ? await resumosSefaz(db, tenantId, empresa.id) : [];
   const ult = empresa ? await ultimaSincronizacao(db, tenantId, empresa.id) : null;
+  const cert = empresa ? await infoCertificado(db, tenantId, empresa.id) : null;
+  const sit = cert ? situacaoCertificado(cert.validoAte, new Date().toISOString().slice(0, 10)) : null;
+  const pronto = !!cert || !!cfg;
   return (
     <>
-      <div className="card">
-        <h2>Servidor SEFAZ</h2>
+      <div className="card" style={{ marginBottom: 16 }}>
+        <h2>Certificado A1 no ZARO {cert && <span className={`tag ${sit?.nivel === 'ok' ? 'pos' : sit?.nivel === 'atencao' ? 'at' : 'neg'}`}>{sit?.texto}</span>}</h2>
+        <p className="mudo">O ZARO online fala direto com a SEFAZ usando o certificado A1 de {empresa ? <b>{empresa.fantasia || empresa.razao}</b> : 'cada empresa'}. O arquivo e a senha ficam guardados <b>criptografados</b> (AES-256) e só são abertos na hora de consultar. Ninguém consegue ver ou baixar o certificado pela tela.</p>
+        {cert ? (
+          <div className="linha" style={{ marginTop: 8 }}>
+            <span>{cert.titular} · emitido por {cert.emissor || '—'} · {cert.ambiente === 'producao' ? 'Produção' : 'Homologação'} · guardado por {cert.por} em {new Date(cert.guardadoEm).toLocaleDateString('pt-BR')}</span>
+            {edita && <form action={apagarCertificado}><button className="btn mini perigo" type="submit">Apagar certificado</button></form>}
+          </div>
+        ) : null}
+        {edita && empresa && (
+          <details open={!cert} style={{ marginTop: 10 }}>
+            <summary>{cert ? 'Trocar certificado (renovação)' : 'Guardar certificado A1'}</summary>
+            <form action={guardarCertificadoAcao} className="grade g4" style={{ alignItems: 'end', marginTop: 10 }}>
+              <div><label htmlFor="sf-pfx">Arquivo .pfx ou .p12</label><input id="sf-pfx" name="certificado" type="file" accept=".pfx,.p12,application/x-pkcs12" required /></div>
+              <div><label htmlFor="sf-senha">Senha do certificado</label><input id="sf-senha" name="senha" type="password" autoComplete="off" required /></div>
+              <div><label htmlFor="sf-amb">Ambiente</label><select id="sf-amb" name="ambiente" defaultValue={cert?.ambiente || 'producao'}><option value="producao">Produção (notas reais)</option><option value="homologacao">Homologação (teste)</option></select></div>
+              <div><button className="btn primario" type="submit">Guardar e conectar</button></div>
+            </form>
+            <p className="pequeno mudo" style={{ marginTop: 6 }}>Só aceita e-CNPJ do mesmo CNPJ da empresa ativa e dentro da validade.</p>
+          </details>
+        )}
+        {pronto && edita && empresa && (
+          <div className="linha" style={{ marginTop: 14 }}>
+            <form action={testar}><button className="btn">Testar conexão</button></form>
+            <form action={sincronizar}><button className="btn primario">Buscar NF-e de {empresa.fantasia || empresa.razao}</button></form>
+            <form action={sincronizar}><input type="hidden" name="reiniciar" value="1" /><button className="btn mini">Buscar desde o início</button></form>
+            <span className="pequeno mudo">Última busca: {ult ? new Date(ult.em).toLocaleString('pt-BR', { timeZone: 'America/Manaus' }) : 'nunca'}{ult?.nsu ? ` · NSU ${ult.nsu}` : ''}</span>
+          </div>
+        )}
+        <p className="pequeno mudo" style={{ marginTop: 10 }}>O que a integração faz: baixa as NF-e emitidas <b>contra</b> o CNPJ (compras de fornecedores) e manda para o Autopilot, guarda os resumos para manifestação (ciência, confirmação, desconhecimento) e testa se a SEFAZ-AM está no ar. As NFs <b>emitidas</b> pela empresa continuam entrando pelo XML no Autopilot. Emissão de NF-e ainda não está disponível.</p>
+      </div>
+      <details className="card">
+        <summary><b>Servidor SEFAZ local (opcional, para o ZARO instalado no computador)</b></summary>
         <p className="mudo">Abra <code>servidor-sefaz/INICIAR-ZARO-SEFAZ.bat</code> e copie o endereço e o token que aparecem na janela. Como o ZARO roda no mesmo computador, use <code>http://localhost:8787</code>.</p>
         {edita && (
           <form action={salvarSefaz} className="grade g3" style={{ alignItems: 'end' }}>
@@ -69,15 +108,7 @@ async function Sefaz({ tenantId, empresa, edita }: { tenantId: string; empresa: 
             <div><button className="btn primario">Salvar</button></div>
           </form>
         )}
-        {cfg && edita && empresa && (
-          <div className="linha" style={{ marginTop: 14 }}>
-            <form action={testar}><button className="btn">Testar conexão</button></form>
-            <form action={sincronizar}><button className="btn primario">Buscar NF-e de {empresa.fantasia || empresa.razao}</button></form>
-            <form action={sincronizar}><input type="hidden" name="reiniciar" value="1" /><button className="btn mini">Buscar desde o início</button></form>
-            <span className="pequeno mudo">Última busca: {ult ? new Date(ult.em).toLocaleString('pt-BR', { timeZone: 'America/Manaus' }) : 'nunca'}{ult?.nsu ? ` · NSU ${ult.nsu}` : ''}</span>
-          </div>
-        )}
-      </div>
+      </details>
       <div className="card">
         <h2>NF-e de fornecedores aguardando manifestação</h2>
         <p className="mudo pequeno">A SEFAZ manda primeiro só o resumo. O XML completo é liberado depois da ciência ou confirmação.</p>

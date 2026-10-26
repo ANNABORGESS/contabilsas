@@ -7,6 +7,7 @@ import { auditar } from '@/server/auditoria';
 import { exigirEdicao, exigirEmpresa, hashSenha, type Usuario } from '@/server/auth';
 import { importarBackup } from '@/server/importar-backup';
 import { manifestar, salvarConfigSefaz, sincronizarSefaz, testarSefaz } from '@/server/sefaz';
+import { guardarCertificado, removerCertificado } from '@/server/sefaz-nuvem';
 
 const PERFIS = ['Contador', 'Fiscal', 'Financeiro', 'Gestor', 'Administrador', 'Consulta'];
 
@@ -30,6 +31,18 @@ export async function salvarSefaz(form: FormData) {
     await salvarConfigSefaz(db, u, String(form.get('url') || ''), String(form.get('token') || ''));
     return 'Integração salva.';
   });
+}
+export async function guardarCertificadoAcao(form: FormData) {
+  await executar('sefaz', async ({ db, u }) => {
+    const arq = form.get('certificado');
+    if (!(arq instanceof File) || !arq.size) throw new Error('Escolha o arquivo .pfx do certificado A1.');
+    if (arq.size > 100_000) throw new Error('Arquivo grande demais para um certificado A1.');
+    const amb = form.get('ambiente') === 'homologacao' ? 'homologacao' : 'producao';
+    return guardarCertificado(db, u, await exigirEmpresa(u), new Uint8Array(await arq.arrayBuffer()), String(form.get('senha') || ''), amb);
+  });
+}
+export async function apagarCertificado() {
+  await executar('sefaz', async ({ db, u }) => removerCertificado(db, u, await exigirEmpresa(u)));
 }
 export async function testar() {
   await executar('sefaz', async ({ db, u }) => testarSefaz(db, u, await exigirEmpresa(u)));

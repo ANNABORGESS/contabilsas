@@ -56,8 +56,9 @@ export function EmpresaForm({ empresa, salvar, consultar, lerCertificado }: {
           <div><button type="button" className="btn" onClick={lerCert} disabled={pend}>{pend ? 'Lendo…' : 'Ler certificado'}</button></div>
         </div>
         {cert && <div className={`aviso${cert.erro ? ' erro' : ''}`} style={{ marginTop: 10 }}>{cert.texto}</div>}
+        <label className="linha" style={{ fontWeight: 500, marginTop: 8 }}><input type="checkbox" name="guardarSefaz" defaultChecked /> Guardar o certificado (criptografado) para o ZARO buscar as NF-e na SEFAZ</label>
         <p className="pequeno mudo" style={{ marginTop: 8 }}>
-          O ZARO lê o CNPJ, a razão social e a validade do certificado e busca o resto na Receita. O arquivo e a senha não ficam gravados: guardamos só a validade, para avisar antes de vencer.
+          O ZARO lê o CNPJ, a razão social e a validade do certificado e busca o resto na Receita. Com a opção acima marcada, o arquivo e a senha ficam guardados criptografados para a integração com a SEFAZ; desmarcada, guardamos só a validade, para avisar antes de vencer.
           {certAtual?.validoAte && ` Certificado atual: válido até ${certAtual.validoAte.split('-').reverse().join('/')}.`}
         </p>
       </div>

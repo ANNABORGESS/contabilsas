@@ -8,6 +8,7 @@ import { formatarCnpj, soDigitos } from '@/domain/dinheiro';
 import { auditar } from '@/server/auditoria';
 import { escolherEmpresa, exigirEdicao, exigirUsuario } from '@/server/auth';
 import { consultarCnpjPublico, type DadosCnpj } from '@/server/cnpj';
+import { guardarCertificado } from '@/server/sefaz-nuvem';
 
 export async function consultarCnpj(cnpj: string): Promise<{ ok: true; dados: DadosCnpj } | { ok: false; erro: string }> {
   await exigirUsuario();
@@ -73,18 +74,30 @@ export async function salvarEmpresa(form: FormData) {
   if (cert && cert.cnpj !== cnpj) redirect(`${volta}&erro=${encodeURIComponent(`O certificado é do CNPJ ${formatarCnpj(cert.cnpj)}, diferente do CNPJ da empresa.`)}`);
   // guarda só os dados públicos do certificado (validade, titular); o .pfx e a senha não ficam no ZARO
   const certificado = cert ? { tipo: 'A1', titular: cert.titular, emissor: cert.emissor, serie: cert.serie, validoDe: cert.validoDe, validoAte: cert.validoAte, lidoEm: new Date().toISOString().slice(0, 10) } : null;
+  let salva: typeof schema.empresas.$inferSelect | undefined;
   const [dup] = await db.select({ id: schema.empresas.id }).from(schema.empresas).where(and(eq(schema.empresas.tenantId, u.tenantId), eq(schema.empresas.cnpj, cnpj)));
   if (dup && dup.id !== id) redirect(`${volta}&erro=${encodeURIComponent('Já existe uma empresa com este CNPJ.')}`);
   if (id) {
     const [antes] = await db.select().from(schema.empresas).where(and(eq(schema.empresas.id, id), eq(schema.empresas.tenantId, u.tenantId)));
     if (!antes) redirect('/empresas');
-    await db.update(schema.empresas).set({ ...valores, ...(certificado && { dados: { ...antes.dados, certificado } }) }).where(eq(schema.empresas.id, id));
+    [salva] = await db.update(schema.empresas).set({ ...valores, ...(certificado && { dados: { ...antes.dados, certificado } }) }).where(eq(schema.empresas.id, id)).returning();
     await auditar(db, u, { empresaId: id, acao: 'Alterou cadastro da empresa', entidade: `${razao} · ${formatarCnpj(cnpj)}`, antes: `regime ${antes.regime || '—'}`, depois: `regime ${valores.regime || '—'}${certificado ? ` · certificado A1 até ${certificado.validoAte.split('-').reverse().join('/')}` : ''}` });
   } else {
     const [nova] = await db.insert(schema.empresas).values({ tenantId: u.tenantId, ...valores, ...(certificado && { dados: { certificado } }) }).returning();
     await auditar(db, u, { empresaId: nova.id, acao: certificado ? 'Cadastrou empresa com certificado A1' : 'Cadastrou empresa', entidade: `${razao} · ${formatarCnpj(cnpj)}`, depois: certificado ? `certificado A1 até ${certificado.validoAte.split('-').reverse().join('/')}` : undefined });
     await escolherEmpresa(nova.id);
+    salva = nova;
+  }
+  let aviso = '';
+  if (cert && salva && form.get('guardarSefaz') === 'on') {
+    const arq = form.get('certificado') as File;
+    try {
+      await guardarCertificado(db, u, salva, new Uint8Array(await arq.arrayBuffer()), String(form.get('senhaCert') || ''), 'producao');
+      aviso = '&sefaz=1';
+    } catch (e) {
+      redirect(`/empresas?ok=1&erro=${encodeURIComponent(`Empresa salva, mas o certificado não foi guardado para a SEFAZ: ${(e as Error).message}`)}`);
+    }
   }
   revalidatePath('/', 'layout');
-  redirect('/empresas?ok=1');
+  redirect(`/empresas?ok=1${aviso}`);
 }

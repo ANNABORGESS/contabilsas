@@ -8,6 +8,7 @@ import { soDigitos } from '@/domain/dinheiro';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
 import { receberArquivos } from './autopilot';
+import { chamarNuvem, temCertificadoNaNuvem } from './sefaz-nuvem';
 
 export interface ConfigSefaz {
   url: string;
@@ -40,6 +41,7 @@ export async function salvarConfigSefaz(db: Db, u: Usuario, url: string, token: 
 }
 
 async function chamar<T = Record<string, unknown>>(cfg: ConfigSefaz | null, caminho: string, corpo?: unknown): Promise<T> {
+  if (process.env.VERCEL && /localhost|127\.0\.0\.1/.test(cfg?.url || '')) throw new Error('O ZARO online não alcança o servidor SEFAZ do seu computador. Guarde o certificado A1 em Configurações → Integração SEFAZ.');
   if (!cfg?.url || !cfg.token) throw new Error('Configure o endereço e o token do servidor SEFAZ.');
   let r: Response;
   try {
@@ -57,24 +59,28 @@ async function chamar<T = Record<string, unknown>>(cfg: ConfigSefaz | null, cami
   return j as T;
 }
 
+/** Com certificado guardado no ZARO, fala direto com a SEFAZ; senão, usa o servidor SEFAZ local. */
+async function sefaz<T = Record<string, unknown>>(db: Db, u: Usuario, emp: Empresa, caminho: string, corpo?: Record<string, unknown>): Promise<T> {
+  if (await temCertificadoNaNuvem(db, u.tenantId, emp.id)) return chamarNuvem<T>(db, u.tenantId, emp, caminho, corpo);
+  return chamar<T>(await configSefaz(db, u.tenantId), caminho, corpo);
+}
+
 export async function testarSefaz(db: Db, u: Usuario, emp: Empresa) {
-  const cfg = await configSefaz(db, u.tenantId);
-  const st = await chamar<{ versao?: string; ambiente?: string; certificado?: { titular?: string; validade?: string } }>(cfg, '/status');
+  const st = await sefaz<{ versao?: string; ambiente?: string; certificado?: { titular?: string; validade?: string } }>(db, u, emp, '/status');
   let am = '';
   try {
-    const t = await chamar<{ cStat?: string; motivo?: string }>(cfg, '/am/status', { cnpj: soDigitos(emp.cnpj) });
+    const t = await sefaz<{ cStat?: string; motivo?: string }>(db, u, emp, '/am/status', { cnpj: soDigitos(emp.cnpj) });
     am = `SEFAZ-AM: ${t.cStat} ${t.motivo || ''}`;
   } catch (e) {
     am = `SEFAZ-AM não respondeu: ${(e as Error).message}`;
   }
-  return `Conectado ao servidor v${st.versao || '?'} · ${st.ambiente} · certificado ${st.certificado?.titular || '—'} até ${st.certificado?.validade || '—'}. ${am}`;
+  return `Conectado ${st.versao === 'nuvem' ? 'direto à SEFAZ (certificado no ZARO)' : `ao servidor v${st.versao || '?'}`} · ${st.ambiente} · certificado ${st.certificado?.titular || '—'} até ${st.certificado?.validade || '—'}. ${am}`;
 }
 
 type DocSefaz = { tipo: string; chave: string; xml: string; cancelada?: boolean };
 
 export async function sincronizarSefaz(db: Db, u: Usuario, emp: Empresa, reiniciar = false) {
-  const cfg = await configSefaz(db, u.tenantId);
-  const j = await chamar<{ docs?: DocSefaz[]; cStat?: string; motivo?: string; ultNSU?: string; aviso?: string }>(cfg, '/nfe/distribuicao', { cnpj: soDigitos(emp.cnpj), reiniciar });
+  const j = await sefaz<{ docs?: DocSefaz[]; cStat?: string; motivo?: string; ultNSU?: string; aviso?: string }>(db, u, emp, '/nfe/distribuicao', { cnpj: soDigitos(emp.cnpj), reiniciar });
   const docs = j.docs || [];
   const completas = docs.filter((d) => d.tipo === 'nfe' && d.xml);
   const res = await receberArquivos(db, u, emp, completas.map((d) => ({ nome: `NFe-${d.chave}.xml`, mime: 'text/xml', conteudo: Buffer.from(d.xml, 'utf8') })), 'SEFAZ');
@@ -99,13 +105,12 @@ export const resumosSefaz = async (db: Db, tenantId: string, empresaId: string) 
 export const ultimaSincronizacao = (db: Db, tenantId: string, empresaId: string) => lerConfig<{ em: string; nsu?: string }>(db, tenantId, `sefaz:ult:${empresaId}`);
 
 export async function manifestar(db: Db, u: Usuario, emp: Empresa, chave: string, tipo: 'ciencia' | 'confirmacao' | 'desconhecimento') {
-  const cfg = await configSefaz(db, u.tenantId);
   const cnpj = soDigitos(emp.cnpj);
-  const j = await chamar<{ cStat?: string; motivo?: string; protocolo?: string }>(cfg, '/nfe/manifestacao', { cnpj, chave, tipo });
+  const j = await sefaz<{ cStat?: string; motivo?: string; protocolo?: string }>(db, u, emp, '/nfe/manifestacao', { cnpj, chave, tipo });
   if (!/^13[5-6]$/.test(String(j.cStat))) throw new Error(`SEFAZ recusou: ${j.cStat} ${j.motivo || ''}`);
   let extra = '';
   if (tipo !== 'desconhecimento') {
-    const d = await chamar<{ docs?: DocSefaz[] }>(cfg, '/nfe/chave', { cnpj, chave }).catch(() => ({ docs: [] as DocSefaz[] }));
+    const d = await sefaz<{ docs?: DocSefaz[] }>(db, u, emp, '/nfe/chave', { cnpj, chave }).catch(() => ({ docs: [] as DocSefaz[] }));
     const xml = (d.docs || []).find((x) => x.tipo === 'nfe' && x.xml);
     if (xml) {
       await receberArquivos(db, u, emp, [{ nome: `NFe-${chave}.xml`, mime: 'text/xml', conteudo: Buffer.from(xml.xml, 'utf8') }], 'SEFAZ');
