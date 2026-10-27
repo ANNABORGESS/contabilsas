@@ -2,7 +2,7 @@ import PainelPreparo from '@/cliente/PainelPreparo';
 import { paginaPara } from '@/server/pagina';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Cozinha · Bar' };
+export const metadata = { title: 'Cozinha · Vikings' };
 
 export default async function Cozinha() {
   const u = await paginaPara('cozinha');

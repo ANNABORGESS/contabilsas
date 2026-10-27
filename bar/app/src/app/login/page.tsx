@@ -11,9 +11,7 @@ export default async function Login() {
   return (
     <main className="acesso tema-escuro">
       <div className="cartao formulario" style={{ maxWidth: 520 }}>
-        <div className="logo">
-          <span className="marca">🍺</span> Bar · Pedidos na mesa
-        </div>
+        <img src="/logo.jpg" alt="Vikings Restaurante" className="logo-grande" />
         <p className="mudo">Como você vai usar este aparelho?</p>
         <div className="perfis">
           {PERFIS.map((p) => (

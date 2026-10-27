@@ -82,6 +82,7 @@ export default function PainelPreparo({ setor, usuario }: { setor: Setor; usuari
     <div className="tema-escuro painel" onPointerDown={liberarSom}>
       <header className="painel-topo">
         <div className="fila" style={{ gap: 16 }}>
+          <img src="/logo.jpg" alt="Vikings" className="logo-mini" />
           <h1>{setor === 'cozinha' ? '🍟 Cozinha' : '🍺 Bar'}</h1>
           <span className="chip st-novo">{por('novo').length} novos</span>
           <span className="chip st-preparando">{por('preparando').length} em preparo</span>

@@ -15,6 +15,7 @@ export default async function Cadastro({ params }: { params: Promise<{ perfil: s
   return (
     <main className="acesso tema-escuro">
       <div className="cartao formulario">
+        <img src="/logo.jpg" alt="Vikings Restaurante" className="logo-media" />
         <div className="logo">
           <span className="marca">{p.icone}</span> Criar conta · {p.titulo}
         </div>

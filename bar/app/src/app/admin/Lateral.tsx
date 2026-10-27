@@ -26,7 +26,7 @@ export default function Lateral({ nome, children }: { nome: string; children: Re
   useEffect(() => setAberto(false), [caminho]);
   const logo = (
     <div className="logo">
-      <span className="marca">🍺</span> Bar · Admin
+      <img src="/logo.jpg" alt="" className="logo-mini" /> Vikings · Admin
     </div>
   );
   return (

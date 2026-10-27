@@ -17,6 +17,7 @@ export default async function LoginPerfil({ params }: { params: Promise<{ perfil
   return (
     <main className="acesso tema-escuro">
       <div className="cartao formulario">
+        <img src="/logo.jpg" alt="Vikings Restaurante" className="logo-media" />
         <div className="logo">
           <span className="marca">{p.icone}</span> Entrar como {p.titulo}
         </div>
