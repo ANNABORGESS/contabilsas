@@ -41,7 +41,15 @@ async function conectar(): Promise<Db> {
     const pool = await abrirPool(Pool, url);
     const db = drizzle(pool, { schema });
     // num banco compartilhado (ex.: o mesmo Supabase de outro sistema), o bar fica no seu schema
-    await migrate(db, { migrationsFolder: MIGRACOES, migrationsSchema: SCHEMA || 'drizzle' });
+    // na nuvem várias cópias do servidor sobem juntas: só uma atualiza o banco por vez
+    const trava = await pool.connect();
+    try {
+      await trava.query('select pg_advisory_lock(84210331)');
+      await migrate(db, { migrationsFolder: MIGRACOES, migrationsSchema: SCHEMA || 'drizzle' });
+    } finally {
+      await trava.query('select pg_advisory_unlock(84210331)').catch(() => {});
+      trava.release();
+    }
     return db as unknown as Db;
   }
   // na Vercel o disco é só leitura: sem DATABASE_URL não há onde guardar os dados

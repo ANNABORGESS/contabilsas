@@ -17,6 +17,7 @@ type Ctx = { db: Db; u: Usuario; req: NextRequest; corpo: Record<string, unknown
 /** Rota protegida por papel. Escritas avisam as telas abertas para atualizarem. */
 export function rota(papeis: Papel[], fn: (c: Ctx) => Promise<unknown>) {
   return async (req: NextRequest) => {
+    let u: Usuario | null = null;
     try {
       const escrita = req.method !== 'GET';
       let corpo: Record<string, unknown> = {};
@@ -24,15 +25,17 @@ export function rota(papeis: Papel[], fn: (c: Ctx) => Promise<unknown>) {
         if (!(req.headers.get('content-type') || '').includes('application/json')) return erro('Envio inválido.', 415);
         corpo = ((await req.json().catch(() => ({}))) || {}) as Record<string, unknown>;
       }
-      const u = await exigir(...papeis);
+      u = await exigir(...papeis);
       const db = await getDb();
-      const r = await fn({ db, u, req, corpo });
+      const r = await fn({ db, u: u!, req, corpo });
       if (escrita) avisar();
       return r instanceof Response ? r : NextResponse.json(r ?? { ok: true });
     } catch (e) {
       if (e instanceof ErroAcesso || e instanceof ErroRegra) return erro(e.message, e.status);
       console.error(e);
-      return erro('Erro inesperado. Tente de novo.', 500);
+      // o administrador vê o motivo técnico, para poder mandar ao suporte
+      const motivo = u?.papel === 'admin' && e instanceof Error ? ` (${e.message.replace(/postgres(ql)?:\/\/[^\s]+/g, '[banco]').slice(0, 300)})` : '';
+      return erro(`Erro inesperado. Tente de novo.${motivo}`, 500);
     }
   };
 }
