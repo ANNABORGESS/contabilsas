@@ -37,7 +37,7 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     titulos: tits.map((t) => ({
       id: t.codigo, tipo: t.tipo as 'pagar' | 'receber', nome: t.nome, nf: t.nf, descricao: t.descricao, categoria: t.categoria, contaContabil: t.contaContabil,
       origem: t.origem, folhaTipo: t.folhaTipo, contrato: t.contrato, juros: t.juros, competencia: t.competencia, emissao: t.nfEmissao, venc: t.venc,
-      valor: t.valor, status: t.status, retorno: t.retorno, impostos: t.impostos, baixas: baixasPor.get(t.id) || [],
+      valor: t.valor, status: t.status, retorno: t.retorno, impostos: t.impostos, cfop: t.cfop, baixas: baixasPor.get(t.id) || [],
     })),
     imobilizado: imob.map((a) => ({ id: a.id, descricao: a.descricao, qtd: a.qtd, valor: a.valor, data: a.data, taxa: a.taxa, residual: a.residual, origem: a.origem, nf: a.nf })),
     contratos: ctrs.map((c) => ({ id: c.id, instituicao: c.instituicao, contrato: c.contrato, tipo: c.tipo, valor: c.valor, dataContr: c.dataContr || '', status: c.status, natureza: c.natureza })),

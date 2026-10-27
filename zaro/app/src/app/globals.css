@@ -613,3 +613,7 @@ tr.prio-linha-Alta td:first-child { box-shadow: inset 3px 0 0 #9fb6cc; }
 .fluxo-etapa b { font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fluxo-etapa:hover, .atalho-comercial:hover { transform: translateY(-2px); box-shadow: var(--sombra-alta); }
 .atalho-comercial { display: flex; flex-direction: column; gap: 4px; color: inherit; text-decoration: none; transition: transform 0.15s, box-shadow 0.15s; }
+
+/* Balancete no modelo do escritório */
+.balancete-modelo h2 { font-size: 13px; letter-spacing: 0.06em; margin: 20px 0 6px; }
+.balancete-modelo table + p { font-size: 13px; color: var(--mudo, #6b7280); }

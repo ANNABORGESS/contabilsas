@@ -5,11 +5,13 @@ import { balanceteComGrupos, balanco, balancete, dre, periodoContabil } from '@/
 import { auditar } from '@/server/auditoria';
 import { exigirEmpresa, exigirUsuario } from '@/server/auth';
 import { lancamentosDaEmpresa } from '@/server/contabil';
+import { BalanceteModelo } from '@/components/BalanceteModelo';
+import { balanceteModelo } from '@/domain/balancete-modelo';
 import { Imprimir } from './Imprimir';
 import '../relatorio-dp/relatorio.css';
 
 export const dynamic = 'force-dynamic';
-type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; previa?: string };
+type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; previa?: string; modelo?: string };
 const NOMES: Record<string, string> = { balancete: 'Balancete de Verificação', dre: 'Demonstração do Resultado', balanco: 'Balanço Patrimonial' };
 const comLado = (v: number) => (Math.abs(v) < 0.005 ? '' : `${brl(Math.abs(v))} ${v > 0 ? 'D' : 'C'}`);
 
@@ -38,7 +40,7 @@ export default async function RelatorioContabil({ searchParams }: { searchParams
         <div><h1>{aba === 'balanco' ? `${NOMES.balanco} em ${p.ate.split('-').reverse().join('/')}` : NOMES[aba]}</h1><div>{emp.razao} · CNPJ {formatarCnpj(emp.cnpj)}</div></div>
         <div style={{ textAlign: 'right' }}><b>Período {p.titulo}</b><div>Emitido em {new Date().toLocaleDateString('pt-BR', { timeZone: 'America/Manaus' })}</div>{previa && <div className="at">Prévia: inclui lançamentos não aprovados</div>}</div>
       </div>
-      {aba === 'balancete' && <Balancete lancs={lancs} p={p} previa={previa} />}
+      {aba === 'balancete' && (sp.modelo === 'zaro' ? <Balancete lancs={lancs} p={p} previa={previa} /> : <BalanceteModelo b={balanceteModelo(lancs, p, previa)} n="n" dePara />)}
       {aba === 'dre' && <Dre lancs={lancs} p={p} previa={previa} />}
       {aba === 'balanco' && <Balanco lancs={lancs} ate={p.ate} previa={previa} />}
       <div className="rd-ass"><div><span />Contador(a) responsável · CRC</div><div><span />{emp.razao}</div></div>

@@ -28,6 +28,10 @@ export interface Lancamento {
   tituloBaixado?: string;
   /** o vínculo extrato × título foi feito pelo usuário na conciliação */
   conciliadoManual?: boolean;
+  /** tributos que compõem o lançamento (dedução de NF de saída), para o balancete por tributo */
+  partes?: { nome: string; valor: number }[];
+  /** natureza da receita pelo CFOP / tipo de nota, para o balancete no modelo do escritório */
+  tipoReceita?: 'produto' | 'mercadoria' | 'servico' | 'outra';
 }
 
 export interface BaixaMotor {
@@ -63,7 +67,17 @@ export interface TituloMotor {
   status: string;
   retorno?: boolean;
   impostos?: { nome: string; valor: number }[] | null;
+  cfop?: string | null;
   baixas?: BaixaMotor[];
+}
+
+/** Produto (fabricação própria / industrialização), mercadoria (revenda) ou serviço, pelo CFOP e pela nota. */
+export function tipoDeReceita(t: Pick<TituloMotor, 'cfop' | 'categoria' | 'contaContabil'>): 'produto' | 'mercadoria' | 'servico' | 'outra' {
+  const c = String(t.cfop || '').slice(1);
+  if (['101', '103', '105', '109', '111', '116', '118', '122', '124', '125', '401', '402'].includes(c)) return 'produto';
+  if (['102', '104', '106', '110', '112', '117', '119', '120', '123', '403', '404', '405'].includes(c)) return 'mercadoria';
+  if (!t.cfop && (t.contaContabil === '3.1.1.02' || /servi[çc]o/i.test(t.categoria || ''))) return 'servico';
+  return 'outra';
 }
 export interface ImobilizadoMotor {
   id: string;
@@ -116,11 +130,11 @@ const REGRAS_DESPESA: [RegExp, string, string, number][] = [
   [/energia|eletric/, '4.1.3.01', 'energia elétrica', 96],
   [/aluguel|condom/, '4.1.3.02', 'aluguel', 94],
   [/manuten/, '4.1.3.03', 'manutenção', 90],
-  [/combust|posto|ve[ií]culo/, '4.1.3.04', 'combustível ou veículo', 90],
+  [/combust|\bposto\b|ve[ií]culo/, '4.1.3.04', 'combustível ou veículo', 90],
   [/telefon|internet|\bclaro\b|\bvivo\b|\btim\b/, '4.1.3.05', 'telefone e internet', 92],
   [/tarifa|banc[áa]ria/, '4.2.1.02', 'tarifa bancária', 95],
   [/juros/, '4.2.1.01', 'juros', 92],
-  [/darf|\bdas\b|tribut|imposto|receita federal|sefaz|icms|\biss\b|guia/, '2.1.4.01', 'guia de tributo', 88],
+  [/\bdarf\b|pgdas|\bdas[\s-]*(simples|mei|\d)|\bgps\b|tribut|imposto|receita federal|sefaz|\bicms\b|\biss\b|\bguia\b/, '2.1.4.01', 'guia de tributo', 88],
   [/mat[ée]ria|material|chapa|a[çc]o|alum[íi]nio|insumo|compra|pe[çc]a/, '4.1.1.01', 'compra de material aplicado nos pedidos (sem estoque)', 85],
   [/servi[çc]o|terceir|usinagem|transporte|frete/, '4.1.3.06', 'serviço de terceiros', 80],
 ];
@@ -133,7 +147,8 @@ export function classificarDespesa(t: TituloMotor, regras: Record<string, string
   if (/^[34]\./.test(t.contaContabil || '') && t.origem === 'nf') {
     return { conta: t.contaContabil!, motivo: 'Compra por NF: conta definida na leitura do XML (empresa sob encomenda, sem estoque)', conf: 92, auto: true };
   }
-  const texto = `${t.categoria || ''} ${t.nome} ${t.descricao || ''}`.toLowerCase();
+  // "subst. tributária" na natureza da NF de compra não é guia de tributo
+  const texto = `${t.categoria || ''} ${t.nome} ${t.descricao || ''}`.toLowerCase().replace(/subst\w*\.?\s*tribut\w*/g, 'st');
   const r = REGRAS_DESPESA.find(([re]) => re.test(texto));
   if (r) return { conta: r[1], motivo: `Categoria "${t.categoria || '—'}" e fornecedor ${t.nome}: ${r[2]}`, conf: r[3], auto: r[3] >= 95 };
   return { conta: '4.1.3.09', motivo: `Sem regra para a categoria "${t.categoria || '—'}": despesas gerais, provisoriamente`, conf: 55, auto: false };
@@ -211,9 +226,10 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
       if (pagoV > 0 && !baixaNoExtrato) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '2.1.1.01', cred: '1.1.1.02', valor: pagoV, hist: `Pagamento ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Pagamento registrado no Contas a Pagar', conf: 97, auto: true });
     } else {
       const ajustada = contas[`${t.id}|prov`];
-      add({ ...base, id: `${t.id}|prov`, data, comp, deb: '1.1.2.01', cred: ajustada || '3.1.1.01', valor: v, hist: `${t.nf ? `Venda NF ${t.nf}` : `Título ${t.id}`} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: t.nf ? 'NF de saída vinculada ao título (natureza de venda)' : 'Título a receber sem NF vinculada: confirme a natureza', conf: t.nf ? 95 : 68, auto: !!t.nf, editavel: true });
-      const tributos = (t.impostos || []).filter((x) => /icms|pis|cofins|\biss|ipi|ibs|cbs/i.test(x.nome)).reduce((a, x) => a + (Number(x.valor) || 0), 0);
-      if (tributos > 0) add({ ...base, id: `${t.id}|ded`, data, comp, deb: '3.2.1.01', cred: '2.1.4.01', valor: tributos, hist: `Tributos destacados ${doc} — ${(t.impostos || []).filter((x) => x.valor > 0).map((x) => x.nome).join(', ')}`, modulo: 'Fiscal → NF de saída', motivo: 'Impostos destacados no XML da NF de saída', conf: 95, auto: true });
+      add({ ...base, id: `${t.id}|prov`, data, comp, deb: '1.1.2.01', cred: ajustada || '3.1.1.01', valor: v, hist: `${t.nf ? `Venda NF ${t.nf}` : `Título ${t.id}`} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: t.nf ? 'NF de saída vinculada ao título (natureza de venda)' : 'Título a receber sem NF vinculada: confirme a natureza', conf: t.nf ? 95 : 68, auto: !!t.nf, editavel: true, tipoReceita: tipoDeReceita(t) });
+      const partes = (t.impostos || []).filter((x) => /icms|pis|cofins|\biss|ipi|ibs|cbs/i.test(x.nome) && Number(x.valor) > 0).map((x) => ({ nome: x.nome, valor: Number(x.valor) }));
+      const tributos = partes.reduce((a, x) => a + x.valor, 0);
+      if (tributos > 0) add({ ...base, id: `${t.id}|ded`, data, comp, deb: '3.2.1.01', cred: '2.1.4.01', valor: tributos, hist: `Tributos destacados ${doc} — ${(t.impostos || []).filter((x) => x.valor > 0).map((x) => x.nome).join(', ')}`, modulo: 'Fiscal → NF de saída', motivo: 'Impostos destacados no XML da NF de saída', conf: 95, auto: true, partes });
       // split payment confirmado: o cliente pagou o total, o banco recebeu o líquido; a parte segregada extingue
       // a obrigação de IBS/CBS e a taxa do meio de pagamento é despesa bancária (não é tributo)
       const retido = semExtrato.reduce((a, b) => a + (b.split ? b.split.ibs + b.split.cbs + b.split.taxa : 0), 0);

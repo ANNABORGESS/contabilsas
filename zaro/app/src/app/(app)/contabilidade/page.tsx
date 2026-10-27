@@ -6,9 +6,11 @@ import { STATUS_NO_LIVRO, type Lancamento } from '@/domain/motor';
 import { PLANO_PADRAO, rotuloConta } from '@/domain/plano-contas';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import { lancamentosDaEmpresa } from '@/server/contabil';
+import { BalanceteModelo } from '@/components/BalanceteModelo';
+import { balanceteModelo } from '@/domain/balancete-modelo';
 import { aplicarStatus, aprovarConfiaveis, estornarLanc, trocarConta } from './acoes';
 
-type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; msg?: string; erro?: string };
+type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; modelo?: string; msg?: string; erro?: string };
 const STATUS = ['Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado'];
 const COR: Record<string, string> = { Automático: 'acento', Sugerido: 'ia', 'Em revisão': 'at', Aprovado: 'pos', Contabilizado: 'pos', Estornado: '' };
 
@@ -23,7 +25,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
   const previa = sp.previa === '1';
   const edita = podeEditar(u);
   const qs = (extra: Record<string, string | undefined>) => {
-    const o = { aba, per: sp.per, ref: sp.ref, de: sp.de, ate: sp.ate, st: sp.st, previa: sp.previa, q: sp.q, ...extra };
+    const o = { aba, per: sp.per, ref: sp.ref, de: sp.de, ate: sp.ate, st: sp.st, previa: sp.previa, q: sp.q, modelo: sp.modelo, ...extra };
     return '/contabilidade?' + Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v!)}`).join('&');
   };
   const volta = qs({});
@@ -55,12 +57,13 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
         <div><label>Até (personalizado)</label><input type="month" name="ate" defaultValue={sp.ate} /></div>
         {aba === 'lancamentos' && <div><label>Status</label><select name="st" defaultValue={sp.st || 'Todos'}>{STATUS.map((s) => <option key={s}>{s}</option>)}</select></div>}
         {aba === 'lancamentos' && <div style={{ flex: 1, minWidth: 160 }}><label>Busca</label><input name="q" defaultValue={sp.q} placeholder="Histórico, documento, código do título" /></div>}
+        {aba === 'balancete' && <div><label>Modelo</label><select name="modelo" defaultValue={sp.modelo || ''}><option value="">Modelo do escritório</option><option value="zaro">Plano de contas do ZARO (detalhado)</option></select></div>}
         {aba !== 'lancamentos' && <label className="linha" style={{ alignSelf: 'flex-end' }}><input type="checkbox" name="previa" value="1" defaultChecked={previa} /> Prévia (inclui não aprovados)</label>}
         <button className="btn" type="submit" style={{ alignSelf: 'flex-end' }}>Aplicar</button>
       </form>
 
       {aba === 'lancamentos' && <Lancamentos lancs={lancs} p={p} sp={sp} edita={edita} volta={volta} />}
-      {aba === 'balancete' && <Balancete lancs={lancs} p={p} previa={previa} emp={emp.razao} />}
+      {aba === 'balancete' && (sp.modelo === 'zaro' ? <Balancete lancs={lancs} p={p} previa={previa} emp={emp.razao} /> : <BalanceteEscritorio lancs={lancs} p={p} previa={previa} emp={emp.razao} />)}
       {aba === 'dre' && <Dre lancs={lancs} p={p} previa={previa} emp={emp.razao} />}
       {aba === 'balanco' && <Balanco lancs={lancs} p={p} previa={previa} emp={emp.razao} />}
     </>
@@ -139,6 +142,16 @@ function Cabecalho({ titulo, emp, p }: { titulo: string; emp: string; p: { titul
     <div style={{ marginBottom: 14 }}>
       <div className="rotulo">{emp}</div>
       <h2>{titulo} · {p.titulo}</h2>
+    </div>
+  );
+}
+
+function BalanceteEscritorio({ lancs, p, previa, emp }: { lancs: Lancamento[]; p: Periodo & { titulo: string }; previa: boolean; emp: string }) {
+  const b = balanceteModelo(lancs, p, previa);
+  return (
+    <div className="card balancete-modelo">
+      <Cabecalho titulo="Balancete de Verificação" emp={emp} p={p} />
+      {!b.totalDebitos && !b.linhas.some((l) => l.anterior) ? <div className="vazio">Sem lançamentos aprovados no período. Aprove na aba Lançamentos ou ligue a prévia.</div> : <div className="tabela-wrap"><BalanceteModelo b={b} n="num" dePara /></div>}
     </div>
   );
 }
