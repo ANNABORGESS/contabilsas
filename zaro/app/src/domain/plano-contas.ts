@@ -52,6 +52,13 @@ export const GRUPOS: Record<string, string> = {
   '2': 'Passivo', '2.1': 'Passivo circulante', '2.2': 'Passivo não circulante', '2.3': 'Patrimônio líquido',
   '3': 'Receitas', '3.1': 'Receita bruta', '3.2': 'Deduções da receita',
   '4': 'Custos e despesas', '4.1': 'Custos e despesas operacionais', '4.2': 'Resultado financeiro',
+  '1.1.1': 'Disponível', '1.1.2': 'Créditos com clientes', '1.1.3': 'Estoques', '1.1.4': 'Tributos a recuperar', '1.1.9': 'Outros créditos',
+  '1.2.3': 'Imobilizado',
+  '2.1.1': 'Fornecedores', '2.1.2': 'Obrigações trabalhistas', '2.1.3': 'Empréstimos e financiamentos', '2.1.4': 'Obrigações tributárias',
+  '2.1.5': 'Partes relacionadas', '2.1.9': 'Outras obrigações', '2.3.1': 'Capital social',
+  '3.1.1': 'Receita de vendas e serviços', '3.2.1': 'Tributos sobre vendas',
+  '4.1.1': 'Custos', '4.1.2': 'Despesas com pessoal', '4.1.3': 'Despesas gerais e administrativas', '4.1.4': 'Despesas tributárias',
+  '4.2.1': 'Despesas e receitas financeiras',
 };
 
 const POR_CODIGO = new Map(PLANO_PADRAO.map((c) => [c.codigo, c]));

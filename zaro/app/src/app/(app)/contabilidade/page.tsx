@@ -1,7 +1,7 @@
 import Link from 'next/link';
 import { getDb } from '@/db';
 import { brl, dataBr } from '@/domain/dinheiro';
-import { balanco, balancete, dre, type Periodo } from '@/domain/demonstracoes';
+import { balanceteComGrupos, balanco, balancete, dre, periodoContabil, type Periodo } from '@/domain/demonstracoes';
 import { STATUS_NO_LIVRO, type Lancamento } from '@/domain/motor';
 import { PLANO_PADRAO, rotuloConta } from '@/domain/plano-contas';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
@@ -11,19 +11,6 @@ import { aplicarStatus, aprovarConfiaveis, estornarLanc, trocarConta } from './a
 type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; msg?: string; erro?: string };
 const STATUS = ['Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado'];
 const COR: Record<string, string> = { Automático: 'acento', Sugerido: 'ia', 'Em revisão': 'at', Aprovado: 'pos', Contabilizado: 'pos', Estornado: '' };
-const MESES = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-
-function periodo(sp: SP, lancs: Lancamento[]): Periodo & { titulo: string } {
-  const hoje = new Date().toISOString().slice(0, 7);
-  const ref = /^\d{4}-\d{2}$/.test(sp.ref || '') ? sp.ref! : lancs.map((l) => l.comp).filter((c) => c && c <= hoje).sort().pop() || hoje;
-  const ano = ref.slice(0, 4);
-  switch (sp.per) {
-    case 'mes': return { de: ref, ate: ref, titulo: `${MESES[+ref.slice(5) - 1]}/${ano}` };
-    case 'tri': { const t = Math.floor((+ref.slice(5) - 1) / 3); return { de: `${ano}-${String(t * 3 + 1).padStart(2, '0')}`, ate: `${ano}-${String(t * 3 + 3).padStart(2, '0')}`, titulo: `${t + 1}º trimestre/${ano}` }; }
-    case 'pers': { const de = sp.de || `${ano}-01`; const ate = sp.ate && sp.ate >= de ? sp.ate : ref; return { de, ate, titulo: `${de.split('-').reverse().join('/')} a ${ate.split('-').reverse().join('/')}` }; }
-    default: return { de: `${ano}-01`, ate: `${ano}-12`, titulo: `Anual ${ano}` };
-  }
-}
 
 export default async function Contabilidade({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
@@ -32,7 +19,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
   const db = await getDb();
   const lancs = await lancamentosDaEmpresa(db, emp);
   const aba = ['lancamentos', 'balancete', 'dre', 'balanco'].includes(sp.aba || '') ? sp.aba! : 'lancamentos';
-  const p = periodo(sp, lancs);
+  const p = periodoContabil(sp, lancs.map((l) => l.comp));
   const previa = sp.previa === '1';
   const edita = podeEditar(u);
   const qs = (extra: Record<string, string | undefined>) => {
@@ -46,7 +33,12 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
     <>
       <div className="cabeca">
         <div><h1>Contabilidade</h1><p>Toda operação gera lançamentos. As demonstrações só usam lançamentos aprovados{previa ? ' (prévia ligada: mostrando todos)' : ''}.</p></div>
-        <button className="btn nao-imprimir" form="imprimir" formAction="javascript:print()" type="button">Imprimir / PDF</button>
+        {aba !== 'lancamentos' && (
+          <div className="nao-imprimir" style={{ display: 'flex', gap: 8 }}>
+            <a className="btn primario" href={qs({}).replace('/contabilidade?', '/relatorio-contabil?')} target="_blank" rel="noreferrer">Salvar em PDF</a>
+            <a className="btn" href={qs({}).replace('/contabilidade?', '/contabilidade/exportar?')}>Excel</a>
+          </div>
+        )}
       </div>
       {sp.erro && <div className="aviso erro">{sp.erro}</div>}
       {sp.msg && <div className="aviso ok">{sp.msg}</div>}
@@ -153,21 +145,21 @@ function Cabecalho({ titulo, emp, p }: { titulo: string; emp: string; p: { titul
 
 function Balancete({ lancs, p, previa, emp }: { lancs: Lancamento[]; p: Periodo & { titulo: string }; previa: boolean; emp: string }) {
   const b = balancete(lancs, p, previa);
-  const sd = (v: number, nat: 'D' | 'C') => (nat === 'D' ? v : -v);
   // saldo com o lado: positivo = devedor (D), negativo = credor (C)
-  const comLado = (v: number) => (Math.abs(v) < 0.005 ? brl(0) : `${brl(Math.abs(v))} ${v > 0 ? 'D' : 'C'}`);
+  const comLado = (v: number) => (Math.abs(v) < 0.005 ? '' : `${brl(Math.abs(v))} ${v > 0 ? 'D' : 'C'}`);
   return (
     <div className="card">
       <Cabecalho titulo="Balancete de Verificação" emp={emp} p={p} />
       {!b.linhas.length ? <div className="vazio">Sem lançamentos aprovados no período. Aprove na aba Lançamentos ou ligue a prévia.</div> : (
         <div className="tabela-wrap"><table>
-          <thead><tr><th>Conta</th><th className="num">Saldo anterior</th><th className="num">Débitos</th><th className="num">Créditos</th><th className="num">Saldo devedor</th><th className="num">Saldo credor</th></tr></thead>
+          <thead><tr><th>Conta</th><th className="num">Saldo anterior</th><th className="num">Débitos</th><th className="num">Créditos</th><th className="num">Saldo atual</th></tr></thead>
           <tbody>
-            {b.linhas.map((l) => {
-              const f = sd(l.final, l.natureza);
-              return <tr key={l.conta}><td>{l.conta} · {l.nome}</td><td className="num">{comLado(sd(l.anterior, l.natureza))}</td><td className="num">{brl(l.debitos)}</td><td className="num">{brl(l.creditos)}</td><td className="num">{f > 0 ? brl(f) : ''}</td><td className="num">{f < 0 ? brl(-f) : ''}</td></tr>;
-            })}
-            <tr className="destaque"><td>Totais do período</td><td /><td className="num">{brl(b.totalDebitos)}</td><td className="num">{brl(b.totalCreditos)}</td><td colSpan={2} className="num">{Math.abs(b.totalDebitos - b.totalCreditos) < 0.01 ? 'Débitos = créditos ✓' : 'Diferença!'}</td></tr>
+            {balanceteComGrupos(b.linhas).map((l) => (
+              <tr key={l.conta} className={l.nivel === 1 ? 'destaque' : ''} style={l.sintetica ? { fontWeight: 700 } : undefined}>
+                <td style={{ paddingLeft: 6 + (l.nivel - 1) * 14 }}>{l.conta} · {l.nome}</td><td className="num">{comLado(l.anterior)}</td><td className="num">{brl(l.debitos)}</td><td className="num">{brl(l.creditos)}</td><td className="num">{comLado(l.final)}</td>
+              </tr>
+            ))}
+            <tr className="destaque"><td>Totais do período</td><td /><td className="num">{brl(b.totalDebitos)}</td><td className="num">{brl(b.totalCreditos)}</td><td className="num">{Math.abs(b.totalDebitos - b.totalCreditos) < 0.01 ? 'Débitos = créditos ✓' : 'Diferença!'}</td></tr>
           </tbody>
         </table></div>
       )}

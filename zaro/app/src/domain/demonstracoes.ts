@@ -55,6 +55,52 @@ export function balancete(lancs: Lancamento[], p: Periodo, previa = false): { li
   };
 }
 
+export interface LinhaBalanceteGrupo {
+  conta: string;
+  nome: string;
+  nivel: number; // 1 = grupo (Ativo), 2 = subgrupo, 3 = conta sintética, 4 = analítica
+  sintetica: boolean;
+  anterior: number; // positivo = devedor, negativo = credor
+  debitos: number;
+  creditos: number;
+  final: number; // positivo = devedor, negativo = credor
+}
+
+/** Balancete com as contas sintéticas (1, 1.1, 1.1.1…) somando as analíticas, saldos com o lado D/C pelo sinal. */
+export function balanceteComGrupos(linhas: LinhaBalancete[]): LinhaBalanceteGrupo[] {
+  const sd = (v: number, nat: 'D' | 'C') => (nat === 'D' ? v : -v);
+  const mapa = new Map<string, LinhaBalanceteGrupo>();
+  for (const l of linhas) {
+    const partes = l.conta.split('.');
+    for (let n = 1; n < partes.length; n++) {
+      const g = partes.slice(0, n).join('.');
+      const x = mapa.get(g) || { conta: g, nome: nomeConta(g), nivel: n, sintetica: true, anterior: 0, debitos: 0, creditos: 0, final: 0 };
+      x.anterior = arred(x.anterior + sd(l.anterior, l.natureza));
+      x.debitos = arred(x.debitos + l.debitos);
+      x.creditos = arred(x.creditos + l.creditos);
+      x.final = arred(x.final + sd(l.final, l.natureza));
+      mapa.set(g, x);
+    }
+    mapa.set(l.conta, { conta: l.conta, nome: l.nome, nivel: partes.length, sintetica: false, anterior: sd(l.anterior, l.natureza), debitos: l.debitos, creditos: l.creditos, final: sd(l.final, l.natureza) });
+  }
+  const chave = (c: string) => c.split('.').map((x) => x.padStart(4, '0')).join('.');
+  return [...mapa.values()].sort((a, b) => chave(a.conta).localeCompare(chave(b.conta)));
+}
+
+const MESES_ABREV = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+
+/** Período das demonstrações a partir dos filtros da tela (mês, trimestre, ano ou personalizado). */
+export function periodoContabil(sp: { per?: string; ref?: string; de?: string; ate?: string }, comps: string[], hoje = new Date().toISOString().slice(0, 7)): Periodo & { titulo: string } {
+  const ref = /^\d{4}-\d{2}$/.test(sp.ref || '') ? sp.ref! : comps.filter((c) => c && c <= hoje).sort().pop() || hoje;
+  const ano = ref.slice(0, 4);
+  switch (sp.per) {
+    case 'mes': return { de: ref, ate: ref, titulo: `${MESES_ABREV[+ref.slice(5) - 1]}/${ano}` };
+    case 'tri': { const t = Math.floor((+ref.slice(5) - 1) / 3); return { de: `${ano}-${String(t * 3 + 1).padStart(2, '0')}`, ate: `${ano}-${String(t * 3 + 3).padStart(2, '0')}`, titulo: `${t + 1}º trimestre/${ano}` }; }
+    case 'pers': { const de = /^\d{4}-\d{2}$/.test(sp.de || '') ? sp.de! : `${ano}-01`; const ate = /^\d{4}-\d{2}$/.test(sp.ate || '') && sp.ate! >= de ? sp.ate! : ref; return { de, ate, titulo: `${de.split('-').reverse().join('/')} a ${ate.split('-').reverse().join('/')}` }; }
+    default: return { de: `${ano}-01`, ate: `${ano}-12`, titulo: `Anual ${ano}` };
+  }
+}
+
 export interface LinhaDemo {
   rotulo: string;
   valor: number;

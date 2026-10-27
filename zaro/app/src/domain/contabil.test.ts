@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { balanco, balancete, dre } from './demonstracoes';
+import { balanceteComGrupos, balanco, balancete, dre, periodoContabil } from './demonstracoes';
 import { classificarDespesa, depreciacaoMensal, gerarLancamentos, type Lancamento, type TituloMotor } from './motor';
 
 const venda: TituloMotor = {
@@ -194,5 +194,25 @@ describe('split payment na contabilidade', () => {
     const s = gerarLancamentos({ titulos: [{ id: 'CR-2', tipo: 'receber', nome: 'C', nf: '11', valor: 500, status: 'Recebido', competencia: '2026-11', baixas: [{ id: 'b', data: '2026-11-10', valor: 500 }] }], imobilizado: [], contratos: [], decisoes: { status: {}, contas: {}, estornos: {}, regras: {} }, extrato: [], empresaNome: 'X' } as never);
     expect(s.find((x) => x.id === 'CR-2|pag')?.valor).toBe(500);
     expect(s.some((x) => x.id.includes('|spl|'))).toBe(false);
+  });
+});
+
+describe('balancete para impressão', () => {
+  it('soma as contas sintéticas com o lado D/C', () => {
+    const linhas = [
+      { conta: '1.1.1.02', nome: 'Bancos', natureza: 'D' as const, anterior: 100, debitos: 50, creditos: 30, final: 120 },
+      { conta: '1.1.2.01', nome: 'Clientes', natureza: 'D' as const, anterior: 0, debitos: 200, creditos: 0, final: 200 },
+      { conta: '2.1.1.01', nome: 'Fornecedores', natureza: 'C' as const, anterior: 40, debitos: 10, creditos: 0, final: 30 },
+    ];
+    const g = balanceteComGrupos(linhas);
+    expect(g.map((l) => l.conta)).toEqual(['1', '1.1', '1.1.1', '1.1.1.02', '1.1.2', '1.1.2.01', '2', '2.1', '2.1.1', '2.1.1.01']);
+    const ativo = g.find((l) => l.conta === '1')!;
+    expect([ativo.anterior, ativo.debitos, ativo.creditos, ativo.final]).toEqual([100, 250, 30, 320]);
+    expect(g.find((l) => l.conta === '2')!.final).toBe(-30); // credor
+    expect(g.find((l) => l.conta === '1.1.1.02')!.sintetica).toBe(false);
+  });
+  it('período personalizado de janeiro a setembro', () => {
+    expect(periodoContabil({ per: 'pers', de: '2026-01', ate: '2026-09' }, [])).toEqual({ de: '2026-01', ate: '2026-09', titulo: '01/2026 a 09/2026' });
+    expect(periodoContabil({ per: 'pers', de: '2026-05', ate: '2026-02' }, [], '2026-10').ate).toBe('2026-10');
   });
 });
