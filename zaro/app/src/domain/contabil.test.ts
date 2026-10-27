@@ -162,6 +162,7 @@ describe('extrato bancário', () => {
       ['m1', '2.1.1.01', '1.1.1.02'],
       ['m2', '4.2.1.02', '1.1.1.02'],
       ['m3', '1.1.1.02', '2.1.9.99'],
+      ['m4', '1.1.9.97', '1.1.1.02'], // transferência entre contas próprias: conta de trânsito
     ]);
   });
 

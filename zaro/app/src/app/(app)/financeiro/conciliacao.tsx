@@ -3,7 +3,7 @@ import { getDb } from '@/db';
 import { brl, dataBr } from '@/domain/dinheiro';
 import type { Empresa, Usuario } from '@/server/auth';
 import { dadosConciliacao, FILTROS_CONCILIACAO } from '@/server/financeiro-analises';
-import { conciliarAcao, definirSaldo } from './acoes';
+import { conciliarAcao, definirSaldo, importarExtratoAcao } from './acoes';
 
 const COR_SIT: Record<string, string> = { Conciliado: 'pos', Classificado: 'acento', Pendente: 'at', 'Transferência própria': '' };
 
@@ -22,6 +22,17 @@ export async function Conciliacao({ u, emp, sp, edita, cabeca }: { u: Usuario; e
         <div className="card kpi"><div className="rotulo">Entradas / saídas</div><div className="v" style={{ fontSize: 18 }}>{brl(r.entradas)}</div><div className="s">saídas {brl(r.saidas)}</div></div>
         <div className="card kpi"><div className="rotulo">Saldo bancário</div><div className="v">{d.saldo ? brl(d.saldo.atual) : '—'}</div><div className="s">{d.saldo ? `extrato até ${dataBr(d.saldo.ultimoMovimento)}` : 'informe o saldo inicial abaixo'}</div></div>
       </div>
+      {edita && (
+        <div className="card" style={{ marginBottom: 16 }}>
+          <h2>Importar extrato</h2>
+          <p className="mudo">PDF do extrato por período do Itaú ou do Bradesco. Cada movimento é conferido com os saldos impressos pelo banco; reimportar o mesmo extrato não duplica. O saldo inicial é acertado sozinho.</p>
+          <form action={importarExtratoAcao} className="linha" style={{ marginTop: 10 }}>
+            <input type="hidden" name="volta" value="/financeiro?tipo=extrato" />
+            <input type="file" name="arquivo" accept=".pdf,application/pdf" multiple required />
+            <button className="btn primario" type="submit">Importar</button>
+          </form>
+        </div>
+      )}
       <div className="card" id="saldo" style={{ marginBottom: 16 }}>
         <h2>Saldo bancário</h2>
         {d.saldo ? (

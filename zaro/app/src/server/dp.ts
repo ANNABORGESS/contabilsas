@@ -8,6 +8,7 @@ import type { Db } from '@/db';
 import { schema } from '@/db';
 import { arred, brl } from '@/domain/dinheiro';
 import { conferirHolerite, conferirPrazos, conferirTercoFerias, type Holerite, type ItemConferencia, lerHolerites, lerRetornoEsocial, mascararCpf, resumoItens, statusObrigacao } from '@/domain/dp';
+import { lerResumoFolha, resumoConfere } from '@/domain/folha-contabil';
 import { guardarArquivo } from './arquivos';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
@@ -58,11 +59,19 @@ export async function importarDocumentoDP(db: Db, u: Usuario, emp: Empresa, v: {
   const arq = await guardarArquivo(db, u.tenantId, v.nome, v.mime, v.conteudo);
   const [doc] = await db.insert(schema.dpDocumentos).values({ tenantId: u.tenantId, empresaId: emp.id, competencia: v.competencia || null, tipo: v.tipo, nome: v.nome, arquivoId: arq.id, usuario: u.nome }).returning();
   let msg = `${v.nome} guardado.`;
-  if (v.tipo === 'holerites' || v.tipo === 'folha_analitica') {
+  if (v.tipo === 'holerites' || v.tipo === 'folha_analitica' || v.tipo === 'folha_sintetica') {
     let texto = '';
     try { texto = await textoDoArquivo(v.nome, v.conteudo); } catch { texto = ''; }
     const hs = lerHolerites(texto);
-    if (!hs.length) {
+    // resumo da folha (Listagem Sintética): vai para a contabilidade
+    const rf = lerResumoFolha(texto);
+    const folha = rf && resumoConfere(rf) ? rf : null;
+    const msgFolha = folha ? ` Resumo da folha ${rf!.de.split('-').reverse().join('/')} a ${rf!.ate.split('-').reverse().join('/')} lido (vencimentos ${brl(folha.totalVencimentos)}): salários, encargos e retenções entram na Contabilidade.` : rf ? ' O resumo da folha foi encontrado, mas os totais não bateram com as rubricas: confira o arquivo.' : '';
+    if (!hs.length && folha) {
+      await db.update(schema.dpDocumentos).set({ status: 'Lido', competencia: folha.ate, resumo: { folha } }).where(eq(schema.dpDocumentos.id, doc.id));
+      await auditar(db, u, { empresaId: emp.id, acao: 'Importou resumo da folha para a contabilidade', entidade: `${folha.de} a ${folha.ate}`, depois: `Vencimentos ${brl(folha.totalVencimentos)} · líquido ${brl(folha.liquido)}` });
+      msg = `${v.nome} guardado.${msgFolha}`;
+    } else if (!hs.length) {
       await db.update(schema.dpDocumentos).set({ status: 'Sem leitura automática', resumo: { motivo: 'Formato não reconhecido ou PDF digitalizado (imagem)' } }).where(eq(schema.dpDocumentos.id, doc.id));
       msg = `${v.nome} guardado, mas o ZARO não reconheceu holerites no arquivo (PDF de imagem ou outro layout). Ele fica disponível para conferência manual.`;
     } else {
@@ -79,9 +88,9 @@ export async function importarDocumentoDP(db: Db, u: Usuario, emp: Empresa, v: {
           .onConflictDoUpdate({ target: [schema.dpHolerites.empresaId, schema.dpHolerites.competencia, schema.dpHolerites.matricula, schema.dpHolerites.tipoFolha], set: valores });
       }
       const comps = [...new Set(hs.map((h) => h.competencia))];
-      await db.update(schema.dpDocumentos).set({ status: 'Lido', competencia: comps[0] || v.competencia || null, resumo: { holerites: hs.length, competencias: comps, novosFuncionarios: novos } }).where(eq(schema.dpDocumentos.id, doc.id));
+      await db.update(schema.dpDocumentos).set({ status: 'Lido', competencia: comps[0] || v.competencia || null, resumo: { holerites: hs.length, competencias: comps, novosFuncionarios: novos, ...(folha ? { folha } : {}) } }).where(eq(schema.dpDocumentos.id, doc.id));
       for (const c of comps) await avancarEtapa(db, u, emp, c, 'Identificar divergências');
-      msg = `${hs.length} holerite(s) lido(s) e conferido(s) (${comps.map((c) => c.split('-').reverse().join('/')).join(', ')}). ${novos ? `${novos} funcionário(s) novo(s) no cadastro. ` : ''}Reimportar o mesmo arquivo atualiza, não duplica.`;
+      msg = `${hs.length} holerite(s) lido(s) e conferido(s) (${comps.map((c) => c.split('-').reverse().join('/')).join(', ')}). ${novos ? `${novos} funcionário(s) novo(s) no cadastro. ` : ''}Reimportar o mesmo arquivo atualiza, não duplica.${msgFolha}`;
     }
   } else if (v.tipo === 'esocial') {
     const evs = lerRetornoEsocial(v.conteudo.toString('utf8'));

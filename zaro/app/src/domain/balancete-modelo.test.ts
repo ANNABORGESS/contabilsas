@@ -60,15 +60,15 @@ describe('classificação de compra não confunde com guia de tributo', () => {
 });
 
 describe('imobilizado antigo e resultado de anos anteriores', () => {
-  const maq = { id: 'M1', descricao: 'Fresadora Veker VK-420', qtd: 1, valor: 18470.03, data: '2003-01-01', taxa: 10, residual: 0, origem: 'abertura', nf: null };
+  const maq = { id: 'M1', descricao: 'Fresadora ferramenteira', qtd: 1, valor: 12000, data: '2003-01-01', taxa: 10, residual: 0, origem: 'abertura', nf: null };
   const L2 = gerarLancamentos({ titulos: [], imobilizado: [maq], hoje: '2026-09' } as never);
   it('saldo anterior fecha: depreciação de anos anteriores vai para lucros acumulados', () => {
     const b = balanceteModelo(L2, { de: '2026-01', ate: '2026-09' }, true);
     const v = (c: string) => b.linhas.find((l) => l.codigo === c)!;
-    expect(v('1.2.03').anterior).toBe(18470.03);
-    expect(v('1.2.08').anterior).toBe(-18470.03);
-    expect(v('2.3.01').anterior).toBe(-18470.03);
-    expect(v('2.3.05').anterior).toBe(18470.03); // prejuízo acumulado (depreciação até 2012)
+    expect(v('1.2.03').anterior).toBe(12000);
+    expect(v('1.2.08').anterior).toBe(-12000);
+    expect(v('2.3.01').anterior).toBe(-12000);
+    expect(v('2.3.05').anterior).toBe(12000); // prejuízo acumulado (depreciação até 2012)
     expect(v('4').final).toBe(0);
     expect(b.totalDevedor).toBe(b.totalCredor);
   });
@@ -77,6 +77,6 @@ describe('imobilizado antigo e resultado de anos anteriores', () => {
     const b = balancete(L2, { de: '2026-01', ate: '2026-09' }, true);
     const soma = b.linhas.reduce((a, l) => a + (l.natureza === 'D' ? l.final : -l.final), 0);
     expect(Math.abs(soma)).toBeLessThan(0.01);
-    expect(b.linhas.find((l) => l.conta === '2.3.2.01')!.final).toBe(-18470.03);
+    expect(b.linhas.find((l) => l.conta === '2.3.2.01')!.final).toBe(-12000);
   });
 });

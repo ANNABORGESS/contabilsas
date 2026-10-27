@@ -1,17 +1,19 @@
 // Liga o motor contábil ao banco: carrega as operações da empresa ativa, aplica as decisões
 // do contador e grava aprovações, ajustes de conta (com regra aprendida) e estornos.
 import 'server-only';
-import { eq } from 'drizzle-orm';
+import { and, eq } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { gerarLancamentos, type Lancamento, type StatusLanc } from '@/domain/motor';
+import type { ResumoFolha } from '@/domain/folha-contabil';
 import { rotuloConta } from '@/domain/plano-contas';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
+import { saldoInicial } from './banco';
 import { splitConfirmadoPorBaixa } from './split-payment';
 
 export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancamento[]> {
-  const [tits, bxs, imob, ctrs, decs, regras, extrato] = await Promise.all([
+  const [tits, bxs, imob, ctrs, decs, regras, folhas, extrato] = await Promise.all([
     db.select().from(schema.titulos).where(eq(schema.titulos.empresaId, emp.id)),
     db.select({ id: schema.baixas.id, tituloId: schema.baixas.tituloId, data: schema.baixas.data, valor: schema.baixas.valor, estornada: schema.baixas.estornada, desconto: schema.baixas.desconto, juros: schema.baixas.juros, multa: schema.baixas.multa, dados: schema.baixas.dados })
       .from(schema.baixas).innerJoin(schema.titulos, eq(schema.titulos.id, schema.baixas.tituloId)).where(eq(schema.titulos.empresaId, emp.id)),
@@ -19,10 +21,12 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     db.select().from(schema.contratosDivida).where(eq(schema.contratosDivida.empresaId, emp.id)),
     db.select().from(schema.lancamentoDecisoes).where(eq(schema.lancamentoDecisoes.empresaId, emp.id)),
     db.select().from(schema.regrasClassificacao).where(eq(schema.regrasClassificacao.empresaId, emp.id)),
+    db.select({ id: schema.dpDocumentos.id, resumo: schema.dpDocumentos.resumo, criadoEm: schema.dpDocumentos.criadoEm }).from(schema.dpDocumentos).where(and(eq(schema.dpDocumentos.empresaId, emp.id), eq(schema.dpDocumentos.status, 'Lido'))),
     db.select({ id: schema.extratoMovimentos.id, conta: schema.extratoMovimentos.conta, data: schema.extratoMovimentos.data, valor: schema.extratoMovimentos.valor, memo: schema.extratoMovimentos.memo }).from(schema.extratoMovimentos).where(eq(schema.extratoMovimentos.empresaId, emp.id)),
   ]);
   // split payment só entra na contabilidade quando confirmado com evidência
   const split = await splitConfirmadoPorBaixa(db, emp.id);
+  const saldoBanco = await saldoInicial(db, emp.tenantId, emp.id);
   const baixasPor = new Map<string, { id: string; data: string; valor: number; estornada: boolean; desconto: number; juros: number; multa: number; extratoId: string | null; split: { ibs: number; cbs: number; taxa: number } | null }[]>();
   for (const b of bxs) baixasPor.set(b.tituloId, [...(baixasPor.get(b.tituloId) || []), { ...b, extratoId: ((b.dados || {}) as { extratoId?: string }).extratoId || null, split: split.get(b.id) || null }]);
   const status: Record<string, StatusLanc> = {};
@@ -43,6 +47,8 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     contratos: ctrs.map((c) => ({ id: c.id, instituicao: c.instituicao, contrato: c.contrato, tipo: c.tipo, valor: c.valor, dataContr: c.dataContr || '', status: c.status, natureza: c.natureza })),
     decisoes: { status, contas, estornos, regras: Object.fromEntries(regras.map((r) => [r.chave, r.conta])) },
     extrato,
+    saldoInicialBanco: saldoBanco,
+    folhas: folhas.filter((f) => (f.resumo as { folha?: unknown }).folha).map((f) => ({ id: f.id, resumo: (f.resumo as { folha: ResumoFolha }).folha, importadoEm: f.criadoEm?.toISOString() })),
     empresaNome: emp.razao,
   });
 }

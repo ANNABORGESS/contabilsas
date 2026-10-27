@@ -5,6 +5,7 @@ import { getDb } from '@/db';
 import { brl, numero } from '@/domain/dinheiro';
 import { exigirEdicao, exigirEmpresa } from '@/server/auth';
 import { definirSaldoInicial } from '@/server/banco';
+import { importarExtratoPdf } from '@/server/extrato-import';
 import { conciliarMovimento } from '@/server/financeiro-analises';
 import { moverPagamento } from '@/server/inteligencia';
 import { anexarComprovante, confirmarRecebimentos, marcarPrioritario, parcelarTitulo, reagendarMais7, registrarPagamento, registrarPagamentosLote, rejeitar, renegociar, trocarConta } from '@/server/pagamentos';
@@ -60,6 +61,20 @@ export async function definirSaldo(form: FormData) {
   await executar(form, async ({ db, u, emp }) => {
     await definirSaldoInicial(db, u, emp, String(form.get('data') || ''), numero(form.get('valor')));
     return 'Saldo inicial gravado. O Dashboard passa a mostrar o saldo bancário.';
+  });
+}
+
+export async function importarExtratoAcao(form: FormData) {
+  await executar(form, async ({ db, u, emp }) => {
+    const arqs = form.getAll('arquivo').filter((f): f is File => f instanceof File && f.size > 0);
+    if (!arqs.length) throw new Error('Escolha o PDF do extrato.');
+    const msgs: string[] = [];
+    for (const f of arqs) {
+      if (f.size > 30_000_000) throw new Error(`${f.name}: arquivo grande demais (máximo 30 MB).`);
+      msgs.push(await importarExtratoPdf(db, u, emp, f.name, Buffer.from(await f.arrayBuffer())));
+    }
+    revalidatePath('/contabilidade');
+    return msgs.join(' ');
   });
 }
 

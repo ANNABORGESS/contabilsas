@@ -2,6 +2,7 @@
 // lançamentos de partida dobrada. Os lançamentos são recalculados a partir das operações;
 // o que fica gravado é a decisão do contador sobre cada um (status, conta ajustada, estorno).
 import { arred } from './dinheiro';
+import { lancamentosDaFolha, type FolhaImportada } from './folha-contabil';
 
 export type StatusLanc = 'Automático' | 'Sugerido' | 'Em revisão' | 'Aprovado' | 'Contabilizado' | 'Estornado';
 export const STATUS_NO_LIVRO: StatusLanc[] = ['Aprovado', 'Contabilizado', 'Estornado'];
@@ -122,6 +123,10 @@ export interface EntradaMotor {
   empresaNome?: string;
   imobilizado?: ImobilizadoMotor[];
   contratos?: ContratoMotor[];
+  /** saldo do banco informado (extrato) numa data: o banco do ZARO é acertado a ele */
+  saldoInicialBanco?: { data: string; valor: number } | null;
+  /** resumos da folha importados no Departamento Pessoal */
+  folhas?: FolhaImportada[];
   decisoes?: DecisoesContador;
   hoje?: string;
 }
@@ -162,7 +167,14 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
   const statusDec = dec.status || {};
   const contas = dec.contas || {};
   // o extrato vem primeiro: título quitado por um movimento do banco não ganha outra baixa
-  const doExtrato = lancamentosDoExtrato(e.extrato || [], e.titulos, e.empresaNome || '', dec);
+  const movimentos = (e.extrato || []).filter((m) => !ehSaldoAnterior(m.memo));
+  const funcionarios = [...new Set((e.folhas || []).flatMap((f) => f.resumo.funcionarios || []))];
+  const doExtrato = lancamentosDoExtrato(movimentos, e.titulos, e.empresaNome || '', dec, funcionarios);
+  // no período coberto pelo extrato o banco vem só dele: pagamento registrado no título que não casou com
+  // um movimento fica "a conciliar", senão o mesmo dinheiro sairia duas vezes do banco
+  const datas = movimentos.map((m) => m.data).sort();
+  const cobertura = datas.length ? [datas[0], datas[datas.length - 1]] : null;
+  const banco = (data: string) => (cobertura && data >= cobertura[0] && data <= cobertura[1] ? '1.1.9.98' : '1.1.1.02');
   // títulos ligados ao extrato pela regra automática (os manuais já tiram a baixa vinculada abaixo)
   const quitadosNoExtrato = new Set(doExtrato.filter((l) => !l.conciliadoManual).map((l) => l.tituloBaixado).filter(Boolean));
   const hoje = (e.hoje || new Date().toISOString()).slice(0, 7);
@@ -193,19 +205,19 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
       const k = `${t.id}|enc|${b.id || i}`;
       const comum = { ...base, data: b.data, comp: b.data.slice(0, 7), conf: 97, auto: true };
       if (t.tipo === 'pagar') {
-        if (b.juros) add({ ...comum, id: `${k}|jur`, deb: '4.2.1.01', cred: '1.1.1.02', valor: b.juros, hist: `Juros pagos ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Juros informados no registro do pagamento' });
-        if (b.multa) add({ ...comum, id: `${k}|mul`, deb: '4.2.1.04', cred: '1.1.1.02', valor: b.multa, hist: `Multa por atraso ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Multa informada no registro do pagamento' });
-        if (b.desconto) add({ ...comum, id: `${k}|des`, deb: '1.1.1.02', cred: '4.2.1.03', valor: b.desconto, hist: `Desconto obtido ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Desconto informado no registro do pagamento' });
+        if (b.juros) add({ ...comum, id: `${k}|jur`, deb: '4.2.1.01', cred: banco(b.data), valor: b.juros, hist: `Juros pagos ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Juros informados no registro do pagamento' });
+        if (b.multa) add({ ...comum, id: `${k}|mul`, deb: '4.2.1.04', cred: banco(b.data), valor: b.multa, hist: `Multa por atraso ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Multa informada no registro do pagamento' });
+        if (b.desconto) add({ ...comum, id: `${k}|des`, deb: banco(b.data), cred: '4.2.1.03', valor: b.desconto, hist: `Desconto obtido ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Desconto informado no registro do pagamento' });
       } else {
-        if ((b.juros || 0) + (b.multa || 0)) add({ ...comum, id: `${k}|jur`, deb: '1.1.1.02', cred: '4.2.1.03', valor: (b.juros || 0) + (b.multa || 0), hist: `Juros e multa recebidos ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Encargos informados no registro do recebimento' });
-        if (b.desconto) add({ ...comum, id: `${k}|des`, deb: '4.2.1.05', cred: '1.1.1.02', valor: b.desconto, hist: `Desconto concedido ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Desconto informado no registro do recebimento' });
+        if ((b.juros || 0) + (b.multa || 0)) add({ ...comum, id: `${k}|jur`, deb: banco(b.data), cred: '4.2.1.03', valor: (b.juros || 0) + (b.multa || 0), hist: `Juros e multa recebidos ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Encargos informados no registro do recebimento' });
+        if (b.desconto) add({ ...comum, id: `${k}|des`, deb: '4.2.1.05', cred: banco(b.data), valor: b.desconto, hist: `Desconto concedido ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Desconto informado no registro do recebimento' });
       }
     });
 
     if (t.tipo === 'pagar') {
       if (t.origem === 'folha') {
         const passivo = { Salário: '2.1.2.01', INSS: '2.1.2.02', FGTS: '2.1.2.03', IRRF: '2.1.2.04' }[t.folhaTipo || ''] || '2.1.2.01';
-        if (pagoV > 0) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: passivo, cred: '1.1.1.02', valor: pagoV, hist: `Pagamento ${t.folhaTipo || 'folha'} — ${t.nome} — folha ${comp}`, modulo: 'Folha → Contas a Pagar', motivo: 'Baixa do passivo gerado no fechamento da folha', conf: 97, auto: true });
+        if (pagoV > 0) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: passivo, cred: banco(dataPag), valor: pagoV, hist: `Pagamento ${t.folhaTipo || 'folha'} — ${t.nome} — folha ${comp}`, modulo: 'Folha → Contas a Pagar', motivo: 'Baixa do passivo gerado no fechamento da folha', conf: 97, auto: true });
         continue;
       }
       if (t.origem === 'emprestimo') {
@@ -213,7 +225,7 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
         const principal = juros != null ? v - juros : v;
         add({ ...base, id: `${t.id}|prov`, data: t.venc || data, comp, deb: '2.1.3.01', cred: '2.1.1.01', valor: principal, hist: `Principal parcela — ${t.nome} — contrato ${t.contrato || ''}`, modulo: 'Empréstimos → Contas a Pagar', motivo: juros != null ? 'Amortização do principal conforme o contrato' : 'Parcela sem separação de juros: confirme o cronograma do contrato', conf: juros != null ? 92 : 68, auto: false });
         if (juros) add({ ...base, id: `${t.id}|jur`, data: t.venc || data, comp, deb: '4.2.1.01', cred: '2.1.1.01', valor: juros, hist: `Juros parcela — ${t.nome}`, modulo: 'Empréstimos → Contas a Pagar', motivo: `Juros do contrato ${t.contrato || ''}`, conf: 92, auto: false });
-        if (pagoV > 0) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '2.1.1.01', cred: '1.1.1.02', valor: pagoV, hist: `Pagamento parcela — ${t.nome}`, modulo: 'Empréstimos → Contas a Pagar', motivo: 'Pagamento registrado no Contas a Pagar', conf: 97, auto: true });
+        if (pagoV > 0) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '2.1.1.01', cred: banco(dataPag), valor: pagoV, hist: `Pagamento parcela — ${t.nome}`, modulo: 'Empréstimos → Contas a Pagar', motivo: 'Pagamento registrado no Contas a Pagar', conf: 97, auto: true });
         continue;
       }
       const k = classificarDespesa(t, dec.regras);
@@ -223,7 +235,7 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
         hist: `Provisão ${doc} — ${t.nome} — competência ${comp.split('-').reverse().join('/')}`, modulo: 'Financeiro → Contas a Pagar',
         motivo: ajustada ? 'Conta ajustada pelo contador' : k.motivo, conf: ajustada ? 100 : k.conf, auto: !!ajustada || k.auto, editavel: true, chaveRegra: chaveDoParceiro(t.nome),
       });
-      if (pagoV > 0 && !baixaNoExtrato) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '2.1.1.01', cred: '1.1.1.02', valor: pagoV, hist: `Pagamento ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Pagamento registrado no Contas a Pagar', conf: 97, auto: true });
+      if (pagoV > 0 && !baixaNoExtrato) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '2.1.1.01', cred: banco(dataPag), valor: pagoV, hist: `Pagamento ${doc} — ${t.nome}`, modulo: 'Financeiro → Contas a Pagar', motivo: 'Pagamento registrado no Contas a Pagar', conf: 97, auto: true });
     } else {
       const ajustada = contas[`${t.id}|prov`];
       add({ ...base, id: `${t.id}|prov`, data, comp, deb: '1.1.2.01', cred: ajustada || '3.1.1.01', valor: v, hist: `${t.nf ? `Venda NF ${t.nf}` : `Título ${t.id}`} — ${t.nome}`, modulo: 'Financeiro → Contas a Receber', motivo: t.nf ? 'NF de saída vinculada ao título (natureza de venda)' : 'Título a receber sem NF vinculada: confirme a natureza', conf: t.nf ? 95 : 68, auto: !!t.nf, editavel: true, tipoReceita: tipoDeReceita(t) });
@@ -233,7 +245,7 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
       // split payment confirmado: o cliente pagou o total, o banco recebeu o líquido; a parte segregada extingue
       // a obrigação de IBS/CBS e a taxa do meio de pagamento é despesa bancária (não é tributo)
       const retido = semExtrato.reduce((a, b) => a + (b.split ? b.split.ibs + b.split.cbs + b.split.taxa : 0), 0);
-      if (pagoV > 0 && !baixaNoExtrato && pagoV - retido > 0.004) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '1.1.1.02', cred: '1.1.2.01', valor: Math.round((pagoV - retido) * 100) / 100, hist: `Recebimento ${doc} — ${t.nome}${retido ? ' (líquido do split payment)' : ''}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Recebimento registrado no Contas a Receber', conf: 97, auto: true });
+      if (pagoV > 0 && !baixaNoExtrato && pagoV - retido > 0.004) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: banco(dataPag), cred: '1.1.2.01', valor: Math.round((pagoV - retido) * 100) / 100, hist: `Recebimento ${doc} — ${t.nome}${retido ? ' (líquido do split payment)' : ''}`, modulo: 'Financeiro → Contas a Receber', motivo: 'Recebimento registrado no Contas a Receber', conf: 97, auto: true });
       baixas.forEach((b, i) => {
         if (!b.split) return;
         const k = `${t.id}|spl|${b.id || i}`;
@@ -246,7 +258,7 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
 
   for (const c of e.contratos || []) {
     if (/cancel/i.test(c.status || '') || !(c.valor > 0) || !c.dataContr || /conced/i.test(c.natureza || '')) continue;
-    add({ id: `EMPCAP|${c.id}`, data: c.dataContr, comp: c.dataContr.slice(0, 7), deb: '1.1.1.02', cred: '2.1.3.01', valor: c.valor, hist: `Captação ${c.tipo} — ${c.instituicao} — contrato ${c.contrato}`, origemId: c.id, modulo: 'Empréstimos → captação', doc: `Contrato ${c.contrato}`, motivo: 'Valor liberado do contrato creditado no banco', conf: 92, auto: false });
+    add({ id: `EMPCAP|${c.id}`, data: c.dataContr, comp: c.dataContr.slice(0, 7), deb: banco(c.dataContr), cred: '2.1.3.01', valor: c.valor, hist: `Captação ${c.tipo} — ${c.instituicao} — contrato ${c.contrato}`, origemId: c.id, modulo: 'Empréstimos → captação', doc: `Contrato ${c.contrato}`, motivo: 'Valor liberado do contrato creditado no banco', conf: 92, auto: false });
   }
 
   for (const a of e.imobilizado || []) {
@@ -259,7 +271,23 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
     }
   }
 
+  for (const { status: _s, ...l } of lancamentosDaFolha(e.folhas || [])) add(l);
+
   for (const l of doExtrato) add(l);
+
+  // saldo de abertura do banco = saldo anterior do extrato; a diferença para o que o ZARO tinha acumulado vira ajuste
+  const ini = e.saldoInicialBanco;
+  if (ini && cobertura && ini.data < cobertura[1]) {
+    const dataSaldo = ini.data;
+    const acumulado = L.filter((l) => l.data <= dataSaldo).reduce((a, l) => a + (l.deb === '1.1.1.02' ? l.valor : 0) - (l.cred === '1.1.1.02' ? l.valor : 0), 0);
+    const extrato = ini.valor;
+    const dif = arred(extrato - acumulado);
+    add({
+      id: 'BKSALDO|abertura', data: dataSaldo, comp: dataSaldo.slice(0, 7), deb: dif > 0 ? '1.1.1.02' : '2.3.1.01', cred: dif > 0 ? '2.3.1.01' : '1.1.1.02', valor: Math.abs(dif),
+      hist: `Ajuste do saldo bancário ao saldo do extrato em ${dataSaldo.split('-').reverse().join('/')} (${extrato.toFixed(2)})`,
+      origemId: 'extrato', modulo: 'Extrato bancário · saldo de abertura', doc: 'Extrato', motivo: `O extrato mostra ${extrato.toFixed(2)} e o ZARO tinha ${arred(acumulado).toFixed(2)} no banco nessa data`, conf: 90, auto: true,
+    });
+  }
 
   const estornos: Lancamento[] = L.filter((l) => l.status === 'Estornado').map((l) => ({
     ...l, id: `${l.id}|est`, data: dec.estornos?.[l.id]?.data || l.data, deb: l.cred, cred: l.deb,
@@ -296,13 +324,20 @@ const normal = (s: string) => String(s || '').toUpperCase().normalize('NFD').rep
 const PALAVRAS_VAZIAS = new Set(['LTDA', 'SA', 'DE', 'DA', 'DO', 'DOS', 'DAS', 'ME', 'EPP', 'EIRELI', 'IND', 'COM', 'INDUSTRIA', 'COMERCIO', 'SERVICOS', 'PIX', 'TED', 'PAGTO', 'PAGAMENTO']);
 const palavras = (s: string) => normal(s).replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter((w) => w.length > 2 && !PALAVRAS_VAZIAS.has(w));
 const dias = (a: string, b: string) => Math.abs(Date.parse(`${a.slice(0, 10)}T12:00:00Z`) - Date.parse(`${b.slice(0, 10)}T12:00:00Z`)) / 864e5;
+/** Linha de saldo anterior guardada com o extrato importado (não é movimento). */
+export const ehSaldoAnterior = (memo: string) => /^SALDO ANTERIOR\b/i.test(memo || '');
 export const chaveDoExtrato = (memo: string) => `extrato:${palavras(memo).slice(0, 3).join(' ')}`;
 
 const SAIDAS: [RegExp, string, string, number][] = [
+  [/JUDICIAL/, '1.2.1.01', 'Bloqueio ou transferência judicial: depósito judicial', 85],
+  [/OPERAC\w* VENCID/, '2.1.3.01', 'Operação de crédito vencida debitada pelo banco: amortiza empréstimo (confirme o contrato)', 75],
   [/TARIFA|\bTAR\b|CESTA|PACOTE|MANUT CONTA|ANUIDADE/, '4.2.1.02', 'Tarifa bancária', 95],
   [/JUROS|MORA|ENCARGO|\bIOF\b|MULTA/, '4.2.1.01', 'Juros, mora ou IOF', 92],
-  [/DARF|\bDAS\b|SIMPLES NAC|SEFAZ|\bDAR\b|\bGPS\b|RECEITA FED|TRIBUT|PREFEIT|DETRAN|IPVA/, '4.1.4.01', 'Tributo ou taxa paga', 88],
-  [/FGTS/, '4.1.2.02', 'FGTS', 90],
+  [/SAQUE/, '1.1.1.01', 'Saque em dinheiro: vai para o caixa', 90],
+  [/FGTS/, '2.1.2.03', 'Recolhimento do FGTS: baixa de FGTS a recolher', 90],
+  [/\bGPS\b|\bINSS\b/, '2.1.2.02', 'Recolhimento do INSS: baixa de INSS a recolher', 88],
+  [/DARF|\bDAS\b|SIMPLES NAC|SEFAZ|\bDAR\b|RECEITA FED|TRIBUT|\bTRIB\b/, '2.1.4.01', 'Guia de tributo paga: baixa da obrigação tributária', 88],
+  [/PREFEIT|DETRAN|IPVA|\bTAXA\b/, '4.1.4.01', 'Taxa paga', 85],
   [/FINANC|PARCELA|CONSORC|LEASING|EMPREST|CAPITAL DE GIRO|CAPITAL GIRO/, '2.1.3.01', 'Parcela de empréstimo ou financiamento: reduz a dívida', 75],
   [/ENERGIA|ELETRICIDADE/, '4.1.3.01', 'Energia elétrica', 90],
   [/ALUGUEL|CONDOMIN/, '4.1.3.02', 'Aluguel', 85],
@@ -313,13 +348,24 @@ const SAIDAS: [RegExp, string, string, number][] = [
 ];
 const ENTRADAS: [RegExp, string, string, number][] = [
   [/EMPREST|CAPITAL DE GIRO|CAPITAL GIRO|LIBERAC/, '2.1.3.01', 'Crédito de empréstimo: aumenta a dívida', 85],
-  [/RENDIMENTO|REMUNERA/, '3.1.1.01', 'Rendimento de aplicação', 70],
+  [/JUDICIAL/, '1.2.1.01', 'Desbloqueio judicial: devolve o depósito judicial', 85],
+  [/DEP\w* DIN|DEPOSITO EM DINHEIRO/, '1.1.1.01', 'Depósito em dinheiro: sai do caixa', 85],
+  [/RENDIMENTO|REMUNERA/, '4.2.1.03', 'Rendimento de aplicação (receita financeira)', 90],
 ];
 
 /** Classifica cada movimento do extrato. Saída que bate com título a pagar vira baixa de
  *  fornecedor; entrada que bate com título a receber vira baixa de clientes (sem dupla contagem). */
-export function lancamentosDoExtrato(movs: MovimentoMotor[], titulos: TituloMotor[], empresaNome: string, dec: DecisoesContador): Omit<Lancamento, 'status'>[] {
+export function lancamentosDoExtrato(movs: MovimentoMotor[], titulos: TituloMotor[], empresaNome: string, dec: DecisoesContador, funcionarios: string[] = []): Omit<Lancamento, 'status'>[] {
   const proprios = palavras(empresaNome).slice(0, 2);
+  // sigla do grupo (ex.: "A B S" → ABS): outras empresas com a mesma sigla são ligadas
+  const sigla = (normal(empresaNome).match(/^((?:[A-Z]\.? ){2,})/)?.[1] || '').replace(/[^A-Z]/g, '');
+  const juntaSiglas = (s: string) => s.replace(/\b([A-Z])\.? (?=[A-Z]\b)/g, '$1');
+  const nomesFunc = funcionarios.map((n) => palavras(n)).filter((p) => p.length >= 2);
+  const CNPJ = /\d{2}\.\d{3}\.\d{3}\/\d{4}-\d{2}/g;
+  const temSigla = (memo: string) => !!sigla && sigla.length >= 2 && new RegExp(`\\b${sigla}\\b`).test(juntaSiglas(normal(memo)));
+  // CNPJ que aparece junto da sigla do grupo é de empresa ligada também nos movimentos que só trazem o CNPJ
+  const cnpjsLigados = new Set(movs.filter((m) => temSigla(m.memo) && !(proprios.length === 2 && proprios.every((w) => normal(m.memo).includes(w)))).flatMap((m) => m.memo.match(CNPJ) || []));
+  const parceiros = (tipo: 'pagar' | 'receber') => [...new Map(titulos.filter((t) => t.tipo === tipo && t.valor > 0).map((t) => [chaveDoParceiro(t.nome), palavras(t.nome)])).values()].filter((p) => p.length);
   const regras = dec.regras || {};
   const contas = dec.contas || {};
   const candidatos = titulos
@@ -339,8 +385,12 @@ export function lancamentosDoExtrato(movs: MovimentoMotor[], titulos: TituloMoto
       out.push({ id: `BKX|${m.id}`, data: m.data, comp: m.data.slice(0, 7), valor: v, hist: `${m.memo.slice(0, 120)} — ${m.conta}`, origemId: m.id, doc: 'Extrato', modulo: `Extrato bancário · ${entradaM ? 'entrada' : 'saída'}`, chaveRegra: chaveDoExtrato(m.memo), deb: entradaM ? '1.1.1.02' : '2.1.1.01', cred: entradaM ? '1.1.2.01' : '1.1.1.02', motivo: `Conciliado manualmente com o título ${manual.t.id} (${manual.t.nome})`, conf: 99, auto: true, tituloBaixado: manual.t.id, conciliadoManual: true });
       continue;
     }
-    if (/MESMA TITUL|ENTRE CONTAS|TRANSF.*PROPRIA/.test(memo) || (proprios.length === 2 && proprios.every((w) => memo.includes(w)))) continue;
     const entrada = m.valor > 0;
+    if (/MESMA TITUL|ENTRE CONTAS|TRANSF.*PROPRIA/.test(memo) || (proprios.length === 2 && proprios.every((w) => memo.includes(w)))) {
+      // transferência entre contas da própria empresa: passa pela conta de trânsito (zera quando os dois lados estão no extrato)
+      out.push({ id: `BKX|${m.id}`, data: m.data, comp: m.data.slice(0, 7), valor: v, hist: `${m.memo.slice(0, 120)} — ${m.conta}`, origemId: m.id, doc: 'Extrato', modulo: `Extrato bancário · ${entrada ? 'entrada' : 'saída'}`, deb: entrada ? '1.1.1.02' : '1.1.9.97', cred: entrada ? '1.1.9.97' : '1.1.1.02', motivo: 'Transferência entre contas da própria empresa', conf: 95, auto: true });
+      continue;
+    }
     const tk = palavras(m.memo);
     const tipo = entrada ? 'receber' : 'pagar';
     const par = candidatos.find((c) => !c.usado && c.t.tipo === tipo && Math.abs(c.t.valor - v) < 0.011 && tk.some((w) => c.tk.has(w)) && dias(c.t.venc || m.data, m.data) <= 45)
@@ -353,7 +403,16 @@ export function lancamentosDoExtrato(movs: MovimentoMotor[], titulos: TituloMoto
     }
     const ajustada = contas[base.id];
     const aprendida = regras[base.chaveRegra];
-    const r = (entrada ? ENTRADAS : SAIDAS).find(([re]) => re.test(memo));
+    const tks = new Set(tk);
+    const contem = (p: string[]) => p.every((w) => tks.has(w)) || (p.length >= 3 && p.filter((w) => tks.has(w)).length >= 2);
+    // quem é a contraparte: funcionário, empresa do grupo, cliente ou fornecedor conhecido
+    const pessoa = !entrada && nomesFunc.some((p) => p.every((w) => tks.has(w)));
+    const ligada = temSigla(m.memo) || (m.memo.match(CNPJ) || []).some((c) => cnpjsLigados.has(c));
+    const parceiro = (entrada ? parceiros('receber') : parceiros('pagar')).some(contem);
+    const r: [RegExp, string, string, number] | undefined = pessoa ? [/./, '2.1.2.01', 'Pagamento a funcionário (salário, adiantamento ou vale): baixa de salários a pagar', 88]
+      : (entrada ? ENTRADAS : SAIDAS).find(([re]) => re.test(memo))
+        || (parceiro ? [/./, entrada ? '1.1.2.01' : '2.1.1.01', entrada ? 'Recebimento de cliente com títulos no ZARO (nenhum de mesmo valor): baixa em clientes' : 'Pagamento a fornecedor com títulos no ZARO (nenhum de mesmo valor): baixa em fornecedores', 80] : undefined)
+        || (ligada ? [/./, '2.1.5.01', `Empresa do grupo ${sigla}: conta corrente entre empresas ligadas`, 85] : undefined);
     const conta = ajustada || aprendida || (r ? r[1] : entrada ? '2.1.9.99' : '1.1.9.99');
     const motivo = ajustada ? 'Conta ajustada pelo contador' : aprendida ? 'Regra aprendida para este histórico' : r ? r[2] : entrada ? 'Entrada sem origem identificada: a identificar' : 'Saída sem histórico claro: a identificar';
     const conf = ajustada ? 100 : aprendida ? 98 : r ? r[3] : 50;
