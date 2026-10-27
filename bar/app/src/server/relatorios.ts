@@ -45,6 +45,8 @@ export async function mesasDoTurno(db: Db, data: string) {
       pedidos: pagos.length,
       totalCentavos: pagos.reduce((a, p) => a + p.totalCentavos, 0),
       ultimoEm: dela[0]?.pagoEm ?? null,
+      // nomes dos clientes dos pedidos do turno, do mais recente para o mais antigo
+      clientes: [...new Set(pagos.map((p) => p.cliente).filter((c): c is string => !!c))],
       emPreparo: prs.filter((x) => x.status === 'novo' || x.status === 'preparando').length,
       prontos: prs.filter((x) => x.status === 'pronto').length,
     };

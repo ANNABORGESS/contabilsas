@@ -22,6 +22,7 @@ export async function painelSetor(db: Db, setor: Setor) {
       mesa: schema.mesas.numero,
       garcom: schema.usuarios.nome,
       observacao: schema.pedidos.observacao,
+      cliente: schema.pedidos.cliente,
     })
     .from(schema.preparos)
     .innerJoin(schema.pedidos, eq(schema.pedidos.id, schema.preparos.pedidoId))
@@ -95,6 +96,7 @@ export async function prontosParaEntrega(db: Db) {
       pedidoId: schema.pedidos.id,
       numero: schema.pedidos.numero,
       mesa: schema.mesas.numero,
+      cliente: schema.pedidos.cliente,
       garcomId: schema.pedidos.garcomId,
     })
     .from(schema.preparos)

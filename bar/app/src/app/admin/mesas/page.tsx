@@ -14,6 +14,7 @@ interface MesaTurno {
   pedidos: number;
   totalCentavos: number;
   ultimoEm: string | null;
+  clientes: string[];
   emPreparo: number;
   prontos: number;
 }
@@ -42,6 +43,7 @@ export default function Mesas() {
           <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''}`} onClick={() => setHistorico(m)}>
             <span className="n">Mesa {m.numero}</span>
             {m.nome && <span className="fraco">{m.nome}</span>}
+            {m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
             <span className="num" style={{ fontWeight: 700 }}>
               {m.pedidos ? reais(m.totalCentavos) : 'Sem pedidos'}
             </span>
@@ -89,7 +91,10 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
             <tr key={p.id} className={`clicavel ${p.status !== 'pago' ? 'apagado' : ''}`} onClick={() => setAberto(p.id)}>
               <td>{p.numero}</td>
               <td>{hora(p.pagoEm)}</td>
-              <td>{p.itens.map((i) => `${i.quantidade}× ${i.nome}`).join(', ')}</td>
+              <td>
+                {p.cliente && <b>{p.cliente}: </b>}
+                {p.itens.map((i) => `${i.quantidade}× ${i.nome}`).join(', ')}
+              </td>
               <td>{p.garcom}</td>
               <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
               <td className="direita num">{reais(p.totalCentavos)}</td>

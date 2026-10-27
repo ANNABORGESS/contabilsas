@@ -15,7 +15,7 @@ export const GET = rota(['admin'], async ({ db, req }) => {
   const lista = await listarPedidos(db, { de, ate, limite: 5000 });
   const hora = new Intl.DateTimeFormat('pt-BR', { timeZone: FUSO, dateStyle: 'short', timeStyle: 'medium' });
   const linhas: (string | number)[][] = [
-    ['Pedido', 'Turno', 'Pago em', 'Mesa', 'Garçom', 'Forma informada', 'Confirmação', 'Situação', 'Total (R$)', 'Itens', 'Divergência de preço'],
+    ['Pedido', 'Turno', 'Pago em', 'Mesa', 'Cliente', 'Garçom', 'Forma informada', 'Confirmação', 'Situação', 'Total (R$)', 'Itens', 'Divergência de preço'],
     ...lista
       .slice()
       .reverse()
@@ -24,6 +24,7 @@ export const GET = rota(['admin'], async ({ db, req }) => {
         p.dataOperacional,
         hora.format(new Date(p.pagoEm)),
         p.mesa,
+        p.cliente || '',
         p.garcom,
         NOME_FORMA[p.formaPagamento as FormaPagamento] || p.formaPagamento,
         'Manual (garçom)',

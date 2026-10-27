@@ -71,6 +71,7 @@ export const pedidos = pgTable(
     status: text('status').notNull().default('pago'), // pago | cancelado | estornado
     divergenciaPreco: boolean('divergencia_preco').notNull().default(false),
     observacao: text('observacao'),
+    cliente: text('cliente'), // nome do cliente informado pelo garçom (opcional)
     encerradoPorId: uuid('encerrado_por_id').references(() => usuarios.id),
     encerradoEm: momento('encerrado_em'),
     motivoEncerramento: text('motivo_encerramento'),
@@ -141,4 +142,20 @@ export const eventos = pgTable(
     criadoEm: criadoEm(),
   },
   (t) => [index('eventos_pedido_idx').on(t.pedidoId)],
+);
+
+/** Despesas do bar (funcionários, compras de bebidas e de comidas, contas...), lançadas pelo administrador. */
+export const despesas = pgTable(
+  'despesas',
+  {
+    id: id(),
+    data: text('data').notNull(), // AAAA-MM-DD da despesa
+    categoria: text('categoria').notNull(),
+    descricao: text('descricao').notNull(),
+    valorCentavos: integer('valor_centavos').notNull(),
+    funcionarioId: uuid('funcionario_id').references(() => usuarios.id), // quando é pagamento de funcionário
+    criadoPorId: uuid('criado_por_id').notNull().references(() => usuarios.id),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('despesas_data_idx').on(t.data)],
 );

@@ -24,6 +24,7 @@ interface MesaTurno {
   pedidos: number;
   totalCentavos: number;
   ultimoEm: string | null;
+  clientes: string[];
   emPreparo: number;
   prontos: number;
 }
@@ -34,6 +35,7 @@ interface Pronto {
   pedidoId: string;
   numero: number;
   mesa: number;
+  cliente: string | null;
   garcomId: string;
 }
 interface Previa {
@@ -48,6 +50,7 @@ interface Tentativa {
   previa: Previa;
   forma: FormaPagamento | null;
   observacao: string;
+  cliente?: string;
 }
 
 type Carrinhos = Record<string, Record<string, number>>;
@@ -113,7 +116,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
     const meus = novos.filter((p) => p.garcomId === usuario.id);
     if (meus.length) {
       const p = meus[0];
-      setToast({ texto: `✅ Mesa ${p.mesa}: ${p.setor === 'cozinha' ? 'petiscos' : 'bebidas'} do pedido #${p.numero} prontos${meus.length > 1 ? ` (+${meus.length - 1})` : ''}`, pedidoId: p.pedidoId });
+      setToast({ texto: `✅ Mesa ${p.mesa}${p.cliente ? ` (${p.cliente})` : ''}: ${p.setor === 'cozinha' ? 'petiscos' : 'bebidas'} do pedido #${p.numero} prontos${meus.length > 1 ? ` (+${meus.length - 1})` : ''}`, pedidoId: p.pedidoId });
       bipar(3);
     }
   }, [prontos.dados, usuario.id]);
@@ -140,7 +143,8 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   async function irParaPagamento(mesaId: string) {
     const itens = Object.entries(carrinhos[mesaId] || {}).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
     const previa = await api<Previa>('/api/pedidos/previa', 'POST', { mesaId, itens });
-    setTentativa({ mesaId, chave: novaChave(), previa, forma: null, observacao: '' });
+    // sugere o nome do último cliente da mesa no turno; o garçom pode trocar ou apagar
+    setTentativa({ mesaId, chave: novaChave(), previa, forma: null, observacao: '', cliente: mesaPorId.get(mesaId)?.clientes[0] ?? '' });
     setTela({ t: 'pagamento' });
   }
 
@@ -202,7 +206,8 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
               <div className="icone">✓</div>
               <h1>Pedido #{p.numero} registrado</h1>
               <p className="mudo">
-                Mesa {p.mesa} · {reais(p.totalCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]}
+                Mesa {p.mesa}
+                {p.cliente && ` · ${p.cliente}`} · {reais(p.totalCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]}
               </p>
               {tela.duplicado && <Aviso tipo="info">Este pagamento já estava registrado. Nenhum pedido novo foi criado.</Aviso>}
               <div className="fila" style={{ justifyContent: 'center' }}>
@@ -256,6 +261,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
                     <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
                       <span className="n">Mesa {m.numero}</span>
                       {m.nome && <span className="fraco">{m.nome}</span>}
+                      {m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
                       <span className="fraco num">{m.pedidos ? `${m.pedidos} pedido${m.pedidos > 1 ? 's' : ''} · ${reais(m.totalCentavos)}` : 'Livre'}</span>
                       <span className="marcas">
                         {rascunho > 0 && <span className="chip" style={{ color: 'var(--marca)' }}>Rascunho: {rascunho}</span>}
@@ -459,6 +465,7 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
         totalCobradoCentavos: previa.totalCentavos,
         precosCobrados: previa.linhas.map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos })),
         observacao: tentativa.observacao,
+        cliente: tentativa.cliente ?? '',
       });
       enviado(r.pedido, r.duplicado);
     } catch (e) {
@@ -503,6 +510,10 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
             </div>
           ))}
         </div>
+        <label className="campo">
+          Nome do cliente (opcional)
+          <input value={tentativa.cliente ?? ''} maxLength={60} placeholder="ex.: João, Mariana" autoCapitalize="words" onChange={(e) => atualizar({ ...tentativa, cliente: e.target.value })} disabled={enviando} />
+        </label>
         <div>
           <div className="mudo" style={{ fontWeight: 700, marginBottom: 8 }}>
             Forma de pagamento informada
@@ -537,7 +548,14 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
       {confirmar && forma && (
         <Modal titulo="A maquininha aprovou?" aoFechar={() => !enviando && setConfirmar(false)}>
           <p style={{ fontSize: 17 }}>
-            Confirme que o pagamento de <b>{reais(previa.totalCentavos)}</b> no <b>{NOME_FORMA[forma]}</b> foi aprovado para a mesa <b>{previa.mesa.numero}</b>.
+            Confirme que o pagamento de <b>{reais(previa.totalCentavos)}</b> no <b>{NOME_FORMA[forma]}</b> foi aprovado para a mesa <b>{previa.mesa.numero}</b>
+            {tentativa.cliente?.trim() && (
+              <>
+                {' '}
+                (<b>{tentativa.cliente.trim()}</b>)
+              </>
+            )}
+            .
           </p>
           <p className="fraco">Registro manual seu, com data e hora. Não é conferência com o banco ou a adquirente.</p>
           <button className="btn sucesso grande bloco" disabled={enviando} onClick={enviar}>
@@ -574,6 +592,7 @@ function ListaPedidos({ usuarioId, abrir }: { usuarioId: string; abrir: (id: str
           <div className="fila entre">
             <b>
               #{p.numero} · Mesa {p.mesa}
+              {p.cliente && ` · ${p.cliente}`}
             </b>
             {p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}
           </div>
@@ -617,6 +636,7 @@ function ListaProntos({ prontos, usuarioId, abrir }: { prontos: Pronto[]; usuari
             <b style={{ fontSize: 18 }}>
               Mesa {p.mesa} · {p.setor === 'cozinha' ? '🍟 Petiscos' : '🍺 Bebidas'}
             </b>
+            {p.cliente && <span className="cliente-mesa">👤 {p.cliente}</span>}
             <span className="fraco">#{p.numero}</span>
           </div>
           <div className="fraco">
@@ -653,6 +673,7 @@ function HistoricoMesa({ mesaId, fechar, abrir }: { mesaId: string; fechar: () =
           <div className="fila entre">
             <b>
               #{p.numero} · {hora(p.pagoEm)}
+              {p.cliente && ` · ${p.cliente}`}
             </b>
             {p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}
           </div>
@@ -704,6 +725,7 @@ function DetalhePedidoModal({ id, fechar, usuarioId }: { id: string; fechar: () 
         <>
           <div className="fila entre">
             <span className="mudo">
+              {p.cliente && <b style={{ color: 'var(--texto)' }}>👤 {p.cliente} · </b>}
               {hora(p.pagoEm)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]} · {p.garcom}
               {p.garcomId === usuarioId && ' (você)'}
             </span>
@@ -743,7 +765,7 @@ function DetalhePedidoModal({ id, fechar, usuarioId }: { id: string; fechar: () 
           {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
           {p.status === 'pago' && !p.solicitacaoPendente && !cancelar && (
             <button className="btn contorno-perigo" onClick={() => setCancelar(true)}>
-              Solicitar cancelamento / estorno
+              Pedir cancelamento ao administrador
             </button>
           )}
           {p.solicitacaoPendente && <Aviso tipo="alerta">Cancelamento aguardando autorização do administrador.</Aviso>}

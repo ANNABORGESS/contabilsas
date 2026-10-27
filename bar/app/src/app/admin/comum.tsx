@@ -65,6 +65,10 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
               <b>{p.garcom}</b>
             </div>
             <div>
+              <div className="fraco">Cliente</div>
+              <b>{p.cliente || '—'}</b>
+            </div>
+            <div>
               <div className="fraco">Forma informada</div>
               <b>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</b> <span className="fraco">· confirmação manual</span>
             </div>

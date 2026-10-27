@@ -13,6 +13,13 @@ import { ErroRegra } from './erros';
 import { registrar } from './eventos';
 import type { Usuario } from './auth';
 
+/** Nome do cliente: opcional, uma linha, até 60 letras. */
+export function nomeCliente(v: unknown): string | null {
+  if (typeof v !== 'string') return null;
+  const n = v.replace(/\s+/g, ' ').trim().slice(0, 60);
+  return n || null;
+}
+
 async function cardapio(db: Db, ids: string[]) {
   const validos = ids.filter((i) => typeof i === 'string' && /^[0-9a-f-]{36}$/i.test(i));
   if (!validos.length) return [];
@@ -51,6 +58,7 @@ export interface Confirmacao {
   totalCobradoCentavos?: number;
   precosCobrados?: { produtoId: string; precoCentavos: number }[];
   observacao?: unknown;
+  cliente?: unknown;
 }
 
 export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, agora = new Date()) {
@@ -72,6 +80,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
     throw e;
   }
   const observacao = typeof c.observacao === 'string' && c.observacao.trim() ? c.observacao.trim().slice(0, 300) : null;
+  const cliente = nomeCliente(c.cliente);
 
   const criado = await db.transaction(async (tx) => {
     const [p] = await tx
@@ -86,6 +95,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
         dataOperacional: dataOperacional(agora, FUSO, VIRADA),
         divergenciaPreco: final.divergencia,
         observacao,
+        cliente,
       })
       .onConflictDoNothing({ target: schema.pedidos.chave })
       .returning();
@@ -97,7 +107,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
       tipo: 'pagamento_confirmado',
       pedidoId: p.id,
       usuarioId: u.id,
-      descricao: `Pedido #${p.numero} · mesa ${mesa.numero} · ${reais(p.totalCentavos)} no ${NOME_FORMA[forma]} confirmado por ${u.nome} (confirmação manual)`,
+      descricao: `Pedido #${p.numero} · mesa ${mesa.numero}${cliente ? ` (${cliente})` : ''} · ${reais(p.totalCentavos)} no ${NOME_FORMA[forma]} confirmado por ${u.nome} (confirmação manual)`,
       dados: { forma, totalCentavos: p.totalCentavos, chave },
     });
     for (const s of final.setores)
@@ -188,6 +198,7 @@ export async function listarPedidos(db: Db, f: FiltroPedidos) {
       status: schema.pedidos.status,
       divergenciaPreco: schema.pedidos.divergenciaPreco,
       observacao: schema.pedidos.observacao,
+      cliente: schema.pedidos.cliente,
     })
     .from(schema.pedidos)
     .innerJoin(schema.mesas, eq(schema.mesas.id, schema.pedidos.mesaId))

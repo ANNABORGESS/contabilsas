@@ -24,7 +24,7 @@ export default function Vendas() {
   const { dados: equipe } = useDados<{ equipe: { id: string; nome: string; papel: string }[] }>('/api/equipe');
   const de = periodo?.de || dados?.de || '';
   const ate = periodo?.ate || dados?.ate || '';
-  const lista = (dados?.pedidos || []).filter((p) => !busca || String(p.numero) === busca.replace('#', '') || String(p.mesa) === busca || p.itens.some((i) => i.nome.toLowerCase().includes(busca.toLowerCase())));
+  const lista = (dados?.pedidos || []).filter((p) => !busca || String(p.numero) === busca.replace('#', '') || String(p.mesa) === busca || (p.cliente || '').toLowerCase().includes(busca.toLowerCase()) || p.itens.some((i) => i.nome.toLowerCase().includes(busca.toLowerCase())));
   const pagos = lista.filter((p) => p.status === 'pago');
   const csv = `/api/relatorios/csv?de=${de}&ate=${ate}`;
   return (
@@ -62,7 +62,7 @@ export default function Vendas() {
             </label>
             <label className="campo">
               Buscar
-              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="nº do pedido, mesa ou produto" />
+              <input value={busca} onChange={(e) => setBusca(e.target.value)} placeholder="nº do pedido, mesa, cliente ou produto" />
             </label>
           </div>
         </div>
@@ -97,7 +97,10 @@ export default function Vendas() {
                     </td>
                     <td>{dataBr(p.dataOperacional)}</td>
                     <td>{hora(p.pagoEm)}</td>
-                    <td>{p.mesa}</td>
+                    <td>
+                      {p.mesa}
+                      {p.cliente && <div className="fraco">{p.cliente}</div>}
+                    </td>
                     <td style={{ maxWidth: 280 }}>{p.itens.map((i) => `${i.quantidade}× ${i.nome}`).join(', ')}</td>
                     <td>{p.garcom}</td>
                     <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>

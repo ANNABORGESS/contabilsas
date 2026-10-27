@@ -8,7 +8,7 @@ export class ErroApi extends Error {
   }
 }
 
-export async function api<T = unknown>(url: string, metodo: 'GET' | 'POST' | 'PATCH' = 'GET', corpo?: unknown): Promise<T> {
+export async function api<T = unknown>(url: string, metodo: 'GET' | 'POST' | 'PATCH' | 'DELETE' = 'GET', corpo?: unknown): Promise<T> {
   let r: Response;
   try {
     r = await fetch(url, {

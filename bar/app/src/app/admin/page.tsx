@@ -115,7 +115,10 @@ export default function VisaoGeral() {
                         <b>{p.numero}</b>
                       </td>
                       <td>{hora(p.pagoEm)}</td>
-                      <td>{p.mesa}</td>
+                      <td>
+                        {p.mesa}
+                        {p.cliente && <div className="fraco">{p.cliente}</div>}
+                      </td>
                       <td>{p.garcom}</td>
                       <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
                       <td className="direita num">{reais(p.totalCentavos)}</td>

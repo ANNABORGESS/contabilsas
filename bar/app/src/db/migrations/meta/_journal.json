@@ -8,6 +8,20 @@
       "when": 1793039139826,
       "tag": "0000_inicial",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1793127474891,
+      "tag": "0001_cliente",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1793127744270,
+      "tag": "0002_despesas",
+      "breakpoints": true
     }
   ]
 }

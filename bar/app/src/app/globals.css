@@ -1254,3 +1254,16 @@ table.tabela {
     grid-template-columns: 1fr;
   }
 }
+
+/* nome do cliente na mesa e nos pedidos */
+.cliente-mesa {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--marca);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ticket .cliente-mesa {
+  font-size: 16px;
+}

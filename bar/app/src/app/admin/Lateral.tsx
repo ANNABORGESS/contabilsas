@@ -12,6 +12,7 @@ const ITENS = [
   ['/admin/cardapio', 'Cardápio'],
   ['/admin/equipe', 'Funcionários'],
   ['/admin/relatorios', 'Relatórios'],
+  ['/admin/financeiro', 'Custos e lucro'],
   ['/admin/auditoria', 'Auditoria'],
 ] as const;
 

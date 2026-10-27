@@ -18,6 +18,7 @@ interface Ticket {
   mesa: number;
   garcom: string;
   observacao: string | null;
+  cliente: string | null;
   itens: { nome: string; quantidade: number }[];
 }
 interface Painel {
@@ -135,6 +136,7 @@ export default function PainelPreparo({ setor, usuario }: { setor: Setor; usuari
                         </li>
                       ))}
                     </ul>
+                    {t.cliente && <div className="cliente-mesa">👤 {t.cliente}</div>}
                     {t.observacao && <div className="obs">Obs.: {t.observacao}</div>}
                     <div className={`tempo ${nivel}`}>
                       Pago às {hora(t.criadoEm)} · {t.status === 'pronto' && t.prontoEm ? `pronto ${decorrido(t.prontoEm, agora)}` : decorrido(t.criadoEm, agora)} · {t.garcom}
