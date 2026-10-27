@@ -58,3 +58,25 @@ describe('classificação de compra não confunde com guia de tributo', () => {
     expect(classificarDespesa({ id: 'd', tipo: 'pagar', nome: 'SEFAZ-AM', categoria: 'Impostos e taxas', valor: 1, status: 'A pagar' }).conta).toBe('2.1.4.01');
   });
 });
+
+describe('imobilizado antigo e resultado de anos anteriores', () => {
+  const maq = { id: 'M1', descricao: 'Fresadora Veker VK-420', qtd: 1, valor: 18470.03, data: '2003-01-01', taxa: 10, residual: 0, origem: 'abertura', nf: null };
+  const L2 = gerarLancamentos({ titulos: [], imobilizado: [maq], hoje: '2026-09' } as never);
+  it('saldo anterior fecha: depreciação de anos anteriores vai para lucros acumulados', () => {
+    const b = balanceteModelo(L2, { de: '2026-01', ate: '2026-09' }, true);
+    const v = (c: string) => b.linhas.find((l) => l.codigo === c)!;
+    expect(v('1.2.03').anterior).toBe(18470.03);
+    expect(v('1.2.08').anterior).toBe(-18470.03);
+    expect(v('2.3.01').anterior).toBe(-18470.03);
+    expect(v('2.3.05').anterior).toBe(18470.03); // prejuízo acumulado (depreciação até 2012)
+    expect(v('4').final).toBe(0);
+    expect(b.totalDevedor).toBe(b.totalCredor);
+  });
+  it('balancete do plano do ZARO também fecha', async () => {
+    const { balancete } = await import('./demonstracoes');
+    const b = balancete(L2, { de: '2026-01', ate: '2026-09' }, true);
+    const soma = b.linhas.reduce((a, l) => a + (l.natureza === 'D' ? l.final : -l.final), 0);
+    expect(Math.abs(soma)).toBeLessThan(0.01);
+    expect(b.linhas.find((l) => l.conta === '2.3.2.01')!.final).toBe(-18470.03);
+  });
+});

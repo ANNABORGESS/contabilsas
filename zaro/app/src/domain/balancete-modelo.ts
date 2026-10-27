@@ -199,8 +199,8 @@ export function balanceteModelo(lancs: Lancamento[], p: Periodo, previa = false)
     for (const x of partidas(l)) {
       for (const [linha, conta, sinal] of [[x.deb, x.de[0], 1], [x.cred, x.de[1], -1]] as const) {
         if (l.comp < p.de) {
-          if (ehResultado(linha) && l.comp < inicioAno) continue; // resultado zera a cada exercício
-          somar(ant, linha, sinal * x.valor);
+          // resultado de exercícios anteriores já está em lucros ou prejuízos acumulados
+          somar(ant, ehResultado(linha) && l.comp < inicioAno ? '2.3.05' : linha, sinal * x.valor);
         } else {
           somar(sinal > 0 ? deb : cred, linha, x.valor);
           const k = `${conta}>${linha}`;

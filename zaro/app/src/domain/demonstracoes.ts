@@ -22,6 +22,7 @@ export interface LinhaBalancete {
 }
 
 const ehResultado = (conta: string) => conta.startsWith('3') || conta.startsWith('4');
+export const CONTA_LUCROS_ACUMULADOS = '2.3.2.01';
 
 /** Saldo pela natureza da conta: positivo = saldo normal. */
 const saldo = (conta: string, d: number, c: number) => (naturezaConta(conta) === 'D' ? d - c : c - d);
@@ -33,9 +34,9 @@ export function balancete(lancs: Lancamento[], p: Periodo, previa = false): { li
   for (const l of lancs) {
     if (!noLivro(l, previa) || !l.comp || l.comp > p.ate) continue;
     const alvo = l.comp >= p.de ? per : ant;
-    for (const [conta, lado] of [[l.deb, 'd'], [l.cred, 'c']] as const) {
-      // contas de resultado zeram a cada exercício: o saldo anterior só conta o mesmo ano
-      if (alvo === ant && ehResultado(conta) && l.comp < inicioAno) continue;
+    for (const [lancada, lado] of [[l.deb, 'd'], [l.cred, 'c']] as const) {
+      // contas de resultado zeram a cada exercício: o resultado de anos anteriores já está em lucros acumulados
+      const conta = alvo === ant && ehResultado(lancada) && l.comp < inicioAno ? CONTA_LUCROS_ACUMULADOS : lancada;
       const x = alvo.get(conta) || { d: 0, c: 0 };
       x[lado] += l.valor;
       alvo.set(conta, x);
