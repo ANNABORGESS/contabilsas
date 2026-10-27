@@ -17,6 +17,9 @@ import { Endividamento } from './endividamento';
 
 type SP = { tipo?: string; f?: string; q?: string; msg?: string; erro?: string; chave?: string; novo?: string; pagar?: string; conta?: string; confirmar?: string };
 
+// importar extrato em PDF (55+ páginas) leva mais que o tempo padrão
+export const maxDuration = 60;
+
 export default async function Financeiro({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
   const emp = await exigirEmpresa(u);
