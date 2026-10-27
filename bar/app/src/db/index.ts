@@ -41,14 +41,16 @@ async function conectar(): Promise<Db> {
     const pool = await abrirPool(Pool, url);
     const db = drizzle(pool, { schema });
     // num banco compartilhado (ex.: o mesmo Supabase de outro sistema), o bar fica no seu schema
-    // na nuvem várias cópias do servidor sobem juntas: só uma atualiza o banco por vez
-    const trava = await pool.connect();
-    try {
-      await trava.query('select pg_advisory_lock(84210331)');
-      await migrate(db, { migrationsFolder: MIGRACOES, migrationsSchema: SCHEMA || 'drizzle' });
-    } finally {
-      await trava.query('select pg_advisory_unlock(84210331)').catch(() => {});
-      trava.release();
+    // na nuvem várias cópias do servidor sobem juntas; se duas atualizarem o banco ao mesmo
+    // tempo, a que perder tenta de novo (a essa altura a outra já terminou)
+    for (let tentativa = 1; ; tentativa++) {
+      try {
+        await migrate(db, { migrationsFolder: MIGRACOES, migrationsSchema: SCHEMA || 'drizzle' });
+        break;
+      } catch (e) {
+        if (tentativa >= 3) throw e;
+        await new Promise((r) => setTimeout(r, 1500 * tentativa));
+      }
     }
     return db as unknown as Db;
   }
@@ -73,7 +75,13 @@ async function abrirPool(Pool: PoolCtor, url: string) {
   let ultimo: unknown;
   for (const u of candidatos(url)) {
     const local = /sslmode=disable/.test(u) || /localhost|127\.0\.0\.1/.test(u);
-    const pool = new Pool({ connectionString: u, max: Number(process.env.BAR_DB_CONEXOES || 3), ssl: local ? undefined : { rejectUnauthorized: false } });
+    // poucas conexões por cópia do servidor, soltas logo que ficam paradas: o banco atende muitas cópias
+    const pool = new Pool({
+      connectionString: u,
+      max: Number(process.env.BAR_DB_CONEXOES || 2),
+      idleTimeoutMillis: 5000,
+      ssl: local ? undefined : { rejectUnauthorized: false },
+    });
     if (SCHEMA) pool.on('connect', (c) => void c.query(`set search_path to "${SCHEMA}"`).catch(() => {}));
     try {
       await pool.query('select 1');
