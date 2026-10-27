@@ -11,6 +11,7 @@ interface Funcionario {
   usuario: string;
   papel: Papel;
   ativo: boolean;
+  pendente: boolean;
 }
 
 const DESCRICAO: Record<Papel, string> = {
@@ -23,6 +24,19 @@ const DESCRICAO: Record<Papel, string> = {
 export default function Equipe() {
   const { dados, erro } = useDados<{ equipe: Funcionario[] }>('/api/equipe');
   const [editando, setEditando] = useState<Funcionario | 'novo' | null>(null);
+  const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
+  const pendentes = (dados?.equipe || []).filter((f) => f.pendente);
+  async function decidir(f: Funcionario, aprovar: boolean) {
+    if (!aprovar && !confirm(`Recusar e apagar a conta de ${f.nome}?`)) return;
+    setMsg(null);
+    try {
+      if (aprovar) await api(`/api/equipe/${f.id}`, 'PATCH', { ativo: true });
+      else await api(`/api/equipe/${f.id}`, 'DELETE', {});
+      setMsg({ tipo: 'ok', texto: aprovar ? `Conta de ${f.nome} aprovada. Já pode entrar.` : `Conta de ${f.nome} recusada.` });
+    } catch (e) {
+      setMsg({ tipo: 'erro', texto: (e as Error).message });
+    }
+  }
   return (
     <>
       <Cabecalho titulo="Funcionários" sub="Cada pessoa entra com o próprio usuário: assim todo pedido e status fica registrado com quem fez.">
@@ -31,6 +45,36 @@ export default function Equipe() {
         </button>
       </Cabecalho>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {msg && (
+        <div style={{ marginBottom: 16 }}>
+          <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>
+        </div>
+      )}
+      {pendentes.length > 0 && (
+        <div className="cartao" style={{ marginBottom: 16, borderColor: 'var(--marca)' }}>
+          <header>
+            <h2>Aguardando sua aprovação ({pendentes.length})</h2>
+          </header>
+          {pendentes.map((f) => (
+            <div key={f.id} className="fila entre" style={{ padding: '10px 0', borderBottom: '1px solid var(--borda)' }}>
+              <div>
+                <b>{f.nome}</b> <span className="fraco">· usuário {f.usuario} · {NOME_PAPEL[f.papel]}</span>
+              </div>
+              <div className="fila">
+                <button className="btn pequeno" onClick={() => decidir(f, false)}>
+                  Recusar
+                </button>
+                <button className="btn sucesso pequeno" onClick={() => decidir(f, true)}>
+                  Aprovar
+                </button>
+              </div>
+            </div>
+          ))}
+          <p className="fraco" style={{ marginTop: 8 }}>
+            Só aprove quem você conhece: a conta aprovada pode registrar pedidos e pagamentos.
+          </p>
+        </div>
+      )}
       <div className="cartao">
         <table className="tabela">
           <thead>
@@ -42,7 +86,7 @@ export default function Equipe() {
             </tr>
           </thead>
           <tbody>
-            {dados?.equipe.map((f) => (
+            {dados?.equipe.filter((f) => !f.pendente).map((f) => (
               <tr key={f.id} className={`clicavel ${f.ativo ? '' : 'apagado'}`} onClick={() => setEditando(f)}>
                 <td>
                   <b>{f.nome}</b>

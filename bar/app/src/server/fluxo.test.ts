@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { abrirPglite, schema, type Db } from '@/db';
 import type { Usuario } from './auth';
-import { criarFuncionario, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto } from './cadastros';
+import { atualizarFuncionario, criarFuncionario, listarEquipe, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto, recusarConta, solicitarConta } from './cadastros';
 import { encerrar, recusar, solicitar, listarSolicitacoes } from './cancelamentos';
 import { confirmarPagamento, detalhePedido, listarPedidos, previa } from './pedidos';
 import { mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
@@ -184,5 +184,21 @@ describe('fluxo do pedido pago', () => {
     await excluirDespesa(db, admin, beb.id);
     r = await custosELucro(db, data, data);
     expect(r.resumo.despesasCentavos).toBe(8000);
+  });
+
+  it('garçom cria a própria conta; só entra depois que o administrador aprovar', async () => {
+    await expect(solicitarConta(db, { nome: 'Esperto', usuario: 'chefe', senha: '1234', papel: 'admin' })).rejects.toThrow(/garçom, cozinha ou bar/);
+    await solicitarConta(db, { nome: 'Joao', usuario: 'joao', senha: '1234', papel: 'garcom' });
+    await expect(solicitarConta(db, { nome: 'Outro', usuario: 'joao', senha: '1234', papel: 'garcom' })).rejects.toThrow(/já existe/);
+    await solicitarConta(db, { nome: 'Fulano', usuario: 'fulano', senha: '1234', papel: 'bar' });
+    let equipe = await listarEquipe(db);
+    const joao = equipe.find((f) => f.usuario === 'joao')!;
+    expect(joao).toMatchObject({ pendente: true, ativo: false, papel: 'garcom' });
+    await atualizarFuncionario(db, admin, joao.id, { ativo: true });
+    await recusarConta(db, admin, equipe.find((f) => f.usuario === 'fulano')!.id);
+    await expect(recusarConta(db, admin, joao.id)).rejects.toThrow(/não está mais aguardando/);
+    equipe = await listarEquipe(db);
+    expect(equipe.find((f) => f.usuario === 'joao')).toMatchObject({ pendente: false, ativo: true });
+    expect(equipe.some((f) => f.usuario === 'fulano')).toBe(false);
   });
 });

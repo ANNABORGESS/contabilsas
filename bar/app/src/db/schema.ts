@@ -17,6 +17,8 @@ export const usuarios = pgTable(
     senhaHash: text('senha_hash').notNull(),
     papel: text('papel').notNull(), // admin | garcom | cozinha | bar
     ativo: boolean('ativo').notNull().default(true),
+    // conta criada pelo próprio funcionário: só entra depois que o administrador aprovar
+    pendente: boolean('pendente').notNull().default(false),
     criadoEm: criadoEm(),
   },
   (t) => [uniqueIndex('usuarios_usuario_uq').on(t.usuario)],

@@ -40,11 +40,12 @@ export interface Usuario {
 export async function entrar(login: string, senha: string, perfil?: Papel): Promise<Usuario | { erro: string }> {
   const db = await getDb();
   const [u] = await db.select().from(schema.usuarios).where(eq(schema.usuarios.usuario, login.trim().toLowerCase()));
-  const ok = u && u.ativo && (await conferirSenha(senha, u.senhaHash));
+  const ok = u && (u.ativo || u.pendente) && (await conferirSenha(senha, u.senhaHash));
   if (!ok || !ehPapel(u.papel)) {
     await new Promise((r) => setTimeout(r, 400)); // freia tentativas em sequência
     return { erro: 'Usuário ou senha incorretos.' };
   }
+  if (u.pendente) return { erro: 'Sua conta ainda está aguardando a aprovação do administrador.' };
   if (perfil && !pode(u.papel, perfil)) return { erro: `Este usuário é de ${NOME_PAPEL[u.papel]}, não de ${NOME_PAPEL[perfil]}. Volte e escolha o perfil certo.` };
   const token = crypto.randomBytes(32).toString('base64url');
   const expiraEm = new Date(Date.now() + HORAS_SESSAO * 36e5);

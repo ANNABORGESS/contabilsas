@@ -27,6 +27,11 @@ export default async function LoginPerfil({ params }: { params: Promise<{ perfil
           </p>
         )}
         <FormLogin perfil={perfil} />
+        {perfil !== 'admin' && (
+          <a href={`/cadastro/${perfil}`} className="btn bloco">
+            Primeira vez aqui? Criar minha conta
+          </a>
+        )}
         <a href="/login" className="btn fantasma bloco">
           ‹ Escolher outro perfil
         </a>

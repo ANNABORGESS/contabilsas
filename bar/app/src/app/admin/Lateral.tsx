@@ -21,6 +21,8 @@ export default function Lateral({ nome, children }: { nome: string; children: Re
   const [aberto, setAberto] = useState(false);
   const { dados } = useDados<{ solicitacoes: unknown[] }>('/api/solicitacoes?status=pendente');
   const pendentes = dados?.solicitacoes.length || 0;
+  const { dados: equipe } = useDados<{ equipe: { pendente: boolean }[] }>('/api/equipe');
+  const contas = equipe?.equipe.filter((f) => f.pendente).length || 0;
   useEffect(() => setAberto(false), [caminho]);
   const logo = (
     <div className="logo">
@@ -32,7 +34,7 @@ export default function Lateral({ nome, children }: { nome: string; children: Re
       <div className="menu-movel">
         {logo}
         <button className="btn pequeno" onClick={() => setAberto((a) => !a)}>
-          ☰ Menu{pendentes ? ` (${pendentes})` : ''}
+          ☰ Menu{pendentes + contas ? ` (${pendentes + contas})` : ''}
         </button>
       </div>
       <nav className="lateral" onClick={(e) => e.target === e.currentTarget && setAberto(false)}>
@@ -41,6 +43,7 @@ export default function Lateral({ nome, children }: { nome: string; children: Re
           <a key={href} href={href} className={caminho === href ? 'ativo' : ''}>
             {rotulo}
             {href === '/admin/cancelamentos' && pendentes > 0 && <span className="selo">{pendentes}</span>}
+            {href === '/admin/equipe' && contas > 0 && <span className="selo">{contas}</span>}
           </a>
         ))}
         <div className="sep">Telas de operação</div>

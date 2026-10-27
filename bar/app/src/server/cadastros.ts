@@ -109,7 +109,7 @@ export async function atualizarProduto(db: Db, u: Usuario, id: string, d: DadosP
 
 export async function listarEquipe(db: Db) {
   return db
-    .select({ id: schema.usuarios.id, nome: schema.usuarios.nome, usuario: schema.usuarios.usuario, papel: schema.usuarios.papel, ativo: schema.usuarios.ativo, criadoEm: schema.usuarios.criadoEm })
+    .select({ id: schema.usuarios.id, nome: schema.usuarios.nome, usuario: schema.usuarios.usuario, papel: schema.usuarios.papel, ativo: schema.usuarios.ativo, pendente: schema.usuarios.pendente, criadoEm: schema.usuarios.criadoEm })
     .from(schema.usuarios)
     .orderBy(asc(schema.usuarios.nome));
 }
@@ -152,6 +152,7 @@ export async function atualizarFuncionario(db: Db, u: Usuario, id: string, d: { 
     set.papel = d.papel;
   }
   if (typeof d.ativo === 'boolean') set.ativo = d.ativo;
+  if (set.ativo === true) set.pendente = false; // ativar uma conta pendente é aprová-la
   if (d.senha !== undefined && d.senha !== '') set.senhaHash = await hashSenha(validarSenha(d.senha));
   // nunca ficar sem administrador ativo
   const perdeAdmin = antes.papel === 'admin' && antes.ativo && ((set.papel && set.papel !== 'admin') || set.ativo === false);
@@ -161,8 +162,41 @@ export async function atualizarFuncionario(db: Db, u: Usuario, id: string, d: { 
   }
   await db.update(schema.usuarios).set(set).where(eq(schema.usuarios.id, id));
   if (set.ativo === false || set.senhaHash) await db.delete(schema.sessoes).where(eq(schema.sessoes.usuarioId, id)); // sai de todos os aparelhos
-  const o = [set.nome && 'nome', set.papel && `função ${NOME_PAPEL[set.papel as 'admin']}`, set.ativo !== undefined && (set.ativo ? 'ativado' : 'desativado'), set.senhaHash && 'senha trocada'].filter(Boolean);
+  const o = [set.nome && 'nome', set.papel && `função ${NOME_PAPEL[set.papel as 'admin']}`, set.ativo !== undefined && (set.ativo ? (antes.pendente ? 'conta aprovada' : 'ativado') : 'desativado'), set.senhaHash && 'senha trocada'].filter(Boolean);
   await registrar(db, { tipo: 'funcionario_alterado', usuarioId: u.id, descricao: `${u.nome} alterou ${set.nome || antes.nome}: ${o.join(', ') || 'sem mudanças'}` });
+}
+
+// ---------- conta criada pelo próprio funcionário ----------
+
+const PAPEIS_AUTOCADASTRO = ['garcom', 'cozinha', 'bar'] as const;
+const MAX_PENDENTES = 30;
+
+/** Garçom, cozinha ou bar criam a própria conta; ela fica pendente até o administrador aprovar. */
+export async function solicitarConta(db: Db, d: { nome?: unknown; usuario?: unknown; senha?: unknown; papel?: unknown }) {
+  if (!(PAPEIS_AUTOCADASTRO as readonly unknown[]).includes(d.papel)) throw new ErroRegra('Escolha garçom, cozinha ou bar.');
+  const papel = d.papel as (typeof PAPEIS_AUTOCADASTRO)[number];
+  const nome = texto(d.nome, 60);
+  if (!nome) throw new ErroRegra('Informe seu nome.');
+  const usuario = validarLogin(d.usuario);
+  const senha = validarSenha(d.senha);
+  const [r] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.usuarios).where(eq(schema.usuarios.pendente, true));
+  if (Number(r.n) >= MAX_PENDENTES) throw new ErroRegra('Há muitas contas aguardando aprovação. Peça ao administrador para aprovar ou recusar antes.', 429);
+  const [novo] = await db
+    .insert(schema.usuarios)
+    .values({ nome, usuario, papel, senhaHash: await hashSenha(senha), ativo: false, pendente: true })
+    .onConflictDoNothing({ target: schema.usuarios.usuario })
+    .returning();
+  if (!novo) throw new ErroRegra('Esse usuário já existe. Escolha outro.', 409);
+  await registrar(db, { tipo: 'conta_solicitada', descricao: `${nome} criou uma conta de ${NOME_PAPEL[papel]} (usuário ${usuario}), aguardando aprovação` });
+  return { nome, usuario, papel };
+}
+
+/** Recusar apaga a conta pendente (ela nunca entrou no sistema). */
+export async function recusarConta(db: Db, u: Usuario, id: string) {
+  if (!uuidOk(id)) throw new ErroRegra('Conta não encontrada.', 404);
+  const [c] = await db.delete(schema.usuarios).where(and(eq(schema.usuarios.id, id), eq(schema.usuarios.pendente, true))).returning();
+  if (!c) throw new ErroRegra('Esta conta não está mais aguardando aprovação.', 409);
+  await registrar(db, { tipo: 'conta_recusada', usuarioId: u.id, descricao: `${u.nome} recusou a conta de ${c.nome} (usuário ${c.usuario})` });
 }
 
 // ---------- primeiro acesso ----------

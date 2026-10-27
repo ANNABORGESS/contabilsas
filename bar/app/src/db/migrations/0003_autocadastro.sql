@@ -1,0 +1,1 @@
+ALTER TABLE "usuarios" ADD COLUMN "pendente" boolean DEFAULT false NOT NULL;

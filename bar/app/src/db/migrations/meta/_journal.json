@@ -22,6 +22,13 @@
       "when": 1793127744270,
       "tag": "0002_despesas",
       "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1793128109636,
+      "tag": "0003_autocadastro",
+      "breakpoints": true
     }
   ]
 }
