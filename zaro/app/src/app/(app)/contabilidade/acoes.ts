@@ -5,7 +5,7 @@ import { getDb } from '@/db';
 import type { StatusLanc } from '@/domain/motor';
 import { PLANO_PADRAO } from '@/domain/plano-contas';
 import { exigirEdicao, exigirEmpresa } from '@/server/auth';
-import { ajustarConta, estornar, lancamentosDaEmpresa, mudarStatus } from '@/server/contabil';
+import { ajustarConta, estornar, lancamentosDaEmpresa, mudarStatus, restaurar } from '@/server/contabil';
 
 async function executar(form: FormData, f: (ctx: { db: Awaited<ReturnType<typeof getDb>>; u: Awaited<ReturnType<typeof exigirEdicao>>; emp: Awaited<ReturnType<typeof exigirEmpresa>> }) => Promise<string>) {
   const volta = String(form.get('volta') || '/contabilidade');
@@ -24,12 +24,23 @@ async function executar(form: FormData, f: (ctx: { db: Awaited<ReturnType<typeof
 
 export async function aplicarStatus(form: FormData) {
   await executar(form, async ({ db, u, emp }) => {
-    const status = String(form.get('status')) as StatusLanc;
-    if (!['Aprovado', 'Contabilizado', 'Sugerido', 'Em revisão'].includes(status)) throw new Error('Status inválido.');
+    const status = String(form.get('status')) as StatusLanc | 'Restaurar';
     const ids = form.getAll('ids').map(String);
     if (!ids.length) throw new Error('Marque pelo menos um lançamento.');
+    if (status === 'Restaurar') {
+      await restaurar(db, u, emp, ids);
+      return `${ids.length} lançamento(s) restaurado(s): voltaram para a lista e para as demonstrações.`;
+    }
+    if (!['Aprovado', 'Contabilizado', 'Sugerido', 'Em revisão', 'Excluído'].includes(status)) throw new Error('Status inválido.');
+    if (status === 'Excluído') {
+      const todos = await lancamentosDaEmpresa(db, emp, { incluirExcluidos: true });
+      const travados = todos.filter((l) => ids.includes(l.id) && ['Contabilizado', 'Estornado'].includes(l.status));
+      if (travados.length) throw new Error('Lançamento contabilizado não pode ser excluído: faça o estorno.');
+    }
     await mudarStatus(db, u, emp, ids, status);
-    return `${ids.length} lançamento(s) marcado(s) como ${status}.`;
+    return status === 'Excluído'
+      ? `${ids.length} lançamento(s) excluído(s): saíram do balancete, da DRE e do balanço. Para desfazer, filtre o status Excluído e clique em Restaurar.`
+      : `${ids.length} lançamento(s) marcado(s) como ${status}.`;
   });
 }
 

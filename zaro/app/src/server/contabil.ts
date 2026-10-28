@@ -12,7 +12,9 @@ import type { Empresa, Usuario } from './auth';
 import { saldoInicial } from './banco';
 import { splitConfirmadoPorBaixa } from './split-payment';
 
-export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancamento[]> {
+/** Lançamentos da empresa. Os excluídos pelo contador ficam de fora (de demonstrações, painéis e relatórios);
+ *  só a lista da Contabilidade pede todos, para poder restaurar. */
+export async function lancamentosDaEmpresa(db: Db, emp: Empresa, opts: { incluirExcluidos?: boolean } = {}): Promise<Lancamento[]> {
   const [tits, bxs, imob, ctrs, decs, regras, folhas, extrato] = await Promise.all([
     db.select().from(schema.titulos).where(eq(schema.titulos.empresaId, emp.id)),
     db.select({ id: schema.baixas.id, tituloId: schema.baixas.tituloId, data: schema.baixas.data, valor: schema.baixas.valor, estornada: schema.baixas.estornada, desconto: schema.baixas.desconto, juros: schema.baixas.juros, multa: schema.baixas.multa, dados: schema.baixas.dados })
@@ -37,7 +39,7 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     if (d.conta) contas[d.lancamentoId] = d.conta;
     if (d.motivoEstorno) estornos[d.lancamentoId] = { motivo: d.motivoEstorno, data: d.dataEstorno || '' };
   }
-  return gerarLancamentos({
+  const todos = gerarLancamentos({
     titulos: tits.map((t) => ({
       id: t.codigo, tipo: t.tipo as 'pagar' | 'receber', nome: t.nome, nf: t.nf, descricao: t.descricao, categoria: t.categoria, contaContabil: t.contaContabil,
       origem: t.origem, folhaTipo: t.folhaTipo, contrato: t.contrato, juros: t.juros, competencia: t.competencia, emissao: t.nfEmissao, venc: t.venc,
@@ -51,6 +53,7 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa): Promise<Lancam
     folhas: folhas.filter((f) => (f.resumo as { folha?: unknown }).folha).map((f) => ({ id: f.id, resumo: (f.resumo as { folha: ResumoFolha }).folha, importadoEm: f.criadoEm?.toISOString() })),
     empresaNome: emp.razao,
   });
+  return opts.incluirExcluidos ? todos : todos.filter((l) => l.status !== 'Excluído');
 }
 
 export async function mudarStatus(db: Db, u: Usuario, emp: Empresa, ids: string[], status: StatusLanc) {
@@ -60,6 +63,16 @@ export async function mudarStatus(db: Db, u: Usuario, emp: Empresa, ids: string[
       .onConflictDoUpdate({ target: [schema.lancamentoDecisoes.empresaId, schema.lancamentoDecisoes.lancamentoId], set: { status, usuario: u.nome, atualizadoEm: new Date() } });
   }
   await auditar(db, u, { empresaId: emp.id, acao: `Marcou lançamento(s) como ${status}`, entidade: `${ids.length} lançamento(s)`, depois: ids.slice(0, 20).join(', ') });
+}
+
+/** Desfaz a exclusão: o lançamento volta ao status calculado pelo motor. */
+export async function restaurar(db: Db, u: Usuario, emp: Empresa, ids: string[]) {
+  if (!ids.length) return;
+  for (const id of ids) {
+    await db.update(schema.lancamentoDecisoes).set({ status: null, usuario: u.nome, atualizadoEm: new Date() })
+      .where(and(eq(schema.lancamentoDecisoes.empresaId, emp.id), eq(schema.lancamentoDecisoes.lancamentoId, id), eq(schema.lancamentoDecisoes.status, 'Excluído')));
+  }
+  await auditar(db, u, { empresaId: emp.id, acao: 'Restaurou lançamento(s) excluído(s)', entidade: `${ids.length} lançamento(s)`, depois: ids.slice(0, 20).join(', ') });
 }
 
 export async function ajustarConta(db: Db, u: Usuario, emp: Empresa, lanc: Lancamento, conta: string, aprenderRegra: boolean) {

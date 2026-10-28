@@ -4,7 +4,7 @@
 import { arred } from './dinheiro';
 import { lancamentosDaFolha, type FolhaImportada } from './folha-contabil';
 
-export type StatusLanc = 'Automático' | 'Sugerido' | 'Em revisão' | 'Aprovado' | 'Contabilizado' | 'Estornado';
+export type StatusLanc = 'Automático' | 'Sugerido' | 'Em revisão' | 'Aprovado' | 'Contabilizado' | 'Estornado' | 'Excluído';
 export const STATUS_NO_LIVRO: StatusLanc[] = ['Aprovado', 'Contabilizado', 'Estornado'];
 
 export interface Lancamento {
@@ -279,7 +279,7 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
   const ini = e.saldoInicialBanco;
   if (ini && cobertura && ini.data < cobertura[1]) {
     const dataSaldo = ini.data;
-    const acumulado = L.filter((l) => l.data <= dataSaldo).reduce((a, l) => a + (l.deb === '1.1.1.02' ? l.valor : 0) - (l.cred === '1.1.1.02' ? l.valor : 0), 0);
+    const acumulado = L.filter((l) => l.data <= dataSaldo && l.status !== 'Excluído').reduce((a, l) => a + (l.deb === '1.1.1.02' ? l.valor : 0) - (l.cred === '1.1.1.02' ? l.valor : 0), 0);
     const extrato = ini.valor;
     const dif = arred(extrato - acumulado);
     add({

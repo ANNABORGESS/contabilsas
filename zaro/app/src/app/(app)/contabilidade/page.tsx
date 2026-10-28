@@ -11,15 +11,16 @@ import { balanceteModelo } from '@/domain/balancete-modelo';
 import { aplicarStatus, aprovarConfiaveis, estornarLanc, trocarConta } from './acoes';
 
 type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; modelo?: string; msg?: string; erro?: string };
-const STATUS = ['Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado'];
-const COR: Record<string, string> = { Automático: 'acento', Sugerido: 'ia', 'Em revisão': 'at', Aprovado: 'pos', Contabilizado: 'pos', Estornado: '' };
+const STATUS = ['Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado', 'Excluído'];
+const COR: Record<string, string> = { Automático: 'acento', Sugerido: 'ia', 'Em revisão': 'at', Aprovado: 'pos', Contabilizado: 'pos', Estornado: '', Excluído: 'neg' };
 
 export default async function Contabilidade({ searchParams }: { searchParams: Promise<SP> }) {
   const u = await exigirUsuario();
   const emp = await exigirEmpresa(u);
   const sp = await searchParams;
   const db = await getDb();
-  const lancs = await lancamentosDaEmpresa(db, emp);
+  const todos = await lancamentosDaEmpresa(db, emp, { incluirExcluidos: true });
+  const lancs = todos.filter((l) => l.status !== 'Excluído');
   const aba = ['lancamentos', 'balancete', 'dre', 'balanco'].includes(sp.aba || '') ? sp.aba! : 'lancamentos';
   const p = periodoContabil(sp, lancs.map((l) => l.comp));
   const previa = sp.previa === '1';
@@ -62,7 +63,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
         <button className="btn" type="submit" style={{ alignSelf: 'flex-end' }}>Aplicar</button>
       </form>
 
-      {aba === 'lancamentos' && <Lancamentos lancs={lancs} p={p} sp={sp} edita={edita} volta={volta} />}
+      {aba === 'lancamentos' && <Lancamentos lancs={sp.st === 'Excluído' ? todos : lancs} p={p} sp={sp} edita={edita} volta={volta} />}
       {aba === 'balancete' && (sp.modelo === 'zaro' ? <Balancete lancs={lancs} p={p} previa={previa} emp={emp.razao} /> : <BalanceteEscritorio lancs={lancs} p={p} previa={previa} emp={emp.razao} />)}
       {aba === 'dre' && <Dre lancs={lancs} p={p} previa={previa} emp={emp.razao} />}
       {aba === 'balanco' && <Balanco lancs={lancs} p={p} previa={previa} emp={emp.razao} />}
@@ -91,6 +92,9 @@ function Lancamentos({ lancs, p, sp, edita, volta }: { lancs: Lancamento[]; p: P
               <button className="btn mini primario" name="status" value="Aprovado">Aprovar</button>
               <button className="btn mini" name="status" value="Contabilizado">Contabilizar</button>
               <button className="btn mini" name="status" value="Em revisão">Mandar para revisão</button>
+              {sp.st === 'Excluído'
+                ? <button className="btn mini primario" name="status" value="Restaurar">Restaurar</button>
+                : <button className="btn mini perigo" name="status" value="Excluído" title="Tira o lançamento do balancete, da DRE e do balanço. Dá para restaurar depois.">Excluir</button>}
             </div>
           )}
           <div className="tabela-wrap"><table>
