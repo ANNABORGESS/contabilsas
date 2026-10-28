@@ -50,6 +50,13 @@
       "when": 1793215295279,
       "tag": "0006_despesa_funcionario_nome",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1793219427714,
+      "tag": "0007_produto_custo",
+      "breakpoints": true
     }
   ]
 }

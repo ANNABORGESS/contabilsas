@@ -86,3 +86,30 @@ export function resumoFinanceiro(vendas: VendaDia[], despesas: { data: string; c
 }
 
 export type ResumoFinanceiro = ReturnType<typeof resumoFinanceiro>;
+
+// ---------- sugestão de preço de venda ----------
+// Cada venda precisa pagar o custo do produto, a parte das despesas fixas (funcionários, aluguel e
+// contas, outras), a taxa da maquininha e ainda deixar a margem de lucro desejada. Por isso o preço é
+// custo ÷ (1 − fixas% − taxa% − margem%). As compras de bebidas e comidas não entram nas fixas:
+// elas já estão no custo de cada produto.
+
+/** Despesas fixas do período como % das vendas líquidas; null sem vendas. */
+export function percentualFixas(r: Pick<ResumoFinanceiro, 'vendasCentavos' | 'porCategoria'>) {
+  if (!r.vendasCentavos) return null;
+  const fixas = r.porCategoria.filter((c) => c.categoria !== 'bebidas' && c.categoria !== 'comidas').reduce((a, c) => a + c.valorCentavos, 0);
+  return Math.round((fixas / r.vendasCentavos) * 1000) / 10;
+}
+
+/** Preço sugerido, arredondado para cima em R$ 0,50. null quando os percentuais somam 95% ou mais. */
+export function sugerirPreco(custoCentavos: number, percentuais: number[]) {
+  const sobra = 1 - percentuais.reduce((a, p) => a + (Number.isFinite(p) ? p : 0), 0) / 100;
+  if (!(custoCentavos > 0) || sobra < 0.05) return null;
+  return Math.ceil(custoCentavos / sobra / 50) * 50;
+}
+
+/** Quanto sobra de lucro, em % do preço, depois do custo e dos percentuais (fixas, taxa). */
+export function lucroNoPreco(precoCentavos: number, custoCentavos: number, percentuais: number[]) {
+  if (!(precoCentavos > 0)) return null;
+  const outros = (precoCentavos * percentuais.reduce((a, p) => a + (Number.isFinite(p) ? p : 0), 0)) / 100;
+  return Math.round(((precoCentavos - custoCentavos - outros) / precoCentavos) * 1000) / 10;
+}

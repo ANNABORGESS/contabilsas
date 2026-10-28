@@ -1,0 +1,1 @@
+ALTER TABLE "produtos" ADD COLUMN "custo_centavos" integer;

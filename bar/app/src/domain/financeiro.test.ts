@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { resumoFinanceiro, validarDespesa } from './financeiro';
+import { lucroNoPreco, percentualFixas, resumoFinanceiro, sugerirPreco, validarDespesa } from './financeiro';
 
 describe('custos e lucro', () => {
   it('lucro = vendas líquidas − despesas, com margem e participação de cada categoria', () => {
@@ -63,5 +63,28 @@ describe('custos e lucro', () => {
     expect(() => validarDespesa({ data: '2026-10-24', categoria: 'festa', descricao: 'x', valorCentavos: 1 })).toThrow(/categoria/);
     expect(() => validarDespesa({ data: '2026-10-24', categoria: 'bebidas', descricao: ' ', valorCentavos: 1 })).toThrow(/Descreva/);
     expect(() => validarDespesa({ data: '2026-10-24', categoria: 'bebidas', descricao: 'x', valorCentavos: 0 })).toThrow(/valor/);
+  });
+
+  it('despesas fixas em % das vendas, sem contar as compras de bebidas e comidas', () => {
+    const r = resumoFinanceiro(
+      [{ data: '2026-10-24', liquidoCentavos: 100000 }],
+      [
+        { data: '2026-10-24', categoria: 'funcionarios', valorCentavos: 20000 },
+        { data: '2026-10-24', categoria: 'contas', valorCentavos: 5000 },
+        { data: '2026-10-24', categoria: 'bebidas', valorCentavos: 30000 },
+      ],
+    );
+    expect(percentualFixas(r)).toBe(25);
+    expect(percentualFixas(resumoFinanceiro([], []))).toBeNull();
+  });
+  it('sugere o preço: custo ÷ (1 − fixas − taxa − margem), arredondado para cima em R$ 0,50', () => {
+    // custo 5,00 com 25% fixas + 3% taxa + 20% margem → 5 ÷ 0,52 = 9,615… → 10,00
+    expect(sugerirPreco(500, [25, 3, 20])).toBe(1000);
+    expect(sugerirPreco(500, [0])).toBe(500);
+    expect(sugerirPreco(0, [20])).toBeNull();
+    expect(sugerirPreco(500, [60, 40])).toBeNull(); // percentuais impossíveis
+    // no preço sugerido o lucro fica pelo menos na margem pedida
+    expect(lucroNoPreco(1000, 500, [25, 3])).toBe(22);
+    expect(lucroNoPreco(600, 500, [25, 3])).toBe(-11.3);
   });
 });

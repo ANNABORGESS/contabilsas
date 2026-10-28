@@ -206,6 +206,16 @@ describe('fluxo do pedido pago', () => {
     expect(equipe.some((f) => f.usuario === 'fulano')).toBe(false);
   });
 
+  it('custo do produto: só o administrador vê na lista completa', async () => {
+    const p = await criarProduto(db, admin, { nome: 'Porção de queijo', categoria: 'Petiscos', setor: 'cozinha', precoCentavos: 3000, custoCentavos: 1200 });
+    expect(p.custoCentavos).toBe(1200);
+    expect((await listarProdutos(db, true)).find((x) => x.id === p.id)).toMatchObject({ custoCentavos: 1200 });
+    expect((await listarProdutos(db)).find((x) => x.id === p.id)).not.toHaveProperty('custoCentavos');
+    await expect(atualizarProduto(db, admin, p.id, { custoCentavos: -5 })).rejects.toThrow(/custo/);
+    expect((await atualizarProduto(db, admin, p.id, { custoCentavos: null })).custoCentavos).toBeNull();
+    await excluirProduto(db, admin, p.id);
+  });
+
   it('excluir do cardápio: nunca vendido apaga; já vendido some das listas e o histórico continua', async () => {
     const novo = await criarProduto(db, admin, { nome: 'Pastel', categoria: 'Petiscos', setor: 'cozinha', precoCentavos: 1500 });
     expect(await excluirProduto(db, admin, novo.id)).toEqual({ apagado: true });

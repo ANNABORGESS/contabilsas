@@ -42,11 +42,13 @@ export async function atualizarMesa(db: Db, u: Usuario, id: string, dados: { nom
 // ---------- cardápio ----------
 
 export async function listarProdutos(db: Db, todos = false) {
-  return db
+  const lista = await db
     .select()
     .from(schema.produtos)
     .where(todos ? eq(schema.produtos.excluido, false) : and(eq(schema.produtos.ativo, true), eq(schema.produtos.excluido, false)))
     .orderBy(asc(schema.produtos.setor), asc(schema.produtos.categoria), asc(schema.produtos.ordem), asc(schema.produtos.nome));
+  // o custo só vai para a lista completa do administrador (nunca para o garçom nem para o site)
+  return todos ? lista : lista.map(({ custoCentavos: _custo, ...p }) => p);
 }
 
 interface DadosProduto {
@@ -55,6 +57,7 @@ interface DadosProduto {
   categoria?: unknown;
   setor?: unknown;
   precoCentavos?: unknown;
+  custoCentavos?: unknown;
   ativo?: unknown;
   ordem?: unknown;
 }
@@ -78,6 +81,14 @@ function validarProduto(d: DadosProduto, parcial: boolean) {
     if (!Number.isInteger(p) || p <= 0 || p > 10_000_00) throw new ErroRegra('Informe um preço válido.');
     set.precoCentavos = p;
   }
+  if (d.custoCentavos !== undefined) {
+    if (d.custoCentavos === null || d.custoCentavos === '') set.custoCentavos = null;
+    else {
+      const c = Number(d.custoCentavos);
+      if (!Number.isInteger(c) || c < 0 || c > 10_000_00) throw new ErroRegra('Informe um custo válido.');
+      set.custoCentavos = c;
+    }
+  }
   if (d.descricao !== undefined) set.descricao = texto(d.descricao, 200) || null;
   if (typeof d.ativo === 'boolean') set.ativo = d.ativo;
   if (d.ordem !== undefined && Number.isInteger(Number(d.ordem))) set.ordem = Number(d.ordem);
@@ -99,6 +110,7 @@ export async function atualizarProduto(db: Db, u: Usuario, id: string, d: DadosP
   const [p] = await db.update(schema.produtos).set({ ...set, atualizadoEm: new Date() }).where(eq(schema.produtos.id, id)).returning();
   const mudancas = [];
   if (set.precoCentavos !== undefined && set.precoCentavos !== antes.precoCentavos) mudancas.push(`preço ${reais(antes.precoCentavos)} → ${reais(p.precoCentavos)}`);
+  if (set.custoCentavos !== undefined && set.custoCentavos !== antes.custoCentavos) mudancas.push(`custo ${antes.custoCentavos === null ? '—' : reais(antes.custoCentavos)} → ${p.custoCentavos === null ? '—' : reais(p.custoCentavos)}`);
   if (set.ativo !== undefined && set.ativo !== antes.ativo) mudancas.push(p.ativo ? 'disponível' : 'indisponível');
   if (set.nome && set.nome !== antes.nome) mudancas.push(`nome "${antes.nome}" → "${p.nome}"`);
   await registrar(db, { tipo: 'produto_alterado', usuarioId: u.id, descricao: `${u.nome} alterou ${p.nome}${mudancas.length ? `: ${mudancas.join(', ')}` : ''}` });

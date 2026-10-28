@@ -5,7 +5,7 @@ import { api, useDados } from '@/cliente/api';
 import { dataBr, reais } from '@/cliente/formato';
 import { Aviso, Modal } from '@/cliente/ui';
 import { paraCentavos } from '@/domain/dinheiro';
-import { CATEGORIAS_DESPESA, NOME_CATEGORIA, type CategoriaDespesa, type ResumoFinanceiro } from '@/domain/financeiro';
+import { CATEGORIAS_DESPESA, NOME_CATEGORIA, lucroNoPreco, percentualFixas, sugerirPreco, type CategoriaDespesa, type ResumoFinanceiro } from '@/domain/financeiro';
 import { Cabecalho, Periodo, hojeLocal } from '../comum';
 
 interface Despesa {
@@ -160,6 +160,8 @@ export default function Financeiro() {
                 </p>
               </div>
             </div>
+
+            <SugestaoPreco fixasPeriodo={percentualFixas(r)} />
 
             <div className="cartao">
               <header>
@@ -364,5 +366,137 @@ function FormDespesa({ inicial, fechar }: { inicial: CategoriaDespesa; fechar: (
         </button>
       </form>
     </Modal>
+  );
+}
+
+interface ProdutoCusto {
+  id: string;
+  nome: string;
+  categoria: string;
+  precoCentavos: number;
+  custoCentavos: number | null;
+}
+
+/** Sugere o preço de venda de cada produto a partir do custo, das despesas fixas, da taxa e da margem. */
+function SugestaoPreco({ fixasPeriodo }: { fixasPeriodo: number | null }) {
+  const { dados } = useDados<{ produtos: ProdutoCusto[] }>('/api/cardapio?todos=1');
+  const [fixasDigitada, setFixas] = useState<string | null>(null);
+  const [taxa, setTaxa] = useState('3');
+  const [margem, setMargem] = useState('20');
+  const [msg, setMsg] = useState('');
+  const num = (t: string) => Number(t.replace(',', '.')) || 0;
+  const fixas = fixasDigitada ?? String(fixasPeriodo ?? 0).replace('.', ',');
+  const pctCustos = [num(fixas), num(taxa)];
+  const pctTodos = [...pctCustos, num(margem)];
+  const produtos = dados?.produtos || [];
+
+  async function salvarCusto(p: ProdutoCusto, texto: string) {
+    const custo = texto.trim() ? paraCentavos(texto) : null;
+    if (texto.trim() && (custo === null || custo < 0)) return setMsg(`Custo inválido em ${p.nome}. Use, por exemplo, 4,50`);
+    if (custo === p.custoCentavos) return;
+    setMsg('');
+    try {
+      await api(`/api/cardapio/${p.id}`, 'PATCH', { custoCentavos: custo });
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  }
+  async function usarPreco(p: ProdutoCusto, preco: number) {
+    if (!confirm(`Mudar o preço de ${p.nome} de ${reais(p.precoCentavos)} para ${reais(preco)} no cardápio?`)) return;
+    try {
+      await api(`/api/cardapio/${p.id}`, 'PATCH', { precoCentavos: preco });
+    } catch (e) {
+      setMsg((e as Error).message);
+    }
+  }
+
+  return (
+    <div className="cartao">
+      <header>
+        <h2>Sugestão de preço de venda</h2>
+      </header>
+      <p className="fraco" style={{ marginBottom: 12 }}>
+        Informe quanto custa cada produto para o bar (compra ou ingredientes por unidade). O preço sugerido cobre o custo, a parte das despesas fixas, a taxa da maquininha e ainda deixa a margem de lucro
+        que você escolher.
+      </p>
+      <div className="linha-campos nao-imprimir" style={{ marginBottom: 12 }}>
+        <label className="campo">
+          Despesas fixas (% das vendas)
+          <input inputMode="decimal" value={fixas} onChange={(e) => setFixas(e.target.value)} />
+          <span className="fraco" style={{ textTransform: 'none', letterSpacing: 0 }}>
+            {fixasPeriodo === null ? 'Sem vendas no período: informe uma estimativa.' : `No período: ${fixasPeriodo.toLocaleString('pt-BR')}% (funcionários, contas e outras)`}
+          </span>
+        </label>
+        <label className="campo">
+          Taxa da maquininha (%)
+          <input inputMode="decimal" value={taxa} onChange={(e) => setTaxa(e.target.value)} />
+        </label>
+        <label className="campo">
+          Margem de lucro desejada (%)
+          <input inputMode="decimal" value={margem} onChange={(e) => setMargem(e.target.value)} />
+        </label>
+      </div>
+      {msg && <Aviso tipo="erro">{msg}</Aviso>}
+      {sugerirPreco(100, pctTodos) === null && <Aviso tipo="erro">Os percentuais somam 95% ou mais: não sobra nada para o custo. Diminua a margem ou as despesas.</Aviso>}
+      <div className="tabela-rolagem">
+        <table className="tabela">
+          <thead>
+            <tr>
+              <th>Produto</th>
+              <th className="direita">Custo (R$)</th>
+              <th className="direita">Preço atual</th>
+              <th className="direita">Lucro no preço atual</th>
+              <th className="direita">Preço mínimo sugerido</th>
+              <th className="nao-imprimir"></th>
+            </tr>
+          </thead>
+          <tbody>
+            {produtos.map((p) => {
+              const sugerido = p.custoCentavos ? sugerirPreco(p.custoCentavos, pctTodos) : null;
+              const lucro = p.custoCentavos !== null ? lucroNoPreco(p.precoCentavos, p.custoCentavos, pctCustos) : null;
+              return (
+                <tr key={p.id}>
+                  <td>
+                    {p.nome}
+                    <div className="fraco">{p.categoria}</div>
+                  </td>
+                  <td className="direita">
+                    <input
+                      key={`${p.id}-${p.custoCentavos}`}
+                      inputMode="decimal"
+                      placeholder="0,00"
+                      defaultValue={p.custoCentavos === null ? '' : (p.custoCentavos / 100).toFixed(2).replace('.', ',')}
+                      onBlur={(e) => salvarCusto(p, e.target.value)}
+                      onKeyDown={(e) => e.key === 'Enter' && (e.target as HTMLInputElement).blur()}
+                      style={{ width: 96, textAlign: 'right' }}
+                    />
+                  </td>
+                  <td className="direita num">{reais(p.precoCentavos)}</td>
+                  <td className="direita num" style={{ color: lucro === null ? undefined : lucro >= num(margem) ? 'var(--verde)' : 'var(--vermelho)', fontWeight: 600 }}>
+                    {lucro === null ? <span className="fraco">—</span> : `${lucro.toLocaleString('pt-BR')}%`}
+                  </td>
+                  <td className="direita num" style={{ fontWeight: 700 }}>
+                    {sugerido === null ? <span className="fraco">informe o custo</span> : reais(sugerido)}
+                  </td>
+                  <td className="nao-imprimir">
+                    {sugerido !== null && sugerido > p.precoCentavos ? (
+                      <button className="btn pequeno" onClick={() => usarPreco(p, sugerido)}>
+                        Usar este preço
+                      </button>
+                    ) : sugerido !== null ? (
+                      <span className="fraco">preço atual já cobre</span>
+                    ) : null}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+        {!produtos.length && <div className="vazio">Nenhum produto no cardápio.</div>}
+      </div>
+      <p className="fraco" style={{ marginTop: 8 }}>
+        Conta: preço = custo ÷ (1 − despesas fixas − taxa − margem), arredondado para cima em R$ 0,50. É o menor preço que ainda dá a margem desejada. Em verde, os produtos que já dão essa margem; em vermelho, os que estão abaixo e precisam de ajuste.
+      </p>
+    </div>
   );
 }
