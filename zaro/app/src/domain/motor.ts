@@ -115,6 +115,16 @@ export interface MovimentoMotor {
   valor: number;
   memo: string;
 }
+/** tributos do Lucro Presumido apurados no período (PIS/COFINS no mês; IRPJ, adicional e CSLL no trimestre) */
+export interface TributoApurado {
+  tributo: 'PIS' | 'COFINS' | 'IRPJ' | 'Adicional de IRPJ' | 'CSLL';
+  comp: string; // último mês do período
+  periodo: string; // ex.: "03/2026" ou "1º trimestre/2026"
+  base: number;
+  valor: number;
+}
+const CONTA_TRIBUTO: Record<TributoApurado['tributo'], string> = { PIS: '3.2.1.01', COFINS: '3.2.1.01', IRPJ: '4.3.1.01', 'Adicional de IRPJ': '4.3.1.02', CSLL: '4.3.1.03' };
+
 export interface AberturaMotor {
   data: string;
   /** saldo por conta: positivo = devedor, negativo = credor; a soma tem de ser zero */
@@ -151,6 +161,8 @@ export interface EntradaMotor {
   folhas?: FolhaImportada[];
   /** ICMS/IPI das NF de compra que viram crédito (Fiscal → Impostos a recuperar) */
   creditos?: CreditoMotor[];
+  /** PIS, COFINS, IRPJ e CSLL do Lucro Presumido, apurados pela Fiscal */
+  tributosApurados?: TributoApurado[];
   /** crédito de ICMS usado para abater o ICMS das vendas, por competência */
   compensacoesIcms?: { comp: string; valor: number }[];
   decisoes?: DecisoesContador;
@@ -293,6 +305,18 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
       id: `CRED|${c.id}`, origemId: c.tituloId, doc: c.doc, data: c.data, comp: c.comp, deb: '1.1.4.01', cred: prov.deb, valor: c.icms + c.ipi,
       hist: `Crédito ${partes.map((p) => `${p.nome} ${p.valor.toFixed(2)}`).join(' + ')} na compra ${c.doc} — ${c.nome}`, modulo: 'Fiscal → Impostos a recuperar',
       motivo: 'Imposto destacado em item de insumo/matéria-prima: recuperável, não é custo', conf: 92, auto: true, partes,
+    });
+  }
+  for (const t of e.tributosApurados || []) {
+    const [a, m] = t.comp.split('-').map(Number);
+    const fim = new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
+    const deducao = t.tributo === 'PIS' || t.tributo === 'COFINS';
+    add({
+      id: `TRIB|${t.tributo}|${t.comp}`, origemId: `TRIB|${t.comp}`, doc: `Apuração ${t.periodo}`, data: fim, comp: t.comp,
+      deb: CONTA_TRIBUTO[t.tributo], cred: '2.1.4.01', valor: t.valor,
+      hist: `${t.tributo} ${deducao ? 'sobre o faturamento' : 'do Lucro Presumido'} — ${t.periodo} (base ${t.base.toFixed(2)})`, modulo: 'Fiscal → Apuração',
+      motivo: deducao ? `${t.tributo} cumulativo do Lucro Presumido sobre a receita do mês, sem o ICMS destacado` : `${t.tributo} pela presunção do Lucro Presumido no trimestre`,
+      conf: 93, auto: true, ...(deducao ? { partes: [{ nome: t.tributo, valor: t.valor }] } : {}),
     });
   }
   for (const c of e.compensacoesIcms || []) {

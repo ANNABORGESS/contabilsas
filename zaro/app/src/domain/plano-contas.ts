@@ -56,13 +56,16 @@ export const PLANO_PADRAO: Conta[] = [
   ['4.2.1.03', 'Descontos obtidos e juros recebidos', 'D'],
   ['4.2.1.04', 'Multas por atraso', 'D'],
   ['4.2.1.05', 'Descontos concedidos', 'D'],
+  ['4.3.1.01', 'IRPJ sobre o lucro presumido', 'D'],
+  ['4.3.1.02', 'Adicional de IRPJ', 'D'],
+  ['4.3.1.03', 'CSLL sobre o lucro presumido', 'D'],
 ].map(([codigo, nome, natureza]) => ({ codigo, nome, natureza: natureza as 'D' | 'C' }));
 
 export const GRUPOS: Record<string, string> = {
   '1': 'Ativo', '1.1': 'Ativo circulante', '1.2': 'Ativo não circulante',
   '2': 'Passivo', '2.1': 'Passivo circulante', '2.2': 'Passivo não circulante', '2.3': 'Patrimônio líquido',
   '3': 'Receitas', '3.1': 'Receita bruta', '3.2': 'Deduções da receita',
-  '4': 'Custos e despesas', '4.1': 'Custos e despesas operacionais', '4.2': 'Resultado financeiro',
+  '4': 'Custos e despesas', '4.1': 'Custos e despesas operacionais', '4.2': 'Resultado financeiro', '4.3': 'Tributos sobre o lucro', '4.3.1': 'IRPJ e CSLL',
   '1.1.1': 'Disponível', '1.1.2': 'Créditos com clientes', '1.1.3': 'Estoques', '1.1.4': 'Tributos a recuperar', '1.1.9': 'Outros créditos',
   '1.2.1': 'Realizável a longo prazo', '1.2.3': 'Imobilizado',
   '2.1.1': 'Fornecedores', '2.1.2': 'Obrigações trabalhistas', '2.1.3': 'Empréstimos e financiamentos', '2.1.4': 'Obrigações tributárias',

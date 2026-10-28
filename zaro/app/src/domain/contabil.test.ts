@@ -237,3 +237,21 @@ describe('balanço de abertura', () => {
     expect(L.find((l) => l.id === 'CP-PF|prov')?.deb).toBe('2.1.3.02');
   });
 });
+
+describe('tributos do Lucro Presumido na contabilidade', () => {
+  it('PIS/COFINS como dedução e IRPJ/CSLL como despesa, cada um na obrigação certa', () => {
+    const L = gerarLancamentos({
+      titulos: [],
+      tributosApurados: [
+        { tributo: 'PIS', comp: '2026-02', periodo: '02/2026', base: 10000, valor: 65 },
+        { tributo: 'IRPJ', comp: '2026-03', periodo: '1º trimestre/2026', base: 8000, valor: 1200 },
+        { tributo: 'CSLL', comp: '2026-03', periodo: '1º trimestre/2026', base: 12000, valor: 1080 },
+      ],
+    });
+    expect(L.find((l) => l.id === 'TRIB|PIS|2026-02')).toMatchObject({ deb: '3.2.1.01', cred: '2.1.4.01', valor: 65, data: '2026-02-28' });
+    expect(L.find((l) => l.id === 'TRIB|IRPJ|2026-03')).toMatchObject({ deb: '4.3.1.01', valor: 1200, data: '2026-03-31' });
+    const d = dre(L.map((l) => ({ ...l, status: 'Aprovado' as const })), { de: '2026-01', ate: '2026-03' });
+    expect(d.resultado).toBeCloseTo(-(65 + 1200 + 1080));
+    expect(d.linhas.some((x) => x.rotulo === '(−) IRPJ e CSLL')).toBe(true);
+  });
+});

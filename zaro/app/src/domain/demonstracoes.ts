@@ -130,7 +130,9 @@ export function dre(lancs: Lancamento[], p: Periodo, previa = false): { linhas: 
   const pessoal = somaPrefixo(m, '4.1.2');
   const operacionais = arred(somaPrefixo(m, '4.1.3') + somaPrefixo(m, '4.1.4'));
   const financeiro = somaPrefixo(m, '4.2');
-  const resultado = arred(lucroBruto - pessoal - operacionais - financeiro);
+  const antesIr = arred(lucroBruto - pessoal - operacionais - financeiro);
+  const irCs = somaPrefixo(m, '4.3');
+  const resultado = arred(antesIr - irCs);
   return {
     resultado,
     linhas: [
@@ -142,6 +144,7 @@ export function dre(lancs: Lancamento[], p: Periodo, previa = false): { linhas: 
       { rotulo: '(−) Despesas com pessoal e encargos', valor: -pessoal, nivel: 2 },
       { rotulo: '(−) Despesas operacionais', valor: -operacionais, nivel: 2 },
       { rotulo: '(−) Resultado financeiro', valor: -financeiro, nivel: 2 },
+      ...(irCs ? [{ rotulo: 'Resultado antes do IRPJ e da CSLL', valor: antesIr, nivel: 0 as const }, { rotulo: '(−) IRPJ e CSLL', valor: -irCs, nivel: 2 as const }] : []),
       { rotulo: 'Resultado do período', valor: resultado, nivel: 0, destaque: true },
     ],
   };
