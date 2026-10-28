@@ -45,7 +45,7 @@ export async function listarProdutos(db: Db, todos = false) {
   return db
     .select()
     .from(schema.produtos)
-    .where(todos ? undefined : eq(schema.produtos.ativo, true))
+    .where(todos ? eq(schema.produtos.excluido, false) : and(eq(schema.produtos.ativo, true), eq(schema.produtos.excluido, false)))
     .orderBy(asc(schema.produtos.setor), asc(schema.produtos.categoria), asc(schema.produtos.ordem), asc(schema.produtos.nome));
 }
 
@@ -103,6 +103,19 @@ export async function atualizarProduto(db: Db, u: Usuario, id: string, d: DadosP
   if (set.nome && set.nome !== antes.nome) mudancas.push(`nome "${antes.nome}" → "${p.nome}"`);
   await registrar(db, { tipo: 'produto_alterado', usuarioId: u.id, descricao: `${u.nome} alterou ${p.nome}${mudancas.length ? `: ${mudancas.join(', ')}` : ''}` });
   return p;
+}
+
+/** Exclui do cardápio. Nunca vendido: apaga de vez. Já vendido: some do cardápio, o histórico fica. */
+export async function excluirProduto(db: Db, u: Usuario, id: string) {
+  if (!uuidOk(id)) throw new ErroRegra('Produto não encontrado.', 404);
+  const [p] = await db.select().from(schema.produtos).where(and(eq(schema.produtos.id, id), eq(schema.produtos.excluido, false)));
+  if (!p) throw new ErroRegra('Produto não encontrado.', 404);
+  const [vendas] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.pedidoItens).where(eq(schema.pedidoItens.produtoId, id));
+  const vendido = Number(vendas.n) > 0;
+  if (vendido) await db.update(schema.produtos).set({ excluido: true, ativo: false, atualizadoEm: new Date() }).where(eq(schema.produtos.id, id));
+  else await db.delete(schema.produtos).where(eq(schema.produtos.id, id));
+  await registrar(db, { tipo: 'produto_excluido', usuarioId: u.id, descricao: `${u.nome} excluiu ${p.nome} do cardápio${vendido ? ' (já vendido: fica no histórico das vendas)' : ''}` });
+  return { apagado: !vendido };
 }
 
 // ---------- equipe ----------

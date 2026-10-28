@@ -51,6 +51,8 @@ export const produtos = pgTable('produtos', {
   setor: text('setor').notNull(), // cozinha (petiscos) | bar (bebidas)
   precoCentavos: integer('preco_centavos').notNull(),
   ativo: boolean('ativo').notNull().default(true),
+  // excluído do cardápio depois de já ter sido vendido: some das listas, mas o histórico continua
+  excluido: boolean('excluido').notNull().default(false),
   ordem: integer('ordem').notNull().default(0),
   criadoEm: criadoEm(),
   atualizadoEm: momento('atualizado_em').notNull().defaultNow(),

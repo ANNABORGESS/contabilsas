@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { abrirPglite, schema, type Db } from '@/db';
 import type { Usuario } from './auth';
-import { atualizarFuncionario, criarFuncionario, listarEquipe, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto, recusarConta, solicitarConta } from './cadastros';
+import { atualizarFuncionario, criarFuncionario, listarEquipe, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto, criarProduto, excluirProduto, recusarConta, solicitarConta } from './cadastros';
 import { encerrar, recusar, solicitar, listarSolicitacoes } from './cancelamentos';
 import { confirmarPagamento, detalhePedido, listarPedidos, previa } from './pedidos';
 import { mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
@@ -200,5 +200,19 @@ describe('fluxo do pedido pago', () => {
     equipe = await listarEquipe(db);
     expect(equipe.find((f) => f.usuario === 'joao')).toMatchObject({ pendente: false, ativo: true });
     expect(equipe.some((f) => f.usuario === 'fulano')).toBe(false);
+  });
+
+  it('excluir do cardápio: nunca vendido apaga; já vendido some das listas e o histórico continua', async () => {
+    const novo = await criarProduto(db, admin, { nome: 'Pastel', categoria: 'Petiscos', setor: 'cozinha', precoCentavos: 1500 });
+    expect(await excluirProduto(db, admin, novo.id)).toEqual({ apagado: true });
+    expect((await listarProdutos(db, true)).some((p) => p.id === novo.id)).toBe(false);
+    const vendidoAntes = (await listarPedidos(db, {})).find((p) => p.itens.some((i) => i.nome === 'Batata frita'))!;
+    expect(await excluirProduto(db, admin, batata.id)).toEqual({ apagado: false });
+    expect((await listarProdutos(db, true)).some((p) => p.id === batata.id)).toBe(false);
+    expect((await listarProdutos(db)).some((p) => p.id === batata.id)).toBe(false);
+    await expect(previa(db, { mesaId: mesa, itens: [{ produtoId: batata.id, quantidade: 1 }] })).rejects.toThrow(/indisponível/);
+    const depois = await detalhePedido(db, vendidoAntes.id);
+    expect(depois!.itens.some((i) => i.nome === 'Batata frita')).toBe(true);
+    await expect(excluirProduto(db, admin, batata.id)).rejects.toThrow(/não encontrado/);
   });
 });

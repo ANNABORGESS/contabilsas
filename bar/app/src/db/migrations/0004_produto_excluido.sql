@@ -1,0 +1,1 @@
+ALTER TABLE "produtos" ADD COLUMN "excluido" boolean DEFAULT false NOT NULL;
