@@ -10,13 +10,14 @@ import { BalanceteModelo } from '@/components/BalanceteModelo';
 import { balanceteModelo } from '@/domain/balancete-modelo';
 import { redirect } from 'next/navigation';
 import { PedidoZaro } from '@/components/PedidoZaro';
+import { CamposPeriodo } from '@/components/CamposPeriodo';
 import { atenderPedido } from '@/server/pedidos';
 import { aplicarStatus, aprovarConfiaveis, aprovarTodosExceto, estornarLanc, salvarAberturaAcao, trocarConta } from './acoes';
 import { aberturaDaEmpresa } from '@/server/abertura';
 import { CONTA_ABERTURA, type AberturaMotor } from '@/domain/motor';
 
 type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; modelo?: string; msg?: string; erro?: string; pedido?: string };
-const STATUS = ['Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado', 'Excluído'];
+const STATUS = ['A aprovar', 'Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado', 'Excluído'];
 const COR: Record<string, string> = { Automático: 'acento', Sugerido: 'ia', 'Em revisão': 'at', Aprovado: 'pos', Contabilizado: 'pos', Estornado: '', Excluído: 'neg' };
 
 export default async function Contabilidade({ searchParams }: { searchParams: Promise<SP> }) {
@@ -39,6 +40,8 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
     return '/contabilidade?' + Object.entries(o).filter(([, v]) => v).map(([k, v]) => `${k}=${encodeURIComponent(v!)}`).join('&');
   };
   const volta = qs({});
+  const anoHoje = new Date().getFullYear();
+  const anos = [...new Set([...lancs.map((l) => l.comp.slice(0, 4)), String(anoHoje), p.ate.slice(0, 4)])].filter((a) => /^\d{4}$/.test(a) && +a >= 2000 && +a <= anoHoje + 1).sort().reverse();
   const pendentes = lancs.filter((l) => !STATUS_NO_LIVRO.includes(l.status)).length;
 
   return (
@@ -62,11 +65,8 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
       </div>
       {aba !== 'abertura' && <form className="card linha nao-imprimir" style={{ marginBottom: 16 }} action="/contabilidade">
         <input type="hidden" name="aba" value={aba} />
-        <div><label>Período</label><select name="per" defaultValue={sp.per || 'ano'}><option value="mes">Mês</option><option value="tri">Trimestre</option><option value="ano">Ano</option><option value="pers">Personalizado</option></select></div>
-        <div><label>Referência</label><input type="month" name="ref" defaultValue={sp.ref || p.ate} /></div>
-        <div><label>De (personalizado)</label><input type="month" name="de" defaultValue={sp.de} /></div>
-        <div><label>Até (personalizado)</label><input type="month" name="ate" defaultValue={sp.ate} /></div>
-        {aba === 'lancamentos' && <div><label>Status</label><select name="st" defaultValue={sp.st || 'Todos'}>{STATUS.map((s) => <option key={s}>{s}</option>)}</select></div>}
+        <CamposPeriodo key={`${sp.per}|${sp.ref}|${sp.de}|${sp.ate}`} per={sp.per || 'ano'} refMes={sp.ref || p.ate} de={sp.de || p.de} ate={sp.ate || p.ate} anos={anos} />
+        {aba === 'lancamentos' && <div><label>Status</label><select name="st" defaultValue={sp.st || 'A aprovar'}>{STATUS.map((s) => <option key={s}>{s}</option>)}</select></div>}
         {aba === 'lancamentos' && <div style={{ flex: 1, minWidth: 160 }}><label>Busca</label><input name="q" defaultValue={sp.q} placeholder="Histórico, documento, código do título" /></div>}
         {aba === 'balancete' && <div><label>Modelo</label><select name="modelo" defaultValue={sp.modelo || ''}><option value="">Modelo do escritório</option><option value="zaro">Plano de contas do ZARO (detalhado)</option></select></div>}
         {aba !== 'lancamentos' && <label className="linha" style={{ alignSelf: 'flex-end' }}><input type="checkbox" name="previa" value="1" defaultChecked={previa} /> Prévia (inclui não aprovados)</label>}
@@ -84,7 +84,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
 
 function Lancamentos({ lancs, p, sp, edita, volta }: { lancs: Lancamento[]; p: Periodo; sp: SP; edita: boolean; volta: string }) {
   const q = (sp.q || '').toLowerCase();
-  const vis = lancs.filter((l) => l.comp >= p.de && l.comp <= p.ate && (!sp.st || sp.st === 'Todos' || l.status === sp.st) && (!q || `${l.hist} ${l.doc} ${l.origemId}`.toLowerCase().includes(q)));
+  const vis = lancs.filter((l) => l.comp >= p.de && l.comp <= p.ate && (sp.st === 'Todos' || (!sp.st || sp.st === 'A aprovar' ? !STATUS_NO_LIVRO.includes(l.status) : l.status === sp.st)) && (!q || `${l.hist} ${l.doc} ${l.origemId}`.toLowerCase().includes(q)));
   return (
     <div className="card">
       {edita && (
@@ -102,7 +102,7 @@ function Lancamentos({ lancs, p, sp, edita, volta }: { lancs: Lancamento[]; p: P
           <span className="pequeno mudo">Separe os termos por vírgula (ex.: pix, tarifa). Esses ficam para você revisar.</span>
         </form>
       )}
-      {!vis.length ? <div className="vazio">Nenhum lançamento neste período e filtro.</div> : (
+      {!vis.length ? <div className="vazio">{!sp.st || sp.st === 'A aprovar' ? 'Nada a aprovar neste período. Para ver os aprovados, escolha Status “Aprovado” ou “Todos”.' : 'Nenhum lançamento neste período e filtro.'}</div> : (
         <form action={aplicarStatus}>
           <input type="hidden" name="volta" value={volta} />
           {edita && (

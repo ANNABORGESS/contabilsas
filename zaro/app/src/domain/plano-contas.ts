@@ -53,7 +53,7 @@ export const PLANO_PADRAO: Conta[] = [
   ['4.1.3.05', 'Telefone e internet', 'D'],
   ['4.1.3.06', 'Serviços de terceiros', 'D'],
   ['4.1.3.09', 'Despesas gerais', 'D'],
-  ['4.1.3.10', 'Depreciação de máquinas e equipamentos', 'D'],
+  ['4.1.3.10', 'Depreciação do imobilizado', 'D'],
   ['4.1.4.01', 'Tributos e taxas', 'D'],
   ['4.2.1.01', 'Despesas financeiras — juros', 'D'],
   ['4.2.1.02', 'Despesas bancárias — tarifas', 'D'],
