@@ -11,6 +11,7 @@ import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
 import { saldoInicial } from './banco';
 import { creditosDaEmpresa } from './creditos';
+import { aberturaDaEmpresa } from './abertura';
 import { splitConfirmadoPorBaixa } from './split-payment';
 
 /** Lançamentos da empresa. Os excluídos pelo contador ficam de fora (de demonstrações, painéis e relatórios);
@@ -29,7 +30,7 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa, opts: { incluir
   ]);
   // split payment só entra na contabilidade quando confirmado com evidência
   const split = await splitConfirmadoPorBaixa(db, emp.id);
-  const [saldoBanco, cred] = await Promise.all([saldoInicial(db, emp.tenantId, emp.id), creditosDaEmpresa(db, emp)]);
+  const [saldoBanco, cred, abertura] = await Promise.all([saldoInicial(db, emp.tenantId, emp.id), creditosDaEmpresa(db, emp), aberturaDaEmpresa(db, emp.tenantId, emp.id)]);
   const baixasPor = new Map<string, { id: string; data: string; valor: number; estornada: boolean; desconto: number; juros: number; multa: number; extratoId: string | null; split: { ibs: number; cbs: number; taxa: number } | null }[]>();
   for (const b of bxs) baixasPor.set(b.tituloId, [...(baixasPor.get(b.tituloId) || []), { ...b, extratoId: ((b.dados || {}) as { extratoId?: string }).extratoId || null, split: split.get(b.id) || null }]);
   const status: Record<string, StatusLanc> = {};
@@ -51,6 +52,7 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa, opts: { incluir
     decisoes: { status, contas, estornos, regras: Object.fromEntries(regras.map((r) => [r.chave, r.conta])) },
     extrato,
     saldoInicialBanco: saldoBanco,
+    abertura,
     creditos: cred.paraMotor,
     compensacoesIcms: cred.compensacoes,
     folhas: folhas.filter((f) => (f.resumo as { folha?: unknown }).folha).map((f) => ({ id: f.id, resumo: (f.resumo as { folha: ResumoFolha }).folha, importadoEm: f.criadoEm?.toISOString() })),

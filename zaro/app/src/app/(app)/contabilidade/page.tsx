@@ -11,7 +11,9 @@ import { balanceteModelo } from '@/domain/balancete-modelo';
 import { redirect } from 'next/navigation';
 import { PedidoZaro } from '@/components/PedidoZaro';
 import { atenderPedido } from '@/server/pedidos';
-import { aplicarStatus, aprovarConfiaveis, aprovarTodosExceto, estornarLanc, trocarConta } from './acoes';
+import { aplicarStatus, aprovarConfiaveis, aprovarTodosExceto, estornarLanc, salvarAberturaAcao, trocarConta } from './acoes';
+import { aberturaDaEmpresa } from '@/server/abertura';
+import { CONTA_ABERTURA, type AberturaMotor } from '@/domain/motor';
 
 type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; modelo?: string; msg?: string; erro?: string; pedido?: string };
 const STATUS = ['Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado', 'Excluído'];
@@ -28,7 +30,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
   if (resposta?.tipo === 'demonstracao' && resposta.itens.length === 1 && resposta.pedido.formato === 'tela') redirect(resposta.itens[0].links.tela);
   const todos = await lancamentosDaEmpresa(db, emp, { incluirExcluidos: true });
   const lancs = todos.filter((l) => l.status !== 'Excluído');
-  const aba = ['lancamentos', 'balancete', 'dre', 'balanco'].includes(sp.aba || '') ? sp.aba! : 'lancamentos';
+  const aba = ['lancamentos', 'balancete', 'dre', 'balanco', 'abertura'].includes(sp.aba || '') ? sp.aba! : 'lancamentos';
   const p = periodoContabil(sp, lancs.map((l) => l.comp));
   const previa = sp.previa === '1';
   const edita = podeEditar(u);
@@ -54,11 +56,11 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
       {sp.msg && <div className="aviso ok">{sp.msg}</div>}
       <PedidoZaro acao="/contabilidade" texto={pedido || undefined} resposta={resposta} />
       <div className="abas nao-imprimir">
-        {[['lancamentos', `Lançamentos (${pendentes} a aprovar)`], ['balancete', 'Balancete'], ['dre', 'DRE'], ['balanco', 'Balanço']].map(([k, n]) => (
+        {[['lancamentos', `Lançamentos (${pendentes} a aprovar)`], ['balancete', 'Balancete'], ['dre', 'DRE'], ['balanco', 'Balanço'], ['abertura', 'Saldos de abertura']].map(([k, n]) => (
           <Link key={k} href={qs({ aba: k })} className={aba === k ? 'ativo' : ''}>{n}</Link>
         ))}
       </div>
-      <form className="card linha nao-imprimir" style={{ marginBottom: 16 }} action="/contabilidade">
+      {aba !== 'abertura' && <form className="card linha nao-imprimir" style={{ marginBottom: 16 }} action="/contabilidade">
         <input type="hidden" name="aba" value={aba} />
         <div><label>Período</label><select name="per" defaultValue={sp.per || 'ano'}><option value="mes">Mês</option><option value="tri">Trimestre</option><option value="ano">Ano</option><option value="pers">Personalizado</option></select></div>
         <div><label>Referência</label><input type="month" name="ref" defaultValue={sp.ref || p.ate} /></div>
@@ -69,8 +71,9 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
         {aba === 'balancete' && <div><label>Modelo</label><select name="modelo" defaultValue={sp.modelo || ''}><option value="">Modelo do escritório</option><option value="zaro">Plano de contas do ZARO (detalhado)</option></select></div>}
         {aba !== 'lancamentos' && <label className="linha" style={{ alignSelf: 'flex-end' }}><input type="checkbox" name="previa" value="1" defaultChecked={previa} /> Prévia (inclui não aprovados)</label>}
         <button className="btn" type="submit" style={{ alignSelf: 'flex-end' }}>Aplicar</button>
-      </form>
+      </form>}
 
+      {aba === 'abertura' && <Abertura ab={await aberturaDaEmpresa(db, emp.tenantId, emp.id)} edita={edita} volta={volta} />}
       {aba === 'lancamentos' && <Lancamentos lancs={sp.st === 'Excluído' ? todos : lancs} p={p} sp={sp} edita={edita} volta={volta} />}
       {aba === 'balancete' && (sp.modelo === 'zaro' ? <Balancete lancs={lancs} p={p} previa={previa} emp={emp.razao} /> : <BalanceteEscritorio lancs={lancs} p={p} previa={previa} emp={emp.razao} />)}
       {aba === 'dre' && <Dre lancs={lancs} p={p} previa={previa} emp={emp.razao} />}
@@ -244,6 +247,39 @@ function Balanco({ lancs, p, previa, emp }: { lancs: Lancamento[]; p: Periodo & 
           <tr><td style={{ paddingLeft: 26 }}>Resultado acumulado</td><td className="num">{brl(b.resultadoAcumulado)}</td></tr>
         </tbody></table>
       </div>
+    </div>
+  );
+}
+
+function Abertura({ ab, edita, volta }: { ab: AberturaMotor | null; edita: boolean; volta: string }) {
+  const contas = PLANO_PADRAO.filter((c) => /^[12]\./.test(c.codigo) && c.codigo !== CONTA_ABERTURA);
+  const valor = (c: string) => ab?.contas.find((x) => x.conta === c)?.valor || 0;
+  const deb = ab ? ab.contas.filter((c) => c.valor > 0).reduce((a, c) => a + c.valor, 0) : 0;
+  const cred = ab ? ab.contas.filter((c) => c.valor < 0).reduce((a, c) => a - c.valor, 0) : 0;
+  const fmt = (v: number) => (v ? v.toFixed(2).replace('.', ',') : '');
+  return (
+    <div className="card">
+      <h2>Balanço de abertura</h2>
+      <p className="pequeno">Saldos de cada conta no fim do exercício anterior (o balanço registrado). A partir da data, a contabilidade parte destes saldos; o que aconteceu até ela já está dentro do balanço e fica de fora dos lançamentos. Débitos e créditos precisam ser iguais.</p>
+      {ab && <p className="pequeno mudo">Gravado: {dataBr(ab.data)}{ab.fonte ? ` · ${ab.fonte}` : ''} · devedores {brl(deb)} · credores {brl(cred)}</p>}
+      <form action={salvarAberturaAcao} className="campos">
+        <input type="hidden" name="volta" value={volta} />
+        <div className="linha">
+          <div><label>Data do balanço</label><input type="date" name="data" defaultValue={ab?.data || ''} required disabled={!edita} /></div>
+          <div style={{ flex: 1 }}><label>Fonte</label><input name="fonte" defaultValue={ab?.fonte || ''} placeholder="Ex.: Balanço 2025 registrado na JUCEA" disabled={!edita} /></div>
+        </div>
+        <div className="tabela-wrap"><table>
+          <thead><tr><th>Conta</th><th className="num">Saldo devedor</th><th className="num">Saldo credor</th></tr></thead>
+          <tbody>{contas.map((c) => (
+            <tr key={c.codigo}>
+              <td>{c.codigo} · {c.nome}</td>
+              <td className="num"><input name={`d:${c.codigo}`} defaultValue={fmt(Math.max(valor(c.codigo), 0))} style={{ width: 140, textAlign: 'right' }} inputMode="decimal" disabled={!edita} /></td>
+              <td className="num"><input name={`c:${c.codigo}`} defaultValue={fmt(Math.max(-valor(c.codigo), 0))} style={{ width: 140, textAlign: 'right' }} inputMode="decimal" disabled={!edita} /></td>
+            </tr>
+          ))}</tbody>
+        </table></div>
+        {edita && <div><button className="btn primario">Gravar balanço de abertura</button></div>}
+      </form>
     </div>
   );
 }

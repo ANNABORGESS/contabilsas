@@ -217,3 +217,23 @@ describe('balancete para impressão', () => {
     expect(periodoContabil({ per: 'pers', de: '2026-05', ate: '2026-02' }, [], '2026-10').ate).toBe('2026-10');
   });
 });
+
+describe('balanço de abertura', () => {
+  it('parte dos saldos de abertura e ignora o histórico até a data', () => {
+    const L = gerarLancamentos({
+      titulos: [
+        { id: 'CP-ANTIGO', tipo: 'pagar', nome: 'Fornecedor Teste', nf: '1', competencia: '2025-06', emissao: '2025-06-10', valor: 500, status: 'Pago' },
+        { id: 'CP-NOVO', tipo: 'pagar', nome: 'Fornecedor Teste', nf: '2', competencia: '2026-02', emissao: '2026-02-10', valor: 300, status: 'Aberto' },
+        { id: 'CP-PF', tipo: 'pagar', nome: 'FULANO (pessoa física)', origem: 'emprestimo', contrato: 'X', venc: '2026-03-15', valor: 1000, status: 'Aberto' },
+      ],
+      abertura: { data: '2025-12-31', fonte: 'Balanço 2025', contas: [{ conta: '1.1.1.02', valor: 100 }, { conta: '2.1.1.01', valor: -400 }, { conta: '2.3.2.01', valor: 300 }] },
+    });
+    expect(L.some((l) => l.origemId === 'CP-ANTIGO')).toBe(false);
+    expect(L.some((l) => l.id === 'CP-NOVO|prov')).toBe(true);
+    const ab = L.filter((l) => l.id.startsWith('ABERT|'));
+    expect(ab).toHaveLength(3);
+    expect(ab.every((l) => l.status === 'Aprovado')).toBe(true);
+    expect(ab.find((l) => l.id === 'ABERT|2.1.1.01')).toMatchObject({ deb: '2.3.9.99', cred: '2.1.1.01', valor: 400 });
+    expect(L.find((l) => l.id === 'CP-PF|prov')?.deb).toBe('2.1.3.02');
+  });
+});

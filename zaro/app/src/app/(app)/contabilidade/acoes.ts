@@ -7,6 +7,8 @@ import { PLANO_PADRAO } from '@/domain/plano-contas';
 import { exigirEdicao, exigirEmpresa } from '@/server/auth';
 import { ajustarConta, estornar, lancamentosDaEmpresa, mudarStatus, restaurar } from '@/server/contabil';
 import { separarParaAprovar } from '@/server/pedidos';
+import { salvarAbertura } from '@/server/abertura';
+import { numero } from '@/domain/dinheiro';
 
 async function executar(form: FormData, f: (ctx: { db: Awaited<ReturnType<typeof getDb>>; u: Awaited<ReturnType<typeof exigirEdicao>>; emp: Awaited<ReturnType<typeof exigirEmpresa>> }) => Promise<string>) {
   const volta = String(form.get('volta') || '/contabilidade');
@@ -83,5 +85,15 @@ export async function estornarLanc(form: FormData) {
   await executar(form, async ({ db, u, emp }) => {
     await estornar(db, u, emp, String(form.get('id')), String(form.get('motivo') || ''));
     return 'Lançamento estornado: o inverso foi gerado.';
+  });
+}
+
+export async function salvarAberturaAcao(form: FormData) {
+  await executar(form, async ({ db, u, emp }) => {
+    const contas = PLANO_PADRAO.filter((c) => /^[12]\./.test(c.codigo)).map((c) => ({
+      conta: c.codigo, valor: numero(String(form.get(`d:${c.codigo}`) || '0')) - numero(String(form.get(`c:${c.codigo}`) || '0')),
+    }));
+    await salvarAbertura(db, u, emp, { data: String(form.get('data') || ''), fonte: String(form.get('fonte') || '').slice(0, 120), contas });
+    return 'Balanço de abertura gravado: a contabilidade parte destes saldos e o histórico até a data fica de fora.';
   });
 }

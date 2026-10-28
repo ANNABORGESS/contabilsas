@@ -115,6 +115,14 @@ export interface MovimentoMotor {
   valor: number;
   memo: string;
 }
+export interface AberturaMotor {
+  data: string;
+  /** saldo por conta: positivo = devedor, negativo = credor; a soma tem de ser zero */
+  contas: { conta: string; valor: number }[];
+  fonte?: string;
+}
+export const CONTA_ABERTURA = '2.3.9.99';
+
 export interface CreditoMotor {
   id: string;
   /** título da compra: o crédito sai da conta de custo em que a provisão foi lançada */
@@ -136,6 +144,9 @@ export interface EntradaMotor {
   contratos?: ContratoMotor[];
   /** saldo do banco informado (extrato) numa data: o banco do ZARO é acertado a ele */
   saldoInicialBanco?: { data: string; valor: number } | null;
+  /** balanço de abertura (ex.: encerramento do exercício anterior): a partir da data, a contabilidade parte
+   *  destes saldos e o histórico até ela fica de fora, porque já está dentro do balanço */
+  abertura?: AberturaMotor | null;
   /** resumos da folha importados no Departamento Pessoal */
   folhas?: FolhaImportada[];
   /** ICMS/IPI das NF de compra que viram crédito (Fiscal → Impostos a recuperar) */
@@ -196,7 +207,7 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
   const L: Lancamento[] = [];
 
   const add = (l: Omit<Lancamento, 'status'>) => {
-    const padrao: StatusLanc = /^(IMB|DEP)\|/.test(l.id) ? 'Aprovado' : l.conf < 70 ? 'Em revisão' : l.auto ? 'Automático' : 'Sugerido';
+    const padrao: StatusLanc = /^(IMB|DEP|ABERT)\|/.test(l.id) ? 'Aprovado' : l.conf < 70 ? 'Em revisão' : l.auto ? 'Automático' : 'Sugerido';
     if (!(l.valor > 0.004)) return;
     L.push({ ...l, valor: arred(l.valor), status: statusDec[l.id] || padrao });
   };
@@ -238,7 +249,8 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
       if (t.origem === 'emprestimo') {
         const juros = t.juros != null ? Math.min(Number(t.juros) || 0, v) : null;
         const principal = juros != null ? v - juros : v;
-        add({ ...base, id: `${t.id}|prov`, data: t.venc || data, comp, deb: '2.1.3.01', cred: '2.1.1.01', valor: principal, hist: `Principal parcela — ${t.nome} — contrato ${t.contrato || ''}`, modulo: 'Empréstimos → Contas a Pagar', motivo: juros != null ? 'Amortização do principal conforme o contrato' : 'Parcela sem separação de juros: confirme o cronograma do contrato', conf: juros != null ? 92 : 68, auto: false });
+        const contaEmp = /pessoa f[ií]sica/i.test(t.nome) ? '2.1.3.02' : '2.1.3.01';
+        add({ ...base, id: `${t.id}|prov`, data: t.venc || data, comp, deb: contaEmp, cred: '2.1.1.01', valor: principal, hist: `Principal parcela — ${t.nome} — contrato ${t.contrato || ''}`, modulo: 'Empréstimos → Contas a Pagar', motivo: juros != null ? 'Amortização do principal conforme o contrato' : 'Parcela sem separação de juros: confirme o cronograma do contrato', conf: juros != null ? 92 : 68, auto: false });
         if (juros) add({ ...base, id: `${t.id}|jur`, data: t.venc || data, comp, deb: '4.2.1.01', cred: '2.1.1.01', valor: juros, hist: `Juros parcela — ${t.nome}`, modulo: 'Empréstimos → Contas a Pagar', motivo: `Juros do contrato ${t.contrato || ''}`, conf: 92, auto: false });
         if (pagoV > 0) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '2.1.1.01', cred: banco(dataPag), valor: pagoV, hist: `Pagamento parcela — ${t.nome}`, modulo: 'Empréstimos → Contas a Pagar', motivo: 'Pagamento registrado no Contas a Pagar', conf: 97, auto: true });
         continue;
@@ -312,9 +324,25 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
 
   for (const l of doExtrato) add(l);
 
+  // balanço de abertura: o que é até a data já está nos saldos dele
+  const ab = e.abertura;
+  if (ab?.data && ab.contas.length) {
+    for (let i = L.length - 1; i >= 0; i--) if (L[i].data <= ab.data) L.splice(i, 1);
+    for (const c of ab.contas) {
+      const v = arred(c.valor);
+      if (Math.abs(v) < 0.005 || c.conta === CONTA_ABERTURA) continue;
+      add({
+        id: `ABERT|${c.conta}`, data: ab.data, comp: ab.data.slice(0, 7), deb: v > 0 ? c.conta : CONTA_ABERTURA, cred: v > 0 ? CONTA_ABERTURA : c.conta, valor: Math.abs(v),
+        hist: `Saldo de abertura em ${ab.data.split('-').reverse().join('/')}${ab.fonte ? ` — ${ab.fonte}` : ''}`, origemId: 'abertura', modulo: 'Contabilidade · saldos de abertura',
+        doc: ab.fonte || 'Balanço de abertura', motivo: 'Saldo do balanço de encerramento do exercício anterior', conf: 99, auto: true,
+      });
+    }
+  }
+
   // saldo de abertura do banco = saldo anterior do extrato; a diferença para o que o ZARO tinha acumulado vira ajuste
+  // (com balanço de abertura na mesma data ou depois, o banco já vem dele)
   const ini = e.saldoInicialBanco;
-  if (ini && cobertura && ini.data < cobertura[1]) {
+  if (ini && cobertura && ini.data < cobertura[1] && !(ab?.contas.length && ini.data <= ab.data)) {
     const dataSaldo = ini.data;
     const acumulado = L.filter((l) => l.data <= dataSaldo && l.status !== 'Excluído').reduce((a, l) => a + (l.deb === '1.1.1.02' ? l.valor : 0) - (l.cred === '1.1.1.02' ? l.valor : 0), 0);
     const extrato = ini.valor;
