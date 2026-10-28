@@ -163,3 +163,10 @@ export const despesas = pgTable(
   },
   (t) => [index('despesas_data_idx').on(t.data)],
 );
+
+/** Configurações gerais (ex.: dados do site público: endereço, WhatsApp, horário). */
+export const configuracoes = pgTable('configuracoes', {
+  chave: text('chave').primaryKey(),
+  valor: jsonb('valor').notNull(),
+  atualizadoEm: momento('atualizado_em').notNull().defaultNow(),
+});

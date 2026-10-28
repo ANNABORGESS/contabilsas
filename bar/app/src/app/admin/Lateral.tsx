@@ -14,6 +14,7 @@ const ITENS = [
   ['/admin/relatorios', 'Relatórios'],
   ['/admin/financeiro', 'Custos e lucro'],
   ['/admin/auditoria', 'Auditoria'],
+  ['/admin/site', 'Site do restaurante'],
 ] as const;
 
 export default function Lateral({ nome, children }: { nome: string; children: React.ReactNode }) {
@@ -47,6 +48,9 @@ export default function Lateral({ nome, children }: { nome: string; children: Re
           </a>
         ))}
         <div className="sep">Telas de operação</div>
+        <a href="/" target="_blank" rel="noreferrer">
+          Ver o site ↗
+        </a>
         <a href="/admin/equipe#links">Links de acesso</a>
         <a href="/garcom" target="_blank" rel="noreferrer">
           Celular do garçom ↗
