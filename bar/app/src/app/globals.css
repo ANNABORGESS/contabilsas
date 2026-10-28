@@ -1,32 +1,33 @@
-/* Tema vidro: delicado, minimalista e futurista. Fundo claro com luzes suaves e cartões de vidro
+/* Tema vidro: delicado, minimalista e futurista, nas cores da marca (preto, amarelo e marrom).
+   Fundo claro com luzes suaves e cartões de vidro
    fosco (translúcidos, com desfoque e borda fina). Vale para o site, o administrador, o celular do
    garçom e os painéis da cozinha e do bar. */
 
 :root,
 .tema-escuro {
-  --fundo: #f3f4f8;
+  --fundo: #f6f2ea;
   --superficie: rgba(255, 255, 255, 0.55);
   --superficie-2: rgba(255, 255, 255, 0.4);
   --borda: rgba(255, 255, 255, 0.75);
-  --linha: rgba(28, 29, 34, 0.08);
-  --texto: #1c1d22;
-  --texto-2: #5b5e6b;
-  --texto-3: #9194a1;
-  --marca: #c98a2b;
-  --marca-forte: #a86a14;
-  --marca-suave: rgba(201, 138, 43, 0.12);
-  --tinta: #1c1d22; /* botões principais */
-  --laranja: #e9875a;
-  --azul: #5b7cfa;
-  --azul-suave: rgba(91, 124, 250, 0.12);
+  --linha: rgba(20, 18, 16, 0.09);
+  --texto: #141210;
+  --texto-2: #5c4b3b;
+  --texto-3: #9a8977;
+  --marca: #f2b705;
+  --marca-forte: #6b3e1e;
+  --marca-suave: rgba(242, 183, 5, 0.18);
+  --tinta: #141210; /* botões principais */
+  --laranja: #a0601f;
+  --azul: #8a5a2b;
+  --azul-suave: rgba(138, 90, 43, 0.12);
   --verde: #2f9e6a;
   --verde-suave: rgba(47, 158, 106, 0.12);
   --vermelho: #e0524a;
   --vermelho-suave: rgba(224, 82, 74, 0.12);
-  --amarelo: #c98a2b;
-  --amarelo-suave: rgba(201, 138, 43, 0.12);
-  --roxo: #8b6cf0;
-  --roxo-suave: rgba(139, 108, 240, 0.12);
+  --amarelo: #a87c00;
+  --amarelo-suave: rgba(242, 183, 5, 0.18);
+  --roxo: #6b3e1e;
+  --roxo-suave: rgba(107, 62, 30, 0.12);
   --sombra: 0 1px 1px rgba(255, 255, 255, 0.6) inset, 0 8px 32px rgba(40, 44, 70, 0.08);
   --sombra-forte: 0 30px 80px rgba(40, 44, 70, 0.18);
   --vidro: rgba(255, 255, 255, 0.6);
@@ -1304,10 +1305,10 @@ body::before {
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(38vw 38vw at 8% 12%, rgba(255, 200, 130, 0.45), transparent 70%),
-    radial-gradient(34vw 34vw at 92% 18%, rgba(160, 180, 255, 0.4), transparent 70%),
-    radial-gradient(40vw 40vw at 70% 92%, rgba(255, 175, 205, 0.32), transparent 70%),
-    radial-gradient(30vw 30vw at 18% 88%, rgba(150, 225, 210, 0.3), transparent 70%);
+    radial-gradient(38vw 38vw at 8% 12%, rgba(255, 205, 40, 0.42), transparent 70%),
+    radial-gradient(34vw 34vw at 92% 18%, rgba(150, 95, 45, 0.28), transparent 70%),
+    radial-gradient(40vw 40vw at 70% 92%, rgba(255, 196, 30, 0.3), transparent 70%),
+    radial-gradient(30vw 30vw at 18% 88%, rgba(110, 65, 30, 0.22), transparent 70%);
 }
 .tema-escuro,
 .site,
@@ -1403,7 +1404,7 @@ a {
   box-shadow: 0 6px 20px rgba(28, 29, 34, 0.18);
 }
 .btn.primario:hover:not(:disabled) {
-  background: #33353d;
+  background: #2a2420;
 }
 .btn.sucesso {
   background: var(--verde);
@@ -1585,8 +1586,8 @@ label.campo {
   box-shadow: 0 14px 40px rgba(40, 44, 70, 0.12);
 }
 .mesa.ocupada {
-  background: linear-gradient(160deg, rgba(255, 214, 160, 0.55), rgba(255, 255, 255, 0.5) 60%);
-  border-color: rgba(201, 138, 43, 0.35);
+  background: linear-gradient(160deg, rgba(255, 210, 70, 0.5), rgba(255, 255, 255, 0.5) 60%);
+  border-color: rgba(242, 183, 5, 0.6);
 }
 .mesa .n {
   font-size: 22px;
@@ -1606,8 +1607,8 @@ label.campo {
   color: var(--texto);
 }
 .produto.escolhido {
-  border-color: rgba(201, 138, 43, 0.45);
-  background: linear-gradient(90deg, rgba(255, 214, 160, 0.5), rgba(255, 255, 255, 0.55));
+  border-color: rgba(242, 183, 5, 0.7);
+  background: linear-gradient(90deg, rgba(255, 210, 70, 0.45), rgba(255, 255, 255, 0.55));
 }
 .qtd button {
   border-radius: 999px;
@@ -1643,7 +1644,7 @@ label.campo {
 }
 .formas button.ativo {
   border: 1.5px solid var(--marca);
-  background: rgba(255, 236, 205, 0.7);
+  background: rgba(255, 225, 120, 0.55);
 }
 .total-grande {
   font-size: 56px;
@@ -1722,14 +1723,15 @@ label.campo {
   font-size: 18px;
 }
 .perfil:hover {
-  border-color: rgba(201, 138, 43, 0.45);
+  border-color: rgba(242, 183, 5, 0.7);
 }
 .logo-grande,
 .logo-media,
 .logo-mini {
   box-shadow: 0 4px 16px rgba(40, 44, 70, 0.08);
 }
-.cliente-mesa {
+.cliente-mesa,
+.ticket li b {
   color: var(--marca-forte);
 }
 
@@ -1757,7 +1759,7 @@ html {
 }
 .site-contorno {
   font-weight: 500;
-  background: linear-gradient(100deg, #c98a2b, #e9875a 45%, #8b6cf0);
+  background: linear-gradient(100deg, #f2b705, #c98a12 40%, #6b3e1e);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
@@ -1859,7 +1861,7 @@ html {
   box-shadow: 0 8px 24px rgba(28, 29, 34, 0.2);
 }
 .site-btn-ouro {
-  background: linear-gradient(100deg, #c98a2b, #e9875a);
+  background: linear-gradient(100deg, #f2b705, #c98a12);
   color: #fff;
 }
 .site-btn-linha {
@@ -1901,7 +1903,7 @@ html {
   inset: -1px;
   border-radius: 50%;
   padding: 1px;
-  background: linear-gradient(140deg, rgba(201, 138, 43, 0.6), transparent 40%, rgba(139, 108, 240, 0.5));
+  background: linear-gradient(140deg, rgba(242, 183, 5, 0.8), transparent 40%, rgba(107, 62, 30, 0.6));
   -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
   -webkit-mask-composite: xor;
   mask-composite: exclude;
@@ -2124,7 +2126,7 @@ html {
   font-size: 64px;
   line-height: 1;
   letter-spacing: -0.05em;
-  background: linear-gradient(120deg, #c98a2b, #8b6cf0);
+  background: linear-gradient(120deg, #f2b705, #6b3e1e);
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;

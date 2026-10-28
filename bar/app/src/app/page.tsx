@@ -12,7 +12,7 @@ import { reais } from '@/domain/dinheiro';
 export const dynamic = 'force-dynamic';
 
 // cor de destaque de cada categoria do cardápio, em rodízio
-const CORES = ['#c98a2b', '#e9875a', '#5b7cfa', '#2f9e6a', '#8b6cf0'];
+const CORES = ['#f2b705', '#6b3e1e', '#141210', '#c98a12', '#a0601f'];
 
 export async function generateMetadata() {
   const site = await lerSite(await getDb()).catch(() => null);
