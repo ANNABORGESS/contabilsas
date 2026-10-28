@@ -1,49 +1,62 @@
-/* Sistema do bar. Tema claro no computador (administração) e escuro no salão, cozinha e bar,
-   onde a luz é baixa e a tela precisa ser lida de longe. */
+/* Visual minimalista no estilo Apple: cinza claro, cartões brancos com cantos grandes, sombras
+   suaves e o dourado da logo do Vikings como cor de destaque. Salão, cozinha e bar usam o tema
+   escuro equivalente, para ler bem com pouca luz. */
 
 :root {
-  --fundo: #f4f5f7;
+  --fundo: #f5f5f7;
   --superficie: #ffffff;
-  --superficie-2: #f8f9fb;
-  --borda: #e3e6ec;
-  --texto: #161a23;
-  --texto-2: #5b6474;
-  --texto-3: #8a93a3;
-  --marca: #e8862a;
-  --marca-forte: #c96a12;
-  --marca-suave: #fff3e6;
-  --azul: #2f6fed;
-  --azul-suave: #eaf1ff;
-  --verde: #1f9d55;
-  --verde-suave: #e6f6ec;
-  --vermelho: #d93a3a;
-  --vermelho-suave: #fdecec;
-  --amarelo: #c98a00;
-  --amarelo-suave: #fff6dc;
-  --roxo: #7a4fd6;
-  --roxo-suave: #f1ebff;
-  --sombra: 0 1px 2px rgba(16, 24, 40, 0.06), 0 4px 16px rgba(16, 24, 40, 0.06);
-  --raio: 14px;
-  --raio-p: 10px;
-  --fonte: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --superficie-2: #f5f5f7;
+  --borda: rgba(0, 0, 0, 0.08);
+  --texto: #1d1d1f;
+  --texto-2: #6e6e73;
+  --texto-3: #86868b;
+  --marca: #e8a317;
+  --marca-forte: #c98a0c;
+  --marca-suave: #fdf3dc;
+  --tinta: #1d1d1f; /* botões principais: preto, como na Apple */
+  --azul: #0071e3;
+  --azul-suave: #e8f1fc;
+  --verde: #248a3d;
+  --verde-suave: #e5f5ea;
+  --vermelho: #e3352b;
+  --vermelho-suave: #fdecea;
+  --amarelo: #b25f00;
+  --amarelo-suave: #fff3df;
+  --roxo: #8944ab;
+  --roxo-suave: #f4ecf8;
+  --sombra: 0 1px 1px rgba(0, 0, 0, 0.02), 0 6px 24px rgba(0, 0, 0, 0.05);
+  --sombra-forte: 0 2px 6px rgba(0, 0, 0, 0.04), 0 18px 48px rgba(0, 0, 0, 0.1);
+  --vidro: rgba(255, 255, 255, 0.72);
+  --raio: 20px;
+  --raio-p: 12px;
+  --fonte: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', 'Inter', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   color-scheme: light;
 }
 
 .tema-escuro {
-  --fundo: #0e1117;
-  --superficie: #171b24;
-  --superficie-2: #1e2330;
-  --borda: #2a3141;
-  --texto: #f2f4f8;
-  --texto-2: #aab3c4;
-  --texto-3: #7c879b;
-  --marca-suave: #3a2612;
-  --azul-suave: #172846;
-  --verde-suave: #11301f;
-  --vermelho-suave: #3a1717;
-  --amarelo-suave: #382c0c;
-  --roxo-suave: #2a1f47;
-  --sombra: 0 1px 2px rgba(0, 0, 0, 0.3), 0 6px 20px rgba(0, 0, 0, 0.25);
+  --fundo: #000000;
+  --superficie: #1c1c1e;
+  --superficie-2: #2c2c2e;
+  --borda: rgba(255, 255, 255, 0.1);
+  --texto: #f5f5f7;
+  --texto-2: #a1a1a6;
+  --texto-3: #8e8e93;
+  --marca: #f5b731;
+  --marca-forte: #e8a317;
+  --marca-suave: rgba(245, 183, 49, 0.16);
+  --tinta: #f5f5f7;
+  --azul: #0a84ff;
+  --azul-suave: rgba(10, 132, 255, 0.16);
+  --verde: #30d158;
+  --verde-suave: rgba(48, 209, 88, 0.16);
+  --vermelho: #ff453a;
+  --vermelho-suave: rgba(255, 69, 58, 0.16);
+  --amarelo: #ffd60a;
+  --amarelo-suave: rgba(255, 214, 10, 0.14);
+  --roxo-suave: rgba(191, 90, 242, 0.16);
+  --sombra: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --sombra-forte: 0 20px 60px rgba(0, 0, 0, 0.6);
+  --vidro: rgba(28, 28, 30, 0.72);
   color-scheme: dark;
 }
 
@@ -1296,4 +1309,386 @@ table.tabela {
   border-radius: 10px;
   padding: 2px;
   flex: none;
+}
+
+
+/* ================= acabamento estilo Apple ================= */
+body {
+  font-size: 15px;
+  letter-spacing: -0.01em;
+  text-rendering: optimizeLegibility;
+}
+h1 {
+  font-size: 34px;
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+h2 {
+  font-size: 19px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+a {
+  color: var(--azul);
+}
+
+/* botões em pílula; o principal é preto (ou claro no tema escuro) */
+.btn {
+  border-radius: 999px;
+  border: none;
+  background: rgba(0, 0, 0, 0.05);
+  font-weight: 500;
+  padding: 10px 18px;
+  transition: background 0.2s, transform 0.08s, opacity 0.2s;
+}
+.tema-escuro .btn {
+  background: rgba(255, 255, 255, 0.1);
+}
+.btn:hover:not(:disabled) {
+  background: rgba(0, 0, 0, 0.08);
+}
+.tema-escuro .btn:hover:not(:disabled) {
+  background: rgba(255, 255, 255, 0.16);
+}
+.btn.primario,
+.tema-escuro .btn.primario {
+  background: var(--tinta);
+  color: var(--fundo);
+}
+.btn.primario:hover:not(:disabled),
+.tema-escuro .btn.primario:hover:not(:disabled) {
+  background: var(--tinta);
+  opacity: 0.86;
+}
+.btn.sucesso,
+.tema-escuro .btn.sucesso {
+  background: var(--verde);
+  color: #fff;
+}
+.btn.perigo,
+.tema-escuro .btn.perigo {
+  background: var(--vermelho);
+  color: #fff;
+}
+.btn.contorno-perigo,
+.tema-escuro .btn.contorno-perigo {
+  background: var(--vermelho-suave);
+  color: var(--vermelho);
+}
+.btn.fantasma,
+.tema-escuro .btn.fantasma {
+  background: transparent;
+  color: var(--azul);
+}
+.btn.grande {
+  border-radius: 16px;
+  padding: 16px 22px;
+  font-weight: 600;
+}
+.btn.pequeno {
+  padding: 6px 12px;
+}
+
+input,
+select,
+textarea {
+  border-radius: 12px;
+  border: 1px solid transparent;
+  background: var(--superficie-2);
+  padding: 11px 14px;
+  transition: box-shadow 0.15s, background 0.15s;
+}
+.tema-escuro input,
+.tema-escuro select,
+.tema-escuro textarea {
+  background: var(--superficie-2);
+}
+input:focus,
+select:focus,
+textarea:focus {
+  background: var(--superficie);
+  border-color: var(--marca);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--marca) 22%, transparent);
+}
+label.campo {
+  font-weight: 500;
+}
+
+/* cartões sem borda, com sombra macia */
+.cartao {
+  border: none;
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+  padding: 22px;
+}
+.tema-escuro .cartao {
+  border: 1px solid var(--borda);
+}
+.kpi .rotulo {
+  font-weight: 500;
+  color: var(--texto-2);
+}
+.kpi .valor {
+  font-size: 32px;
+  font-weight: 600;
+  letter-spacing: -0.035em;
+}
+
+.chip {
+  border: none;
+  font-weight: 600;
+  padding: 4px 10px;
+}
+
+.tabela th {
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--texto-3);
+}
+.tabela td {
+  border-bottom-color: var(--borda);
+}
+.tabela tr.clicavel:hover td {
+  background: rgba(0, 0, 0, 0.025);
+}
+
+.barra {
+  height: 6px;
+  background: rgba(0, 0, 0, 0.06);
+}
+.barra > i,
+.colunas-hora i {
+  background: linear-gradient(90deg, var(--marca), #f5c451);
+}
+
+.aviso {
+  border: none;
+  border-radius: 14px;
+}
+
+/* janelas com vidro fosco */
+.modal-fundo {
+  background: rgba(0, 0, 0, 0.32);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+}
+.modal {
+  border: none;
+  border-radius: 24px;
+  box-shadow: var(--sombra-forte);
+}
+.modal > header {
+  border-bottom: none;
+  padding: 20px 22px 4px;
+}
+
+/* menu lateral claro e translúcido */
+.lateral {
+  background: var(--vidro);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-right: 1px solid var(--borda);
+  color: var(--texto);
+}
+.lateral .logo {
+  color: var(--texto);
+}
+.lateral a {
+  color: var(--texto);
+  font-weight: 500;
+  border-radius: 10px;
+  padding: 9px 12px;
+}
+.lateral a:hover {
+  background: rgba(0, 0, 0, 0.05);
+  color: var(--texto);
+}
+.lateral a.ativo {
+  background: var(--marca-suave);
+  color: var(--texto);
+  font-weight: 600;
+  box-shadow: inset 3px 0 0 var(--marca);
+}
+.lateral .sep {
+  color: var(--texto-3);
+  text-transform: none;
+  letter-spacing: 0;
+  font-size: 12px;
+  font-weight: 600;
+}
+.lateral .rodape {
+  border-top: 1px solid var(--borda);
+}
+.lateral .rodape .btn {
+  color: var(--azul);
+  background: transparent;
+}
+@media (max-width: 900px) {
+  .menu-movel {
+    background: var(--vidro);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+    color: var(--texto);
+    border-bottom: 1px solid var(--borda);
+  }
+  .menu-movel .logo {
+    color: var(--texto);
+  }
+  .lateral {
+    background: rgba(255, 255, 255, 0.92);
+  }
+}
+.conteudo {
+  padding: 32px 40px 56px;
+  max-width: 1400px;
+}
+.cabecalho {
+  margin-bottom: 28px;
+}
+
+/* mesas e pedidos */
+.mesa {
+  border: none;
+  border-radius: 20px;
+  box-shadow: var(--sombra);
+  transition: transform 0.15s, box-shadow 0.2s;
+}
+.mesa:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--sombra-forte);
+}
+.tema-escuro .mesa {
+  border: 1px solid var(--borda);
+}
+.mesa.ocupada {
+  box-shadow: inset 0 0 0 2px var(--marca), var(--sombra);
+}
+.mesa .n {
+  font-weight: 700;
+  letter-spacing: -0.03em;
+}
+
+/* celular do garçom */
+.topo-garcom,
+.barra-acao,
+.abas-baixo {
+  background: var(--vidro);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+}
+.produto,
+.pedido-cartao {
+  border: none;
+  border-radius: 18px;
+  background: var(--superficie);
+}
+.produto.escolhido {
+  box-shadow: inset 0 0 0 2px var(--marca);
+  background: var(--superficie);
+}
+.qtd button {
+  border: none;
+  border-radius: 50%;
+  background: var(--superficie-2);
+}
+.qtd button.mais {
+  background: var(--marca);
+  color: #1d1d1f;
+}
+.filtros-rolagem button {
+  border: none;
+  background: var(--superficie);
+  font-weight: 600;
+}
+.filtros-rolagem button.ativo {
+  background: var(--tinta);
+  color: var(--fundo);
+}
+.formas button {
+  border: none;
+  border-radius: 18px;
+  background: var(--superficie);
+  box-shadow: inset 0 0 0 1px var(--borda);
+}
+.formas button.ativo {
+  box-shadow: inset 0 0 0 2px var(--marca);
+  background: var(--marca-suave);
+}
+.total-grande {
+  font-weight: 700;
+  letter-spacing: -0.04em;
+}
+.abas-baixo button.ativo {
+  color: var(--marca);
+}
+.toast {
+  border-radius: 18px;
+  background: rgba(36, 138, 61, 0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* cozinha e bar */
+.painel-topo {
+  background: var(--vidro);
+  backdrop-filter: saturate(180%) blur(20px);
+  -webkit-backdrop-filter: saturate(180%) blur(20px);
+  border-bottom: 1px solid var(--borda);
+}
+.coluna {
+  border: none;
+  border-radius: 22px;
+  background: var(--superficie);
+}
+.coluna > header {
+  border-bottom: none;
+}
+.ticket {
+  border: none;
+  border-left: none;
+  border-radius: 18px;
+  background: var(--superficie-2);
+  box-shadow: inset 4px 0 0 var(--azul);
+}
+.ticket.preparando {
+  box-shadow: inset 4px 0 0 var(--amarelo);
+}
+.ticket.pronto {
+  box-shadow: inset 4px 0 0 var(--verde);
+}
+.ticket.atrasado {
+  box-shadow: inset 4px 0 0 var(--vermelho), 0 0 0 2px var(--vermelho);
+}
+
+/* telas de entrada */
+.acesso {
+  background: radial-gradient(900px 500px at 50% -10%, rgba(245, 183, 49, 0.18), transparent 60%), #000;
+}
+.acesso .cartao {
+  border-radius: 28px;
+  padding: 32px;
+  background: rgba(28, 28, 30, 0.8);
+  backdrop-filter: blur(24px);
+  -webkit-backdrop-filter: blur(24px);
+}
+.perfil {
+  border: none;
+  border-radius: 18px;
+  background: var(--superficie-2);
+  transition: transform 0.15s, background 0.2s;
+}
+.perfil:hover {
+  transform: translateY(-1px);
+  background: color-mix(in srgb, var(--superficie-2) 80%, var(--marca));
+}
+.logo-grande,
+.logo-media,
+.logo-mini {
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.25);
+}
+.lateral .logo-mini,
+.menu-movel .logo-mini {
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.12);
 }
