@@ -7,6 +7,8 @@ import { ehSimples } from '@/domain/regime';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import type { DadosDocumento } from '@/server/autopilot';
 import { configCreditos } from '@/server/creditos';
+import { atenderPedido } from '@/server/pedidos';
+import { PedidoZaro } from '@/components/PedidoZaro';
 import { aprovar, descartar, enviarArquivos } from './acoes';
 
 // extrato em PDF longo leva mais que o padrão da Vercel para ler e conferir
@@ -14,7 +16,7 @@ export const maxDuration = 60;
 
 const COR: Record<string, string> = { Novo: 'acento', Aprovado: 'pos', Processado: 'pos', Duplicado: 'at', Descartado: '', Erro: 'neg' };
 
-export default async function Autopilot({ searchParams }: { searchParams: Promise<{ f?: string; msg?: string; erro?: string }> }) {
+export default async function Autopilot({ searchParams }: { searchParams: Promise<{ f?: string; msg?: string; erro?: string; pedido?: string }> }) {
   const u = await exigirUsuario();
   const emp = await exigirEmpresa(u);
   const sp = await searchParams;
@@ -28,11 +30,14 @@ export default async function Autopilot({ searchParams }: { searchParams: Promis
     .limit(200);
   const edita = podeEditar(u);
   const cfgCred = await configCreditos(db, u.tenantId, emp.id);
+  const pedido = (sp.pedido || '').trim().slice(0, 300);
+  const resposta = pedido ? await atenderPedido(db, u, emp, pedido) : undefined;
   return (
     <>
       <div className="cabeca">
         <div><h1>ZARO Autopilot</h1><p>Caixa de entrada única: envie XML de NF-e, NFS-e e eventos de cancelamento, extrato bancário em PDF (Itaú, Bradesco) e folha de pagamento em PDF. O ZARO identifica, bloqueia duplicados e lança no módulo certo: NF depois da sua aprovação (com os impostos a recuperar de cada item da compra), extrato direto na conciliação bancária e folha no Departamento Pessoal e na contabilidade.</p></div>
       </div>
+      <PedidoZaro acao="/autopilot" texto={pedido || undefined} resposta={resposta} />
       {sp.erro && <div className="aviso erro">{sp.erro}</div>}
       {sp.msg && <div className="aviso" style={{ whiteSpace: 'pre-line' }}>{sp.msg}</div>}
       {edita && (

@@ -9,6 +9,7 @@ import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
 import { contextoIa } from './inteligencia';
 import { compPadrao, dadosDoPainel, resumoParaIa } from './painel';
+import { atenderPedido, respostaEmMarkdown } from './pedidos';
 
 export interface Mensagem {
   papel: 'usuario' | 'ia';
@@ -19,10 +20,16 @@ export interface Mensagem {
 export const iaDisponivel = () => !!(process.env.ANTHROPIC_API_KEY || process.env.ANTHROPIC_AUTH_TOKEN);
 
 export async function perguntarZaroIa(db: Db, u: Usuario, emp: Empresa, historico: Mensagem[], area?: string): Promise<string> {
-  if (!iaDisponivel()) throw new Error('A ZARO IA ainda não está ligada: falta configurar a chave da Anthropic (ANTHROPIC_API_KEY) no servidor.');
   const conversa = historico.filter((m) => m.texto?.trim()).slice(-12).map((m) => ({ ...m, texto: m.texto.slice(0, 4000) }));
   const ultima = conversa[conversa.length - 1];
   if (!ultima || ultima.papel !== 'usuario') throw new Error('Escreva uma pergunta.');
+  // pedido de balancete, DRE ou balanço: a ZARO gera direto, com os números calculados (não depende da IA)
+  const pedido = await atenderPedido(db, u, emp, ultima.texto);
+  if (pedido?.tipo === 'demonstracao') return respostaEmMarkdown(pedido);
+  if (!iaDisponivel()) {
+    if (pedido) return respostaEmMarkdown(pedido);
+    throw new Error('A ZARO IA ainda não está ligada: falta configurar a chave da Anthropic (ANTHROPIC_API_KEY) no servidor. Pedidos de balancete, DRE e balanço já funcionam (ex.: “balancete de 2026 até setembro”).');
+  }
   const hoje = new Date().toISOString().slice(0, 10);
   const dados = await dadosDoPainel(db, u, emp, compPadrao(hoje), hoje);
   const extra = area ? await contextoIa(db, u, emp, hoje, area) : '';

@@ -10,6 +10,7 @@ import { Markdown } from './Markdown';
 type Msg = { papel: 'usuario' | 'ia'; texto: string; erro?: boolean };
 
 export const SUGESTOES = [
+  'Balancete de 2026 até setembro',
   'Como está meu caixa hoje?',
   'O que vence nos próximos 7 dias?',
   'Quais impostos estão em aberto?',

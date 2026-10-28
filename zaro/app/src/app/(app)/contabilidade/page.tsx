@@ -8,9 +8,12 @@ import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import { lancamentosDaEmpresa } from '@/server/contabil';
 import { BalanceteModelo } from '@/components/BalanceteModelo';
 import { balanceteModelo } from '@/domain/balancete-modelo';
+import { redirect } from 'next/navigation';
+import { PedidoZaro } from '@/components/PedidoZaro';
+import { atenderPedido } from '@/server/pedidos';
 import { aplicarStatus, aprovarConfiaveis, estornarLanc, trocarConta } from './acoes';
 
-type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; modelo?: string; msg?: string; erro?: string };
+type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; modelo?: string; msg?: string; erro?: string; pedido?: string };
 const STATUS = ['Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado', 'Excluído'];
 const COR: Record<string, string> = { Automático: 'acento', Sugerido: 'ia', 'Em revisão': 'at', Aprovado: 'pos', Contabilizado: 'pos', Estornado: '', Excluído: 'neg' };
 
@@ -19,6 +22,10 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
   const emp = await exigirEmpresa(u);
   const sp = await searchParams;
   const db = await getDb();
+  const pedido = (sp.pedido || '').trim().slice(0, 300);
+  const resposta = pedido ? await atenderPedido(db, u, emp, pedido) : undefined;
+  // pedido de uma demonstração só, para ver na tela: vai direto para ela
+  if (resposta?.tipo === 'demonstracao' && resposta.itens.length === 1 && resposta.pedido.formato === 'tela') redirect(resposta.itens[0].links.tela);
   const todos = await lancamentosDaEmpresa(db, emp, { incluirExcluidos: true });
   const lancs = todos.filter((l) => l.status !== 'Excluído');
   const aba = ['lancamentos', 'balancete', 'dre', 'balanco'].includes(sp.aba || '') ? sp.aba! : 'lancamentos';
@@ -45,6 +52,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
       </div>
       {sp.erro && <div className="aviso erro">{sp.erro}</div>}
       {sp.msg && <div className="aviso ok">{sp.msg}</div>}
+      <PedidoZaro acao="/contabilidade" texto={pedido || undefined} resposta={resposta} />
       <div className="abas nao-imprimir">
         {[['lancamentos', `Lançamentos (${pendentes} a aprovar)`], ['balancete', 'Balancete'], ['dre', 'DRE'], ['balanco', 'Balanço']].map(([k, n]) => (
           <Link key={k} href={qs({ aba: k })} className={aba === k ? 'ativo' : ''}>{n}</Link>
