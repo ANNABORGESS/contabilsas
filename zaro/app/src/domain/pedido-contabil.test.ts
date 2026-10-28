@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { atalhoDoPedido, interpretarPedido, linksDoPedido } from './pedido-contabil';
+import { atalhoDoPedido, interpretarPedido, linksDoPedido, pedidoDeAprovacao, temTermo } from './pedido-contabil';
 
 const H = '2026-10-28';
 describe('pedido de demonstração em português', () => {
@@ -24,5 +24,17 @@ describe('pedido de demonstração em português', () => {
   it('monta os endereços com o período', () => {
     const p = interpretarPedido('balancete até setembro', H)!;
     expect(linksDoPedido(p, 'balancete', true).pdf).toBe('/relatorio-contabil?aba=balancete&per=pers&de=2026-01&ate=2026-09&ref=2026-09&previa=1');
+  });
+});
+
+describe('pedido de aprovação', () => {
+  it('aprova todos menos os pix', () => {
+    expect(pedidoDeAprovacao('prova todos menos os pix')).toEqual({ exceto: ['pix'] });
+    expect(pedidoDeAprovacao('balancete de 2026')).toBeNull();
+    expect(pedidoDeAprovacao('aprova todos menos os pix')).toEqual({ exceto: ['pix'] });
+    expect(pedidoDeAprovacao('aprovar todos exceto PIX e tarifas')).toEqual({ exceto: ['pix', 'tarifas'] });
+    expect(pedidoDeAprovacao('aprovar tudo')).toEqual({ exceto: [] });
+    expect(temTermo({ hist: 'PIX ENVIADO FULANO — a identificar', doc: '', motivo: '' }, ['pix'])).toBe(true);
+    expect(temTermo({ hist: 'Pagamento NF 12 — PIXEL LTDA', doc: '', motivo: '' }, ['pix'])).toBe(true);
   });
 });

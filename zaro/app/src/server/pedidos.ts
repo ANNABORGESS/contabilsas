@@ -7,7 +7,8 @@ import { balanceteModelo } from '@/domain/balancete-modelo';
 import { balanco, dre } from '@/domain/demonstracoes';
 import { brl } from '@/domain/dinheiro';
 import { STATUS_NO_LIVRO } from '@/domain/motor';
-import { atalhoDoPedido, interpretarPedido, linksDoPedido, NOME_DEMO, periodoTexto, type Demonstracao, type PedidoContabil } from '@/domain/pedido-contabil';
+import { atalhoDoPedido, interpretarPedido, linksDoPedido, NOME_DEMO, pedidoDeAprovacao, periodoTexto, temTermo, type Demonstracao, type PedidoContabil } from '@/domain/pedido-contabil';
+import type { Lancamento } from '@/domain/motor';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
 import { lancamentosDaEmpresa } from './contabil';
@@ -21,11 +22,27 @@ export interface ItemResposta {
 }
 export type RespostaPedido =
   | { tipo: 'demonstracao'; pedido: PedidoContabil; previa: boolean; pendentes: number; itens: ItemResposta[]; oficial?: Record<Demonstracao, string> }
-  | { tipo: 'atalho'; href: string; nome: string };
+  | { tipo: 'atalho'; href: string; nome: string }
+  | { tipo: 'aprovacao'; exceto: string[]; aprovar: number; fora: number; valorAprovar: number; valorFora: number; exemplosFora: string[] };
+
+/** Lançamentos pendentes (sem decisão de aprovar) que entram ou ficam de fora de "aprovar todos menos ...". */
+export function separarParaAprovar(lancs: Lancamento[], exceto: string[]) {
+  const pendentes = lancs.filter((l) => !STATUS_NO_LIVRO.includes(l.status) && l.status !== 'Excluído');
+  const fora = pendentes.filter((l) => exceto.length && temTermo(l, exceto));
+  const foraIds = new Set(fora.map((l) => l.id));
+  return { aprovar: pendentes.filter((l) => !foraIds.has(l.id)), fora };
+}
 
 const dc = (v: number) => (Math.abs(v) < 0.005 ? brl(0) : `${brl(Math.abs(v))} ${v > 0 ? 'D' : 'C'}`);
 
 export async function atenderPedido(db: Db, u: Usuario, emp: Empresa, texto: string, hoje = new Date().toISOString().slice(0, 10)): Promise<RespostaPedido | null> {
+  const aprov = pedidoDeAprovacao(texto);
+  if (aprov) {
+    // só mostra o que vai acontecer; a aprovação é feita no botão de confirmar
+    const { aprovar, fora } = separarParaAprovar(await lancamentosDaEmpresa(db, emp), aprov.exceto);
+    const soma = (xs: Lancamento[]) => xs.reduce((a, l) => a + l.valor, 0);
+    return { tipo: 'aprovacao', exceto: aprov.exceto, aprovar: aprovar.length, fora: fora.length, valorAprovar: soma(aprovar), valorFora: soma(fora), exemplosFora: fora.slice(0, 5).map((l) => l.hist.slice(0, 90)) };
+  }
   const pedido = interpretarPedido(texto, hoje);
   if (!pedido) {
     const a = atalhoDoPedido(texto);
@@ -64,6 +81,10 @@ export async function atenderPedido(db: Db, u: Usuario, emp: Empresa, texto: str
 /** A mesma resposta em Markdown, para a ZARO IA. */
 export function respostaEmMarkdown(r: RespostaPedido): string {
   if (r.tipo === 'atalho') return `Isso fica em [${r.nome}](${r.href}).`;
+  if (r.tipo === 'aprovacao') {
+    const fora = r.exceto.length ? ` Ficam de fora ${r.fora} lançamento(s) com ${r.exceto.map((x) => `“${x}”`).join(', ')} (${brl(r.valorFora)}).` : '';
+    return `Vou aprovar **${r.aprovar} lançamento(s)** pendentes (${brl(r.valorAprovar)}).${fora}\n\nPara confirmar, abra [Contabilidade → aprovar](/contabilidade?pedido=${encodeURIComponent(`aprovar todos${r.exceto.length ? ` menos ${r.exceto.join(' e ')}` : ''}`)}) e clique em **Confirmar aprovação**.`;
+  }
   const partes = r.itens.map((i) => [
     `**${i.titulo}**${r.previa ? ' (prévia)' : ''}`,
     ...i.resumo.map((x) => `- ${x}`),

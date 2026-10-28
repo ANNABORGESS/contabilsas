@@ -61,8 +61,9 @@ export async function lancamentosDaEmpresa(db: Db, emp: Empresa, opts: { incluir
 
 export async function mudarStatus(db: Db, u: Usuario, emp: Empresa, ids: string[], status: StatusLanc) {
   if (!ids.length) return;
-  for (const id of ids) {
-    await db.insert(schema.lancamentoDecisoes).values({ tenantId: u.tenantId, empresaId: emp.id, lancamentoId: id, status, usuario: u.nome })
+  // em blocos: aprovar milhares de lançamentos numa vez não pode estourar o tempo da função
+  for (let i = 0; i < ids.length; i += 500) {
+    await db.insert(schema.lancamentoDecisoes).values(ids.slice(i, i + 500).map((id) => ({ tenantId: u.tenantId, empresaId: emp.id, lancamentoId: id, status, usuario: u.nome })))
       .onConflictDoUpdate({ target: [schema.lancamentoDecisoes.empresaId, schema.lancamentoDecisoes.lancamentoId], set: { status, usuario: u.nome, atualizadoEm: new Date() } });
   }
   await auditar(db, u, { empresaId: emp.id, acao: `Marcou lançamento(s) como ${status}`, entidade: `${ids.length} lançamento(s)`, depois: ids.slice(0, 20).join(', ') });

@@ -121,3 +121,18 @@ export function atalhoDoPedido(texto: string) {
   const a = ATALHOS.find(([re]) => re.test(t));
   return a ? { href: a[1], nome: a[2] } : null;
 }
+
+/** "aprova todos menos os pix", "aprovar todos exceto PIX e tarifas": termos que ficam de fora da aprovação. */
+export function pedidoDeAprovacao(texto: string): { exceto: string[] } | null {
+  const t = semAcento(texto || '').replace(/\s+/g, ' ').trim();
+  if (!/\b(a?prov[ae]\w*|aprovar)\b/.test(t) || !/\b(todos|tudo|todas)\b/.test(t)) return null;
+  const m = t.match(/\b(?:menos|exceto|fora|sem|tirando|com excecao d\w*)\s+(.+)$/);
+  const exceto = m ? m[1].replace(/\b(os|as|o|a|de|do|da|dos|das|lancamentos?|que tem|com)\b/g, ' ').split(/,|\be\b|\/|;/).map((x) => x.trim()).filter((x) => x.length >= 2) : [];
+  return { exceto };
+}
+
+/** Lançamento a aprovar que fica de fora por conter um dos termos no histórico, documento ou motivo. */
+export const temTermo = (l: { hist: string; doc: string; motivo: string }, termos: string[]) => {
+  const txt = semAcento(`${l.hist} ${l.doc} ${l.motivo}`);
+  return termos.some((x) => new RegExp(`\\b${semAcento(x).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}`).test(txt));
+};

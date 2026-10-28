@@ -11,7 +11,7 @@ import { balanceteModelo } from '@/domain/balancete-modelo';
 import { redirect } from 'next/navigation';
 import { PedidoZaro } from '@/components/PedidoZaro';
 import { atenderPedido } from '@/server/pedidos';
-import { aplicarStatus, aprovarConfiaveis, estornarLanc, trocarConta } from './acoes';
+import { aplicarStatus, aprovarConfiaveis, aprovarTodosExceto, estornarLanc, trocarConta } from './acoes';
 
 type SP = { aba?: string; per?: string; ref?: string; de?: string; ate?: string; st?: string; previa?: string; q?: string; modelo?: string; msg?: string; erro?: string; pedido?: string };
 const STATUS = ['Todos', 'Automático', 'Sugerido', 'Em revisão', 'Aprovado', 'Contabilizado', 'Estornado', 'Excluído'];
@@ -89,6 +89,14 @@ function Lancamentos({ lancs, p, sp, edita, volta }: { lancs: Lancamento[]; p: P
           <input type="hidden" name="volta" value={volta} />
           <button className="btn" type="submit">Aprovar todos com confiança ≥ 90%</button>
           <span className="pequeno mudo">Os de baixa confiança continuam para você revisar um a um.</span>
+        </form>
+      )}
+      {edita && (
+        <form action={aprovarTodosExceto} className="linha" style={{ marginBottom: 12 }}>
+          <input type="hidden" name="volta" value={volta} />
+          <button className="btn" type="submit">Aprovar todos os pendentes, menos os que têm</button>
+          <input name="exceto" defaultValue="pix" style={{ width: 200 }} aria-label="Termos que ficam de fora" />
+          <span className="pequeno mudo">Separe os termos por vírgula (ex.: pix, tarifa). Esses ficam para você revisar.</span>
         </form>
       )}
       {!vis.length ? <div className="vazio">Nenhum lançamento neste período e filtro.</div> : (

@@ -6,6 +6,7 @@ import type { StatusLanc } from '@/domain/motor';
 import { PLANO_PADRAO } from '@/domain/plano-contas';
 import { exigirEdicao, exigirEmpresa } from '@/server/auth';
 import { ajustarConta, estornar, lancamentosDaEmpresa, mudarStatus, restaurar } from '@/server/contabil';
+import { separarParaAprovar } from '@/server/pedidos';
 
 async function executar(form: FormData, f: (ctx: { db: Awaited<ReturnType<typeof getDb>>; u: Awaited<ReturnType<typeof exigirEdicao>>; emp: Awaited<ReturnType<typeof exigirEmpresa>> }) => Promise<string>) {
   const volta = String(form.get('volta') || '/contabilidade');
@@ -52,6 +53,17 @@ export async function aprovarConfiaveis(form: FormData) {
     const ids = L.filter((l) => (l.status === 'Automático' || l.status === 'Sugerido') && l.conf >= 90).map((l) => l.id);
     await mudarStatus(db, u, emp, ids, 'Aprovado');
     return `${ids.length} lançamento(s) com confiança de 90% ou mais aprovados.`;
+  });
+}
+
+/** Aprova todos os pendentes, menos os que têm algum dos termos (ex.: "pix") no histórico. */
+export async function aprovarTodosExceto(form: FormData) {
+  await executar(form, async ({ db, u, emp }) => {
+    const exceto = String(form.get('exceto') || '').split(/[,;]/).map((x) => x.trim()).filter((x) => x.length >= 2);
+    const { aprovar, fora } = separarParaAprovar(await lancamentosDaEmpresa(db, emp), exceto);
+    if (!aprovar.length) throw new Error('Nenhum lançamento pendente para aprovar.');
+    await mudarStatus(db, u, emp, aprovar.map((l) => l.id), 'Aprovado');
+    return `${aprovar.length} lançamento(s) aprovados.${exceto.length ? ` Ficaram para revisar ${fora.length} com ${exceto.map((x) => `“${x}”`).join(', ')}: filtre o status Em revisão, Sugerido ou Automático para vê-los.` : ''}`;
   });
 }
 
