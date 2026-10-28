@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { useDados } from '@/cliente/api';
 import { dataBr, hora, reais } from '@/cliente/formato';
 import { Aviso, ChipPedido, ChipSituacao } from '@/cliente/ui';
-import { NOME_FORMA, type FormaPagamento } from '@/domain/pedido';
+import { NOME_FORMA, textoItem, type FormaPagamento } from '@/domain/pedido';
 import type { PedidoLista } from '@/server/pedidos';
 import { AvisoConfirmacaoManual, Cabecalho, DetalhePedidoAdmin, Periodo } from '../comum';
 
@@ -101,7 +101,7 @@ export default function Vendas() {
                       {p.mesa}
                       {p.cliente && <div className="fraco">{p.cliente}</div>}
                     </td>
-                    <td style={{ maxWidth: 280 }}>{p.itens.map((i) => `${i.quantidade}× ${i.nome}`).join(', ')}</td>
+                    <td style={{ maxWidth: 280 }}>{p.itens.map(textoItem).join(', ')}</td>
                     <td>{p.garcom}</td>
                     <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
                     <td className="direita num">

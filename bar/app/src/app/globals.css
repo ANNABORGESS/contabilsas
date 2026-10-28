@@ -2263,3 +2263,42 @@ html {
     display: none;
   }
 }
+
+/* balde de cerveja */
+.balde-cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 14px 16px;
+}
+.balde-linha {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  border-top: 1px solid var(--linha);
+  padding-top: 10px;
+}
+.balde-contador {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+.balde-contador .num {
+  font-family: var(--fonte-titulo);
+  font-size: 34px;
+  font-weight: 300;
+}
+.balde-ticket {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: var(--raio-p);
+  background: var(--marca-suave);
+  border: 1px dashed rgba(242, 183, 5, 0.7);
+}
+.balde-titulo {
+  font-weight: 700;
+  font-size: 14px;
+  margin-bottom: 4px;
+}

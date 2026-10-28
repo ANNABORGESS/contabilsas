@@ -3,7 +3,7 @@ import { useState } from 'react';
 import { api, useDados } from '@/cliente/api';
 import { dataBr, hora, reais } from '@/cliente/formato';
 import { Aviso, ChipPedido, ChipSituacao, Modal } from '@/cliente/ui';
-import { NOME_FORMA, type FormaPagamento } from '@/domain/pedido';
+import { NOME_FORMA, textoItem, type FormaPagamento } from '@/domain/pedido';
 import type { PedidoLista } from '@/server/pedidos';
 import { Cabecalho, DetalhePedidoAdmin } from '../comum';
 
@@ -93,7 +93,7 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
               <td>{hora(p.pagoEm)}</td>
               <td>
                 {p.cliente && <b>{p.cliente}: </b>}
-                {p.itens.map((i) => `${i.quantidade}× ${i.nome}`).join(', ')}
+                {p.itens.map(textoItem).join(', ')}
               </td>
               <td>{p.garcom}</td>
               <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>

@@ -58,6 +58,7 @@ interface DadosProduto {
   setor?: unknown;
   precoCentavos?: unknown;
   custoCentavos?: unknown;
+  balde?: unknown;
   ativo?: unknown;
   ordem?: unknown;
 }
@@ -91,6 +92,7 @@ function validarProduto(d: DadosProduto, parcial: boolean) {
   }
   if (d.descricao !== undefined) set.descricao = texto(d.descricao, 200) || null;
   if (typeof d.ativo === 'boolean') set.ativo = d.ativo;
+  if (typeof d.balde === 'boolean') set.balde = d.balde;
   if (d.ordem !== undefined && Number.isInteger(Number(d.ordem))) set.ordem = Number(d.ordem);
   return set;
 }
@@ -111,6 +113,7 @@ export async function atualizarProduto(db: Db, u: Usuario, id: string, d: DadosP
   const mudancas = [];
   if (set.precoCentavos !== undefined && set.precoCentavos !== antes.precoCentavos) mudancas.push(`preço ${reais(antes.precoCentavos)} → ${reais(p.precoCentavos)}`);
   if (set.custoCentavos !== undefined && set.custoCentavos !== antes.custoCentavos) mudancas.push(`custo ${antes.custoCentavos === null ? '—' : reais(antes.custoCentavos)} → ${p.custoCentavos === null ? '—' : reais(p.custoCentavos)}`);
+  if (set.balde !== undefined && set.balde !== antes.balde) mudancas.push(p.balde ? 'vai no balde' : 'não vai mais no balde');
   if (set.ativo !== undefined && set.ativo !== antes.ativo) mudancas.push(p.ativo ? 'disponível' : 'indisponível');
   if (set.nome && set.nome !== antes.nome) mudancas.push(`nome "${antes.nome}" → "${p.nome}"`);
   await registrar(db, { tipo: 'produto_alterado', usuarioId: u.id, descricao: `${u.nome} alterou ${p.nome}${mudancas.length ? `: ${mudancas.join(', ')}` : ''}` });
@@ -228,10 +231,12 @@ export async function recusarConta(db: Db, u: Usuario, id: string) {
 
 const EXEMPLO = [
   { categoria: 'Petiscos', setor: 'cozinha', itens: [['Batata frita', 3200], ['Isca de frango', 4200], ['Calabresa acebolada', 3800], ['Bolinho de bacalhau (6 un.)', 3900], ['Porção de mandioca', 2800]] },
-  { categoria: 'Cervejas', setor: 'bar', itens: [['Chopp 300 ml', 1290], ['Chopp 500 ml', 1890], ['Cerveja long neck', 1200], ['Cerveja 600 ml', 1800]] },
+  { categoria: 'Cervejas', setor: 'bar', itens: [['Chopp 300 ml', 1290], ['Chopp 500 ml', 1890], ['Cerveja long neck', 1200], ['Cerveja lata 350 ml', 800], ['Cerveja 600 ml', 1800]] },
   { categoria: 'Drinks', setor: 'bar', itens: [['Caipirinha', 2200], ['Gin tônica', 2800], ['Aperol spritz', 3200]] },
   { categoria: 'Sem álcool', setor: 'bar', itens: [['Refrigerante lata', 700], ['Água sem gás', 500], ['Suco natural', 1200]] },
 ] as const;
+// cervejas pequenas do exemplo que já vêm marcadas para o balde
+const NO_BALDE: string[] = ['Cerveja long neck', 'Cerveja lata 350 ml'];
 
 export async function primeiroAcesso(db: Db, d: { nome?: unknown; usuario?: unknown; senha?: unknown; exemplo?: unknown; mesas?: unknown }) {
   if (!(await semUsuarios(db))) throw new ErroRegra('O sistema já foi configurado. Entre com seu usuário.', 409);
@@ -241,7 +246,7 @@ export async function primeiroAcesso(db: Db, d: { nome?: unknown; usuario?: unkn
   await criarMesas(db, u, 1, Number.isInteger(n) && n >= 1 && n <= 200 ? n : 10);
   if (d.exemplo) {
     let ordem = 0;
-    await db.insert(schema.produtos).values(EXEMPLO.flatMap((c) => c.itens.map(([nome, precoCentavos]) => ({ nome, precoCentavos, categoria: c.categoria, setor: c.setor, ordem: ordem++ }))));
+    await db.insert(schema.produtos).values(EXEMPLO.flatMap((c) => c.itens.map(([nome, precoCentavos]) => ({ nome, precoCentavos, categoria: c.categoria, setor: c.setor, ordem: ordem++, balde: NO_BALDE.includes(nome) }))));
     await registrar(db, { tipo: 'produto_criado', usuarioId: u.id, descricao: 'Cardápio de exemplo criado no primeiro acesso' });
   }
   return u;

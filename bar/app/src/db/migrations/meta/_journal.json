@@ -57,6 +57,13 @@
       "when": 1793219427714,
       "tag": "0007_produto_custo",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1793219838324,
+      "tag": "0008_balde",
+      "breakpoints": true
     }
   ]
 }

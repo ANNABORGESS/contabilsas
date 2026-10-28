@@ -2,7 +2,7 @@
 // Painel da cozinha ou do bar: só pedidos pagos, do mais antigo para o mais novo.
 // Feito para tablet ou TV: letras grandes, um toque para avançar o status.
 import { useEffect, useRef, useState } from 'react';
-import type { Setor } from '@/domain/pedido';
+import { agruparBaldes, type Setor } from '@/domain/pedido';
 import { api, bipar, liberarSom, useDados } from './api';
 import { decorrido, hora, minutosDesde } from './formato';
 import { Aviso, BotaoSair, Conexao, useAgora } from './ui';
@@ -19,7 +19,7 @@ interface Ticket {
   garcom: string;
   observacao: string | null;
   cliente: string | null;
-  itens: { nome: string; quantidade: number }[];
+  itens: { nome: string; quantidade: number; balde: number | null }[];
 }
 interface Painel {
   setor: Setor;
@@ -130,13 +130,28 @@ export default function PainelPreparo({ setor, usuario }: { setor: Setor; usuari
                       <span className="mesa-n">Mesa {t.mesa}</span>
                     </div>
                     <ul>
-                      {t.itens.map((i, k) => (
+                      {agruparBaldes(t.itens).soltos.map((i, k) => (
                         <li key={k}>
                           <b>{i.quantidade}×</b>
                           {i.nome}
                         </li>
                       ))}
                     </ul>
+                    {agruparBaldes(t.itens).baldes.map((b) => (
+                      <div key={b.n} className="balde-ticket">
+                        <div className="balde-titulo">
+                          🪣 Balde {b.n} · {b.cervejas} {b.cervejas === 1 ? 'cerveja' : 'cervejas'}
+                        </div>
+                        <ul>
+                          {b.itens.map((i, k) => (
+                            <li key={k}>
+                              <b>{i.quantidade}×</b>
+                              {i.nome}
+                            </li>
+                          ))}
+                        </ul>
+                      </div>
+                    ))}
                     {t.cliente && <div className="cliente-mesa">👤 {t.cliente}</div>}
                     {t.observacao && <div className="obs">Obs.: {t.observacao}</div>}
                     <div className={`tempo ${nivel}`}>

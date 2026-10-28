@@ -6,7 +6,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, bipar, liberarSom, novaChave, useDados } from '@/cliente/api';
 import { decorrido, hora, reais } from '@/cliente/formato';
 import { Aviso, BotaoSair, ChipPedido, ChipPreparo, ChipSituacao, Conexao, Modal, useAgora } from '@/cliente/ui';
-import { FORMAS_PAGAMENTO, NOME_FORMA, NOME_SETOR, type FormaPagamento, type Setor } from '@/domain/pedido';
+import { FORMAS_PAGAMENTO, MAX_BALDE, NOME_FORMA, NOME_SETOR, agruparBaldes, textoItem, type FormaPagamento, type Setor } from '@/domain/pedido';
 import type { DetalhePedido, PedidoLista } from '@/server/pedidos';
 
 interface Produto {
@@ -16,6 +16,7 @@ interface Produto {
   categoria: string;
   setor: Setor;
   precoCentavos: number;
+  balde?: boolean;
 }
 interface MesaTurno {
   id: string;
@@ -40,7 +41,7 @@ interface Pronto {
 }
 interface Previa {
   mesa: { id: string; numero: number };
-  linhas: { produtoId: string; nome: string; setor: Setor; quantidade: number; precoCentavos: number; subtotalCentavos: number }[];
+  linhas: { produtoId: string; nome: string; setor: Setor; quantidade: number; precoCentavos: number; subtotalCentavos: number; balde: number | null }[];
   totalCentavos: number;
   setores: Setor[];
 }
@@ -54,6 +55,9 @@ interface Tentativa {
 }
 
 type Carrinhos = Record<string, Record<string, number>>;
+/** Baldes de cada mesa: cada balde é { produtoId: quantidade }, até MAX_BALDE cervejas. */
+type Balde = Record<string, number>;
+type Baldes = Record<string, Balde[]>;
 type Tela = { t: 'inicio' } | { t: 'pedido'; mesaId: string } | { t: 'pagamento' } | { t: 'enviado'; pedido: DetalhePedido; duplicado: boolean };
 type Aba = 'mesas' | 'pedidos' | 'prontos';
 
@@ -76,6 +80,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   const [tela, setTela] = useState<Tela>({ t: 'inicio' });
   const [aba, setAba] = useState<Aba>('mesas');
   const [carrinhos, setCarrinhos] = useState<Carrinhos>({});
+  const [baldes, setBaldes] = useState<Baldes>({});
   const [tentativa, setTentativa] = useState<Tentativa | null>(null);
   const [toast, setToast] = useState<{ texto: string; pedidoId?: string } | null>(null);
   const [detalhe, setDetalhe] = useState<string | null>(null);
@@ -84,6 +89,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   // rascunhos e tentativa de pagamento sobrevivem a recarregar a página
   useEffect(() => {
     setCarrinhos(ler('bar:carrinhos', {}));
+    setBaldes(ler('bar:baldes', {}));
     const t = ler<Tentativa | null>('bar:tentativa', null);
     if (t) {
       setTentativa(t);
@@ -94,6 +100,9 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   useEffect(() => {
     if (pronto) gravar('bar:carrinhos', carrinhos);
   }, [carrinhos, pronto]);
+  useEffect(() => {
+    if (pronto) gravar('bar:baldes', baldes);
+  }, [baldes, pronto]);
   useEffect(() => {
     if (pronto) gravar('bar:tentativa', tentativa);
   }, [tentativa, pronto]);
@@ -140,8 +149,27 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
     });
   }, []);
 
+  const definirBaldes = useCallback((mesaId: string, lista: Balde[]) => {
+    setBaldes((b) => {
+      const novo = { ...b, [mesaId]: lista };
+      if (!lista.length) delete novo[mesaId];
+      return novo;
+    });
+  }, []);
+  const limparMesa = (mesaId: string) => {
+    setCarrinhos((c) => {
+      const n = { ...c };
+      delete n[mesaId];
+      return n;
+    });
+    definirBaldes(mesaId, []);
+  };
+
   async function irParaPagamento(mesaId: string) {
-    const itens = Object.entries(carrinhos[mesaId] || {}).map(([produtoId, quantidade]) => ({ produtoId, quantidade }));
+    const itens = [
+      ...Object.entries(carrinhos[mesaId] || {}).map(([produtoId, quantidade]) => ({ produtoId, quantidade })),
+      ...(baldes[mesaId] || []).flatMap((b, i) => Object.entries(b).map(([produtoId, quantidade]) => ({ produtoId, quantidade, balde: i + 1 }))),
+    ];
     const previa = await api<Previa>('/api/pedidos/previa', 'POST', { mesaId, itens });
     // sugere o nome do último cliente da mesa no turno; o garçom pode trocar ou apagar
     setTentativa({ mesaId, chave: novaChave(), previa, forma: null, observacao: '', cliente: mesaPorId.get(mesaId)?.clientes[0] ?? '' });
@@ -149,11 +177,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   }
 
   function aposEnvio(pedido: DetalhePedido, duplicado: boolean) {
-    if (tentativa) setCarrinhos((c) => {
-      const n = { ...c };
-      delete n[tentativa.mesaId];
-      return n;
-    });
+    if (tentativa) limparMesa(tentativa.mesaId);
     setTentativa(null);
     setTela({ t: 'enviado', pedido, duplicado });
   }
@@ -176,11 +200,9 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
           carregando={cardapio.carregando}
           carrinho={carrinhos[tela.mesaId] || {}}
           definir={(p, q) => definirQtd(tela.mesaId, p, q)}
-          limpar={() => setCarrinhos((c) => {
-            const n = { ...c };
-            delete n[tela.mesaId];
-            return n;
-          })}
+          baldes={baldes[tela.mesaId] || []}
+          definirBaldes={(l) => definirBaldes(tela.mesaId, l)}
+          limpar={() => limparMesa(tela.mesaId)}
           voltar={() => setTela({ t: 'inicio' })}
           cobrar={() => irParaPagamento(tela.mesaId)}
           abrirHistorico={() => setDetalhe(`mesa:${tela.mesaId}`)}
@@ -256,7 +278,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
               {mesas.erro && <Aviso tipo="erro">{mesas.erro}</Aviso>}
               <div className="mesas-grade" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
                 {(mesas.dados?.mesas || []).map((m) => {
-                  const rascunho = Object.values(carrinhos[m.id] || {}).reduce((a, b) => a + b, 0);
+                  const rascunho = Object.values(carrinhos[m.id] || {}).reduce((a, b) => a + b, 0) + (baldes[m.id] || []).length;
                   return (
                     <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
                       <span className="n">Mesa {m.numero}</span>
@@ -319,13 +341,17 @@ function TelaProdutos(props: {
   carregando: boolean;
   carrinho: Record<string, number>;
   definir: (produtoId: string, qtd: number) => void;
+  baldes: Balde[];
+  definirBaldes: (lista: Balde[]) => void;
   limpar: () => void;
   voltar: () => void;
   cobrar: () => Promise<void>;
   abrirHistorico: () => void;
 }) {
-  const { produtos, carrinho, definir } = props;
+  const { produtos, carrinho, definir, baldes } = props;
   const [filtro, setFiltro] = useState<string>('todos');
+  const [editandoBalde, setEditandoBalde] = useState<number | null>(null); // índice; baldes.length = novo
+  const deBalde = produtos.filter((p) => p.balde);
   const [busca, setBusca] = useState('');
   const [erro, setErro] = useState('');
   const [indo, setIndo] = useState(false);
@@ -339,8 +365,9 @@ function TelaProdutos(props: {
   });
   const porId = new Map(produtos.map((p) => [p.id, p]));
   const itens = Object.entries(carrinho).filter(([id]) => porId.has(id));
-  const qtdTotal = itens.reduce((a, [, q]) => a + q, 0);
-  const total = itens.reduce((a, [id, q]) => a + porId.get(id)!.precoCentavos * q, 0);
+  const somaBalde = (b: Balde) => Object.entries(b).reduce((a, [id, q]) => a + (porId.get(id)?.precoCentavos || 0) * q, 0);
+  const qtdTotal = itens.reduce((a, [, q]) => a + q, 0) + baldes.length;
+  const total = itens.reduce((a, [id, q]) => a + porId.get(id)!.precoCentavos * q, 0) + baldes.reduce((a, b) => a + somaBalde(b), 0);
 
   async function cobrar() {
     setIndo(true);
@@ -394,6 +421,41 @@ function TelaProdutos(props: {
           ))}
         </div>
         {props.carregando && <div className="vazio">Carregando cardápio…</div>}
+        {deBalde.length > 0 && (
+          <div className="cartao balde-cartao">
+            <div className="fila" style={{ justifyContent: 'space-between' }}>
+              <div>
+                <div style={{ fontWeight: 700 }}>🪣 Balde de cerveja</div>
+                <div className="fraco">Até {MAX_BALDE} cervejas pequenas por balde, pode misturar</div>
+              </div>
+              <button className="btn primario" onClick={() => setEditandoBalde(baldes.length)}>
+                + Montar balde
+              </button>
+            </div>
+            {baldes.map((b, i) => (
+              <div key={i} className="balde-linha">
+                <div>
+                  <b>Balde {i + 1}</b> · {Object.values(b).reduce((a, q) => a + q, 0)} cervejas
+                  <div className="fraco">
+                    {Object.entries(b)
+                      .filter(([id]) => porId.has(id))
+                      .map(([id, q]) => `${q}× ${porId.get(id)!.nome}`)
+                      .join(', ')}
+                  </div>
+                </div>
+                <div className="fila">
+                  <span className="num">{reais(somaBalde(b))}</span>
+                  <button className="btn pequeno" onClick={() => setEditandoBalde(i)}>
+                    Editar
+                  </button>
+                  <button className="btn fantasma pequeno" onClick={() => props.definirBaldes(baldes.filter((_, k) => k !== i))} aria-label={`Tirar balde ${i + 1}`}>
+                    ✕
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
         {visiveis.map((p) => {
           const q = carrinho[p.id] || 0;
           return (
@@ -424,6 +486,20 @@ function TelaProdutos(props: {
         {!props.carregando && !visiveis.length && <div className="vazio">Nenhum produto aqui.</div>}
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
       </main>
+      {editandoBalde !== null && (
+        <MontarBalde
+          numero={editandoBalde + 1}
+          produtos={deBalde}
+          inicial={baldes[editandoBalde] || {}}
+          fechar={() => setEditandoBalde(null)}
+          salvar={(b) => {
+            const lista = [...baldes];
+            lista[editandoBalde] = b;
+            props.definirBaldes(lista);
+            setEditandoBalde(null);
+          }}
+        />
+      )}
       <div className="barra-acao">
         <div>
           <div style={{ flex: 1 }}>
@@ -438,6 +514,57 @@ function TelaProdutos(props: {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Escolhe as cervejas de um balde: até MAX_BALDE no total, pode misturar marcas. */
+function MontarBalde({ numero, produtos, inicial, fechar, salvar }: { numero: number; produtos: Produto[]; inicial: Balde; fechar: () => void; salvar: (b: Balde) => void }) {
+  const [b, setB] = useState<Balde>(inicial);
+  const n = Object.values(b).reduce((a, q) => a + q, 0);
+  const total = Object.entries(b).reduce((a, [id, q]) => a + (produtos.find((p) => p.id === id)?.precoCentavos || 0) * q, 0);
+  const mudar = (id: string, q: number) =>
+    setB((atual) => {
+      const novo = { ...atual };
+      if (q <= 0) delete novo[id];
+      else novo[id] = q;
+      return novo;
+    });
+  return (
+    <Modal titulo={`🪣 Balde ${numero}`} aoFechar={fechar}>
+      <div className="balde-contador">
+        <span className="num">
+          {n}/{MAX_BALDE}
+        </span>
+        <span className="fraco">{n >= MAX_BALDE ? 'Balde cheio' : `cabem mais ${MAX_BALDE - n}`}</span>
+      </div>
+      {produtos.map((p) => {
+        const q = b[p.id] || 0;
+        return (
+          <div key={p.id} className={`produto ${q ? 'escolhido' : ''}`}>
+            <div className="info" onClick={() => n < MAX_BALDE && mudar(p.id, q + 1)}>
+              <div className="nome">{p.nome}</div>
+              <div className="preco">{reais(p.precoCentavos)} cada</div>
+            </div>
+            <div className="qtd">
+              {q > 0 && (
+                <>
+                  <button onClick={() => mudar(p.id, q - 1)} aria-label={`Tirar um ${p.nome}`}>
+                    −
+                  </button>
+                  <span>{q}</span>
+                </>
+              )}
+              <button className="mais" disabled={n >= MAX_BALDE} onClick={() => mudar(p.id, q + 1)} aria-label={`Adicionar ${p.nome}`}>
+                +
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      <button className="btn primario grande bloco" disabled={!n} onClick={() => salvar(b)}>
+        {n ? `Colocar no pedido · ${n} ${n === 1 ? 'cerveja' : 'cervejas'} · ${reais(total)}` : 'Escolha as cervejas'}
+      </button>
+    </Modal>
   );
 }
 
@@ -460,7 +587,7 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
       const r = await api<{ pedido: DetalhePedido; duplicado: boolean }>('/api/pedidos', 'POST', {
         chave: tentativa.chave,
         mesaId: tentativa.mesaId,
-        itens: previa.linhas.map((l) => ({ produtoId: l.produtoId, quantidade: l.quantidade })),
+        itens: previa.linhas.map((l) => ({ produtoId: l.produtoId, quantidade: l.quantidade, balde: l.balde })),
         formaPagamento: forma,
         totalCobradoCentavos: previa.totalCentavos,
         precosCobrados: previa.linhas.map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos })),
@@ -502,9 +629,9 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
         </div>
         <div className="cartao resumo-itens">
           {previa.linhas.map((l) => (
-            <div key={l.produtoId}>
+            <div key={`${l.produtoId}-${l.balde ?? ''}`}>
               <span>
-                <b>{l.quantidade}×</b> {l.nome} <span className="fraco">· {NOME_SETOR[l.setor]}</span>
+                <b>{l.quantidade}×</b> {l.nome} <span className="fraco">· {l.balde ? `🪣 Balde ${l.balde}` : NOME_SETOR[l.setor]}</span>
               </span>
               <span className="num">{reais(l.subtotalCentavos)}</span>
             </div>
@@ -677,7 +804,7 @@ function HistoricoMesa({ mesaId, fechar, abrir }: { mesaId: string; fechar: () =
             </b>
             {p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}
           </div>
-          <div className="fraco">{p.itens.map((i) => `${i.quantidade}× ${i.nome}`).join(', ')}</div>
+          <div className="fraco">{p.itens.map(textoItem).join(', ')}</div>
           <div className="fraco">
             {reais(p.totalCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]} · {p.garcom}
           </div>
@@ -736,6 +863,7 @@ function DetalhePedidoModal({ id, fechar, usuarioId }: { id: string; fechar: () 
               <div key={i.id}>
                 <span>
                   <b>{i.quantidade}×</b> {i.nome}
+                  {i.balde && <span className="fraco"> · 🪣 Balde {i.balde}</span>}
                 </span>
                 <span className="num">{reais(i.subtotalCentavos)}</span>
               </div>

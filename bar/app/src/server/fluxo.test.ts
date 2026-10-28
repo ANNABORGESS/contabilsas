@@ -68,8 +68,8 @@ describe('fluxo do pedido pago', () => {
     const coz = await painelSetor(db, 'cozinha');
     const br = await painelSetor(db, 'bar');
     expect(coz.preparos).toHaveLength(1);
-    expect(coz.preparos[0].itens).toEqual([{ nome: 'Batata frita', quantidade: 1 }]);
-    expect(br.preparos[0].itens).toEqual([{ nome: 'Chopp 300 ml', quantidade: 2 }]);
+    expect(coz.preparos[0].itens).toEqual([{ nome: 'Batata frita', quantidade: 1, balde: null }]);
+    expect(br.preparos[0].itens).toEqual([{ nome: 'Chopp 300 ml', quantidade: 2, balde: null }]);
     expect(br.preparos[0].mesa).toBe(3);
     expect(br.preparos[0].cliente).toBe('Mariana Souza');
   });
@@ -204,6 +204,25 @@ describe('fluxo do pedido pago', () => {
     equipe = await listarEquipe(db);
     expect(equipe.find((f) => f.usuario === 'joao')).toMatchObject({ pendente: false, ativo: true });
     expect(equipe.some((f) => f.usuario === 'fulano')).toBe(false);
+  });
+
+  it('balde: cervejas pequenas misturadas, até 10 por balde, chegam ao bar separadas por balde', async () => {
+    const prods = await listarProdutos(db);
+    const lata = prods.find((p) => p.nome === 'Cerveja lata 350 ml')!;
+    const long = prods.find((p) => p.nome === 'Cerveja long neck')!;
+    expect(lata.balde && long.balde).toBe(true);
+    expect(prods.find((p) => p.nome === 'Chopp 300 ml')!.balde).toBe(false);
+    const itens = [
+      { produtoId: lata.id, quantidade: 6, balde: 1 },
+      { produtoId: long.id, quantidade: 4, balde: 1 },
+      { produtoId: lata.id, quantidade: 1 },
+    ];
+    await expect(confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, formaPagamento: 'pix', itens: [{ produtoId: lata.id, quantidade: 11, balde: 1 }] })).rejects.toThrow(/máximo é 10/);
+    const { pedido } = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, formaPagamento: 'pix', itens });
+    expect(pedido!.totalCentavos).toBe(7 * lata.precoCentavos + 4 * long.precoCentavos);
+    const ticket = (await painelSetor(db, 'bar')).preparos.find((p) => p.pedidoId === pedido!.id)!;
+    expect(ticket.itens.filter((i) => i.balde === 1).reduce((a, i) => a + i.quantidade, 0)).toBe(10);
+    expect(ticket.itens.find((i) => !i.balde)).toMatchObject({ nome: 'Cerveja lata 350 ml', quantidade: 1 });
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

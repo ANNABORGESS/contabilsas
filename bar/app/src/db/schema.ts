@@ -52,6 +52,8 @@ export const produtos = pgTable('produtos', {
   precoCentavos: integer('preco_centavos').notNull(),
   // quanto custa ao bar cada unidade (compra/ingredientes); só o administrador vê
   custoCentavos: integer('custo_centavos'),
+  // cerveja pequena que pode ir no balde (até 10 por balde)
+  balde: boolean('balde').notNull().default(false),
   ativo: boolean('ativo').notNull().default(true),
   // excluído do cardápio depois de já ter sido vendido: some das listas, mas o histórico continua
   excluido: boolean('excluido').notNull().default(false),
@@ -102,6 +104,7 @@ export const pedidoItens = pgTable(
     quantidade: integer('quantidade').notNull(),
     precoCentavos: integer('preco_centavos').notNull(),
     subtotalCentavos: integer('subtotal_centavos').notNull(),
+    balde: integer('balde'), // número do balde dentro do pedido (1, 2...); vazio quando não vai em balde
   },
   (t) => [index('pedido_itens_pedido_idx').on(t.pedidoId)],
 );

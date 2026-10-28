@@ -46,7 +46,7 @@ export async function painelSetor(db: Db, setor: Setor) {
   return {
     setor,
     agora: new Date(),
-    preparos: lista.map((p) => ({ ...p, itens: itens.filter((i) => i.pedidoId === p.pedidoId).map((i) => ({ nome: i.nome, quantidade: i.quantidade })) })),
+    preparos: lista.map((p) => ({ ...p, itens: itens.filter((i) => i.pedidoId === p.pedidoId).map((i) => ({ nome: i.nome, quantidade: i.quantidade, balde: i.balde })) })),
     recentes,
   };
 }

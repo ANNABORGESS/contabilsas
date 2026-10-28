@@ -11,7 +11,35 @@ const cardapio: ProdutoCardapio[] = [
   { id: 'batata', nome: 'Batata frita', setor: 'cozinha', precoCentavos: 3200, ativo: true },
   { id: 'chopp', nome: 'Chopp 300ml', setor: 'bar', precoCentavos: 1250, ativo: true },
   { id: 'caipi', nome: 'Caipirinha', setor: 'bar', precoCentavos: 2200, ativo: false },
+  { id: 'lata', nome: 'Cerveja lata', setor: 'bar', precoCentavos: 800, ativo: true, balde: true },
+  { id: 'long', nome: 'Long neck', setor: 'bar', precoCentavos: 1200, ativo: true, balde: true },
 ];
+
+describe('balde de cerveja', () => {
+  it('cada balde leva até 10 cervejas pequenas, pode misturar, e cada uma é cobrada pelo preço dela', () => {
+    const p = montarPedido(
+      [
+        { produtoId: 'lata', quantidade: 6, balde: 1 },
+        { produtoId: 'long', quantidade: 4, balde: 1 },
+        { produtoId: 'lata', quantidade: 3, balde: 2 },
+        { produtoId: 'lata', quantidade: 2 },
+      ],
+      cardapio,
+    );
+    expect(p.linhas.map((l) => [l.produtoId, l.balde, l.quantidade])).toEqual([
+      ['lata', 1, 6],
+      ['long', 1, 4],
+      ['lata', 2, 3],
+      ['lata', null, 2],
+    ]);
+    expect(p.totalCentavos).toBe(6 * 800 + 4 * 1200 + 3 * 800 + 2 * 800);
+  });
+  it('recusa mais de 10 no balde e produto que não vai no balde', () => {
+    expect(() => montarPedido([{ produtoId: 'lata', quantidade: 7, balde: 1 }, { produtoId: 'long', quantidade: 4, balde: 1 }], cardapio)).toThrow(/balde 1 tem 11.*máximo é 10/);
+    expect(() => montarPedido([{ produtoId: 'chopp', quantidade: 1, balde: 1 }], cardapio)).toThrow(/não vai no balde/);
+    expect(() => montarPedido([{ produtoId: 'lata', quantidade: 1, balde: 0 }], cardapio)).toThrow(/Balde inválido/);
+  });
+});
 
 describe('dinheiro', () => {
   it('converte textos em centavos', () => {

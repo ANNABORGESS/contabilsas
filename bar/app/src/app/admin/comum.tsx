@@ -90,7 +90,10 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
             <tbody>
               {p.itens.map((i) => (
                 <tr key={i.id}>
-                  <td>{i.nome}</td>
+                  <td>
+                    {i.nome}
+                    {i.balde && <span className="fraco"> · 🪣 Balde {i.balde}</span>}
+                  </td>
                   <td>{i.setor === 'cozinha' ? 'Cozinha' : 'Bar'}</td>
                   <td className="direita num">{i.quantidade}</td>
                   <td className="direita num">{reais(i.precoCentavos)}</td>
