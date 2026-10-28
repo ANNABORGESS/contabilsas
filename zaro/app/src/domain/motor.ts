@@ -338,9 +338,10 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
     if (!(a.valor > 0) || !a.data) continue;
     const v = a.valor * (a.qtd || 1);
     const abertura = /abertura/i.test(a.origem);
-    add({ id: `IMB|${a.id}`, data: a.data, comp: a.data.slice(0, 7), deb: '1.2.3.01', cred: abertura ? '2.3.1.01' : '2.1.1.01', valor: v, hist: `${(a.qtd || 1) > 1 ? `${a.qtd} × ` : ''}${a.descricao}${abertura ? ' — saldo de abertura' : ' — aquisição'}`, origemId: a.id, modulo: 'Imobilizado', doc: a.nf ? `NF ${a.nf}` : 'Cadastro do imobilizado', motivo: abertura ? 'Bem já existente, reconhecido como saldo de abertura' : 'Aquisição de máquina: ativo imobilizado', conf: 90, auto: true });
+    const [contaBem, contaDep] = contasDoBem(a.descricao);
+    add({ id: `IMB|${a.id}`, data: a.data, comp: a.data.slice(0, 7), deb: contaBem, cred: abertura ? '2.3.1.01' : '2.1.1.01', valor: v, hist: `${(a.qtd || 1) > 1 ? `${a.qtd} × ` : ''}${a.descricao}${abertura ? ' — saldo de abertura' : ' — aquisição'}`, origemId: a.id, modulo: 'Imobilizado', doc: a.nf ? `NF ${a.nf}` : 'Cadastro do imobilizado', motivo: abertura ? 'Bem já existente, reconhecido como saldo de abertura' : 'Aquisição de máquina: ativo imobilizado', conf: 90, auto: true });
     for (const d of depreciacaoMensal(a, hoje)) {
-      add({ id: `DEP|${a.id}|${d.comp}`, data: `${d.comp}-28`, comp: d.comp, deb: '4.1.3.10', cred: '1.2.3.91', valor: d.valor, hist: `Depreciação ${a.taxa || 10}% a.a. — ${a.descricao}`, origemId: a.id, modulo: 'Imobilizado · depreciação', doc: 'Cálculo mensal', motivo: `Depreciação linear ${a.taxa || 10}% a.a.`, conf: 92, auto: true });
+      add({ id: `DEP|${a.id}|${d.comp}`, data: `${d.comp}-28`, comp: d.comp, deb: '4.1.3.10', cred: contaDep, valor: d.valor, hist: `Depreciação ${a.taxa || 10}% a.a. — ${a.descricao}`, origemId: a.id, modulo: 'Imobilizado · depreciação', doc: 'Cálculo mensal', motivo: `Depreciação linear ${a.taxa || 10}% a.a.`, conf: 92, auto: true });
     }
   }
 
@@ -386,6 +387,13 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
 }
 
 /** Depreciação linear mensal a partir do mês seguinte à aquisição, até o mês atual ou o valor residual. */
+/** Conta do bem e da depreciação acumulada pela descrição: informática, veículos ou máquinas. */
+export function contasDoBem(descricao: string): [string, string] {
+  if (/notebook|computador|all in one|desktop|monitor|impressora|servidor|inform[aá]tica/i.test(descricao)) return ['1.2.3.02', '1.2.3.92'];
+  if (/\bvan\b|ve[ií]culo|carro|caminh[aã]o|minibus|\bmoto|utilit[aá]rio|renault|fiat|toyota/i.test(descricao)) return ['1.2.3.03', '1.2.3.93'];
+  return ['1.2.3.01', '1.2.3.91'];
+}
+
 export function depreciacaoMensal(a: ImobilizadoMotor, ateComp: string): { comp: string; valor: number }[] {
   const v = a.valor * (a.qtd || 1);
   const mensal = arred((v * ((a.taxa || 10) / 100)) / 12);

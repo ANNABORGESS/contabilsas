@@ -255,3 +255,14 @@ describe('tributos do Lucro Presumido na contabilidade', () => {
     expect(d.linhas.some((x) => x.rotulo === '(−) IRPJ e CSLL')).toBe(true);
   });
 });
+
+describe('contas do imobilizado', () => {
+  it('informática e veículos em contas próprias', () => {
+    const L = gerarLancamentos({ titulos: [], hoje: '2026-02-15', imobilizado: [
+      { id: 'A1', descricao: 'Notebook Teste i5', qtd: 1, valor: 1200, data: '2025-12-31', taxa: 20, origem: 'abertura' },
+      { id: 'A2', descricao: 'Van Renault Master Minibus', qtd: 1, valor: 120000, data: '2025-12-31', taxa: 20, origem: 'abertura' },
+    ] });
+    expect(L.find((l) => l.id === 'IMB|A1')?.deb).toBe('1.2.3.02');
+    expect(L.find((l) => l.id === 'DEP|A2|2026-01')).toMatchObject({ cred: '1.2.3.93', valor: 2000 });
+  });
+});
