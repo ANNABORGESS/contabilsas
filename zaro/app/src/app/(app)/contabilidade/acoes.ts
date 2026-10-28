@@ -24,8 +24,10 @@ async function executar(form: FormData, f: (ctx: { db: Awaited<ReturnType<typeof
 
 export async function aplicarStatus(form: FormData) {
   await executar(form, async ({ db, u, emp }) => {
-    const status = String(form.get('status')) as StatusLanc | 'Restaurar';
-    const ids = form.getAll('ids').map(String);
+    // botão da própria linha: vale só para aquele lançamento, ignorando os marcados
+    const um = String(form.get('excluirUm') || form.get('restaurarUm') || '');
+    const status = (um ? (form.get('excluirUm') ? 'Excluído' : 'Restaurar') : String(form.get('status'))) as StatusLanc | 'Restaurar';
+    const ids = um ? [um] : form.getAll('ids').map(String);
     if (!ids.length) throw new Error('Marque pelo menos um lançamento.');
     if (status === 'Restaurar') {
       await restaurar(db, u, emp, ids);

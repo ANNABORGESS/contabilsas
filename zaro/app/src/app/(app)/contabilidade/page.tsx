@@ -98,7 +98,7 @@ function Lancamentos({ lancs, p, sp, edita, volta }: { lancs: Lancamento[]; p: P
             </div>
           )}
           <div className="tabela-wrap"><table>
-            <thead><tr>{edita && <th />}<th>Data</th><th>Histórico</th><th>Débito</th><th>Crédito</th><th className="num">Valor</th><th>Status</th><th>Por quê</th></tr></thead>
+            <thead><tr>{edita && <th />}<th>Data</th><th>Histórico</th><th>Débito</th><th>Crédito</th><th className="num">Valor</th><th>Status</th><th>Por quê</th>{edita && <th />}</tr></thead>
             <tbody>
               {vis.slice(0, 400).map((l) => (
                 <tr key={l.id}>
@@ -110,6 +110,13 @@ function Lancamentos({ lancs, p, sp, edita, volta }: { lancs: Lancamento[]; p: P
                   <td className="num">{brl(l.valor)}</td>
                   <td><span className={`tag ${COR[l.status] || ''}`}>{l.status}</span><div className="pequeno mudo">{l.conf}%</div></td>
                   <td className="pequeno" style={{ minWidth: 220 }}>{l.motivo}</td>
+                  {edita && (
+                    <td>
+                      {l.status === 'Excluído'
+                        ? <button className="btn mini primario" name="restaurarUm" value={l.id}>Restaurar</button>
+                        : !['Contabilizado', 'Estornado'].includes(l.status) && <button className="btn mini perigo" name="excluirUm" value={l.id} title="Tira este lançamento do balancete, da DRE e do balanço. Dá para restaurar depois.">Excluir</button>}
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>
