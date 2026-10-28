@@ -44,7 +44,12 @@ type PoolCtor = typeof import('pg').Pool;
 function candidatos(url: string): string[] {
   const m = url.match(/@aws-(\d)-([a-z0-9-]+)\.pooler\.supabase\.com/);
   if (!m) return [url];
-  return [m[1], ...['0', '1', '2'].filter((n) => n !== m[1])].map((n) => url.replace(`@aws-${m[1]}-${m[2]}.`, `@aws-${n}-${m[2]}.`));
+  const hosts = [m[1], ...['0', '1', '2'].filter((n) => n !== m[1])].map((n) => url.replace(`@aws-${m[1]}-${m[2]}.`, `@aws-${n}-${m[2]}.`));
+  // modo sessão (porta 5432) prende uma conexão do banco por cliente e esgota em 15 com várias funções da
+  // Vercel abertas; o modo transação (6543) divide as mesmas conexões entre todos. O search_path vem do
+  // usuário do banco, então funciona igual. ZARO_DB_SESSAO=1 mantém o modo sessão.
+  const transacao = process.env.ZARO_DB_SESSAO === '1' ? [] : hosts.filter((h) => /\.pooler\.supabase\.com:5432\//.test(h)).map((h) => h.replace('.pooler.supabase.com:5432/', '.pooler.supabase.com:6543/'));
+  return [...transacao, ...hosts];
 }
 
 async function abrirPool(Pool: PoolCtor, url: string) {
@@ -52,7 +57,9 @@ async function abrirPool(Pool: PoolCtor, url: string) {
   for (const u of candidatos(url)) {
     // na nuvem cada função abre poucas conexões; o pooler do Supabase faz o resto
     const local = /sslmode=disable/.test(u) || /localhost|127\.0\.0\.1/.test(u);
-    const pool = new Pool({ connectionString: u, max: Number(process.env.ZARO_DB_CONEXOES || 3), ssl: local ? undefined : { rejectUnauthorized: false } });
+    const pool = new Pool({ connectionString: u, max: Number(process.env.ZARO_DB_CONEXOES || 3), idleTimeoutMillis: 10_000, ssl: local ? undefined : { rejectUnauthorized: false } });
+    // conexão derrubada pelo pooler não pode derrubar a função
+    pool.on('error', () => {});
     try {
       await pool.query('select 1');
       return pool;
