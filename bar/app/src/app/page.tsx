@@ -1,4 +1,4 @@
-// Site público do restaurante (visual inspirado no modelo de cervejaria): apresentação, cardápio ao
+// Site público do restaurante (visual de vidro, claro e minimalista): apresentação, cardápio ao
 // vivo, como funciona o pedido na mesa, dúvidas e contato. A equipe entra pela "Área da equipe".
 import { redirect } from 'next/navigation';
 import { getDb } from '@/db';
@@ -12,7 +12,7 @@ import { reais } from '@/domain/dinheiro';
 export const dynamic = 'force-dynamic';
 
 // cor de destaque de cada categoria do cardápio, em rodízio
-const CORES = ['#e3a43c', '#f15a26', '#c21d24', '#f19656', '#f5e4c7'];
+const CORES = ['#c98a2b', '#e9875a', '#5b7cfa', '#2f9e6a', '#8b6cf0'];
 
 export async function generateMetadata() {
   const site = await lerSite(await getDb()).catch(() => null);
