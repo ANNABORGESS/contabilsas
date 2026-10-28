@@ -13,6 +13,11 @@ export interface ItemNF {
   un: string;
   unit: number;
   total: number;
+  /** tributos do item (NF-e): base para o crédito na entrada */
+  icms?: number;
+  ipi?: number;
+  icmsSt?: number;
+  cst?: string;
 }
 export interface Imposto {
   nome: string;
@@ -200,11 +205,20 @@ function lerNFe(doc: No, inf: No): NotaFiscal {
   const itens: ItemNF[] = todos(inf, 'det').map((d) => {
     const p = um(d, 'prod');
     const i = um(d, 'imposto');
+    const fiscal: { icms?: number; ipi?: number; icmsSt?: number; cst?: string } = {};
     if (i) {
       const icms = um(i, 'ICMS');
-      if (icms) imp.add('ICMS', numero(tx(icms, 'vBC')), numero(tx(icms, 'pICMS')), numero(tx(icms, 'vICMS')));
+      if (icms) {
+        imp.add('ICMS', numero(tx(icms, 'vBC')), numero(tx(icms, 'pICMS')), numero(tx(icms, 'vICMS')));
+        fiscal.icms = numero(tx(icms, 'vICMS'));
+        fiscal.icmsSt = numero(tx(icms, 'vICMSST')) || numero(tx(icms, 'vICMSSTRet'));
+        fiscal.cst = tx(icms, 'CST', 'CSOSN');
+      }
       const ipi = um(i, 'IPI');
-      if (ipi) imp.add('IPI', numero(tx(ipi, 'vBC')), numero(tx(ipi, 'pIPI')), numero(tx(ipi, 'vIPI')));
+      if (ipi) {
+        imp.add('IPI', numero(tx(ipi, 'vBC')), numero(tx(ipi, 'pIPI')), numero(tx(ipi, 'vIPI')));
+        fiscal.ipi = numero(tx(ipi, 'vIPI'));
+      }
       const pis = um(i, 'PIS');
       if (pis) imp.add('PIS', numero(tx(pis, 'vBC')), numero(tx(pis, 'pPIS')), numero(tx(pis, 'vPIS')));
       const cof = um(i, 'COFINS');
@@ -219,7 +233,7 @@ function lerNFe(doc: No, inf: No): NotaFiscal {
     }
     return {
       desc: tx(p, 'xProd'), ncm: tx(p, 'NCM'), cfop: tx(p, 'CFOP'), qtd: numero(tx(p, 'qCom')),
-      un: tx(p, 'uCom'), unit: numero(tx(p, 'vUnCom')), total: numero(tx(p, 'vProd')),
+      un: tx(p, 'uCom'), unit: numero(tx(p, 'vUnCom')), total: numero(tx(p, 'vProd')), ...fiscal,
     };
   });
 

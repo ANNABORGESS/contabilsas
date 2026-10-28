@@ -115,6 +115,17 @@ export interface MovimentoMotor {
   valor: number;
   memo: string;
 }
+export interface CreditoMotor {
+  id: string;
+  /** título da compra: o crédito sai da conta de custo em que a provisão foi lançada */
+  tituloId: string;
+  doc: string;
+  nome: string;
+  data: string;
+  comp: string;
+  icms: number;
+  ipi: number;
+}
 export interface EntradaMotor {
   titulos: TituloMotor[];
   /** extrato bancário: nos anos que têm extrato, o caixa vem daqui */
@@ -127,6 +138,10 @@ export interface EntradaMotor {
   saldoInicialBanco?: { data: string; valor: number } | null;
   /** resumos da folha importados no Departamento Pessoal */
   folhas?: FolhaImportada[];
+  /** ICMS/IPI das NF de compra que viram crédito (Fiscal → Impostos a recuperar) */
+  creditos?: CreditoMotor[];
+  /** crédito de ICMS usado para abater o ICMS das vendas, por competência */
+  compensacoesIcms?: { comp: string; valor: number }[];
   decisoes?: DecisoesContador;
   hoje?: string;
 }
@@ -254,6 +269,28 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
         if (b.split.taxa > 0) add({ ...comum, id: `${k}|taxa`, deb: '4.2.1.02', cred: '1.1.2.01', valor: b.split.taxa, hist: `Taxa do meio de pagamento ${doc} — ${t.nome}`, motivo: 'Taxa do PSP informada na liquidação (despesa bancária)' });
       });
     }
+  }
+
+  // crédito de ICMS/IPI da compra: sai do custo e vai para tributos a recuperar
+  const provPorTitulo = new Map(L.filter((l) => l.id.endsWith('|prov')).map((l) => [l.origemId, l]));
+  for (const c of e.creditos || []) {
+    const prov = provPorTitulo.get(c.tituloId);
+    if (!prov || prov.status === 'Excluído' || !/^[34]\./.test(prov.deb)) continue;
+    const partes = [['ICMS', c.icms], ['IPI', c.ipi]].filter(([, v]) => Number(v) > 0).map(([nome, valor]) => ({ nome: String(nome), valor: Number(valor) }));
+    add({
+      id: `CRED|${c.id}`, origemId: c.tituloId, doc: c.doc, data: c.data, comp: c.comp, deb: '1.1.4.01', cred: prov.deb, valor: c.icms + c.ipi,
+      hist: `Crédito ${partes.map((p) => `${p.nome} ${p.valor.toFixed(2)}`).join(' + ')} na compra ${c.doc} — ${c.nome}`, modulo: 'Fiscal → Impostos a recuperar',
+      motivo: 'Imposto destacado em item de insumo/matéria-prima: recuperável, não é custo', conf: 92, auto: true, partes,
+    });
+  }
+  for (const c of e.compensacoesIcms || []) {
+    const [a, m] = c.comp.split('-').map(Number);
+    const fim = new Date(Date.UTC(a, m, 0)).toISOString().slice(0, 10);
+    add({
+      id: `APUR|ICMS|${c.comp}`, origemId: `APUR|ICMS|${c.comp}`, doc: `Apuração ICMS ${c.comp.split('-').reverse().join('/')}`, data: fim, comp: c.comp, deb: '2.1.4.01', cred: '1.1.4.01', valor: c.valor,
+      hist: `ICMS — compensação de créditos na apuração ${c.comp.split('-').reverse().join('/')}`, modulo: 'Fiscal → Impostos a recuperar',
+      motivo: 'Crédito das compras abatido do ICMS das vendas do mês', conf: 95, auto: true, partes: [{ nome: 'ICMS', valor: c.valor }],
+    });
   }
 
   for (const c of e.contratos || []) {

@@ -256,7 +256,7 @@ export default async function Reforma({ searchParams }: { searchParams: Promise<
   return (
     <>
       <div className="cabeca central"><div><div className="sobretitulo">Fiscal e Tributário · Reforma Tributária</div><h1>Split Payment</h1><p>Separação de IBS e CBS na liquidação dos pagamentos: quanto o cliente pagou, quanto foi segregado para tributos e quanto entrou na conta.</p></div></div>
-      <div className="abas"><Link href="/fiscal">Apuração</Link><Link href="/fiscal/notas">NF da SEFAZ</Link><Link href="/fiscal/reforma" className="ativo">Reforma Tributária</Link></div>
+      <div className="abas"><Link href="/fiscal">Apuração</Link><Link href="/fiscal/creditos">Impostos a recuperar</Link><Link href="/fiscal/notas">NF da SEFAZ</Link><Link href="/fiscal/reforma" className="ativo">Reforma Tributária</Link></div>
       <div className="aviso" style={{ marginBottom: 12 }}><b>Ainda não está em operação para as empresas.</b> A LC 214/2025 prevê implantação gradual; desde 15/10/2026 há testes técnicos entre provedores de pagamento e a Plataforma Pública, em ambiente controlado e sem transações reais. O ZARO está preparado: acompanha recebimentos, importa retornos dos provedores e simula o impacto. Nada aqui é recolhimento presumido.</div>
       {sp.msg && <div className="aviso ok">{sp.msg}</div>}
       {sp.erro && <div className="aviso erro">{sp.erro}</div>}

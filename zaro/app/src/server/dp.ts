@@ -28,7 +28,7 @@ export const TIPOS_DOC: [string, string][] = [
 
 const hashCpf = (cpf: string, tenantId: string) => crypto.createHash('sha256').update(`${tenantId}:${cpf.replace(/\D/g, '')}`).digest('hex');
 
-async function textoDoArquivo(nome: string, conteudo: Buffer) {
+export async function textoDoArquivo(nome: string, conteudo: Buffer) {
   if (/\.pdf$/i.test(nome)) {
     const { extractText, getDocumentProxy } = await import('unpdf');
     const pdf = await getDocumentProxy(new Uint8Array(conteudo));

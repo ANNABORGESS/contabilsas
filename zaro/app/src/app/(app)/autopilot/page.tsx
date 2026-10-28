@@ -2,9 +2,15 @@ import { and, desc, eq } from 'drizzle-orm';
 import Link from 'next/link';
 import { getDb, schema } from '@/db';
 import { brl, dataBr, formatarCnpj } from '@/domain/dinheiro';
+import { creditosDaNota } from '@/domain/creditos';
+import { ehSimples } from '@/domain/regime';
 import { exigirEmpresa, exigirUsuario, podeEditar } from '@/server/auth';
 import type { DadosDocumento } from '@/server/autopilot';
+import { configCreditos } from '@/server/creditos';
 import { aprovar, descartar, enviarArquivos } from './acoes';
+
+// extrato em PDF longo leva mais que o padrão da Vercel para ler e conferir
+export const maxDuration = 60;
 
 const COR: Record<string, string> = { Novo: 'acento', Aprovado: 'pos', Processado: 'pos', Duplicado: 'at', Descartado: '', Erro: 'neg' };
 
@@ -21,10 +27,11 @@ export default async function Autopilot({ searchParams }: { searchParams: Promis
     .orderBy(desc(schema.documentosEntrada.criadoEm))
     .limit(200);
   const edita = podeEditar(u);
+  const cfgCred = await configCreditos(db, u.tenantId, emp.id);
   return (
     <>
       <div className="cabeca">
-        <div><h1>ZARO Autopilot</h1><p>Caixa de entrada única: envie XML de NF-e, NFS-e e eventos de cancelamento. O ZARO identifica, bloqueia duplicados e, depois da sua aprovação, lança no módulo certo.</p></div>
+        <div><h1>ZARO Autopilot</h1><p>Caixa de entrada única: envie XML de NF-e, NFS-e e eventos de cancelamento, extrato bancário em PDF (Itaú, Bradesco) e folha de pagamento em PDF. O ZARO identifica, bloqueia duplicados e lança no módulo certo: NF depois da sua aprovação (com os impostos a recuperar de cada item da compra), extrato direto na conciliação bancária e folha no Departamento Pessoal e na contabilidade.</p></div>
       </div>
       {sp.erro && <div className="aviso erro">{sp.erro}</div>}
       {sp.msg && <div className="aviso" style={{ whiteSpace: 'pre-line' }}>{sp.msg}</div>}
@@ -45,6 +52,8 @@ export default async function Autopilot({ searchParams }: { searchParams: Promis
       {docs.map((d) => {
         const dados = d.dados as DadosDocumento;
         const n = dados.nota;
+        const cred = n && n.tipo === 'NF-e' && dados.direcao === 'entrada' && n.itens.some((i) => 'cst' in i || 'icms' in i)
+          ? creditosDaNota(d.id, n.itens, { simples: ehSimples(emp, n.dados.emissao), config: cfgCred }) : null;
         const parte = n ? (dados.direcao === 'saida' ? { r: 'Cliente', nome: n.dados.cliNome, doc: n.dados.cliDoc } : { r: 'Emitente', nome: n.dados.emitNome, doc: n.dados.emitCnpj }) : null;
         return (
           <div key={d.id} className="card">
@@ -54,6 +63,14 @@ export default async function Autopilot({ searchParams }: { searchParams: Promis
                 {parte && <div style={{ marginTop: 6 }}>{parte.r}: <b>{parte.nome || '—'}</b> {parte.doc && <span className="mudo">· {formatarCnpj(parte.doc)}</span>}</div>}
                 {n && <div className="pequeno mudo">Emissão {dataBr(n.dados.emissao)} · {n.dados.natureza || '—'} · valor {brl(n.dados.vNF)}{n.dados.chave ? ` · chave …${n.dados.chave.slice(-8)}` : ''}</div>}
                 <div style={{ marginTop: 6 }}>Destino: <b>{d.destino || '—'}</b> <span className="mudo pequeno">· confiança {d.confianca}%</span></div>
+                {cred && (
+                  <div className="pequeno" style={{ marginTop: 4 }}>
+                    Impostos a recuperar: <b>ICMS {brl(cred.icms)}</b>{cred.ipi > 0 && <> · <b>IPI {brl(cred.ipi)}</b></>}
+                    {cred.aConfirmar > 0 && <> · <span className="tag at">{cred.aConfirmar} item(ns) a confirmar</span></>}
+                    {cred.itens.some((i) => i.classe === 'simples') && <span className="mudo"> · compra da época do Simples: sem crédito</span>}
+                    {' '}<Link href="/fiscal/creditos" className="mudo">ver itens</Link>
+                  </div>
+                )}
                 {d.resultado && <div className="pequeno" style={{ marginTop: 4 }}>{d.resultado}</div>}
               </div>
               <div className="linha">

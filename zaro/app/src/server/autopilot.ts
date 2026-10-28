@@ -7,7 +7,13 @@ import { schema } from '@/db';
 import { soDigitos } from '@/domain/dinheiro';
 import { lerXmlFiscal, type DocumentoFiscal, type NotaFiscal } from '@/domain/nfe';
 import { direcaoDaNota, ehRetorno, titulosDaNota, type Direcao, type TituloGerado } from '@/domain/operacao';
+import { lerExtratoPdf } from '@/domain/extrato-pdf';
+import { lerHolerites } from '@/domain/dp';
+import { lerResumoFolha } from '@/domain/folha-contabil';
 import { guardarArquivo } from './arquivos';
+import { importarDocumentoDP, podeVerDP, textoDoArquivo } from './dp';
+import { importarExtratoPdf } from './extrato-import';
+import { textoComLayout } from './pdf-layout';
 import { auditar } from './auditoria';
 import type { Empresa, Usuario } from './auth';
 import { unzipSync } from 'fflate';
@@ -65,14 +71,44 @@ export async function receberArquivos(db: Db, u: Usuario, emp: Empresa, recebido
   return out;
 }
 
+/** PDF que o ZARO sabe ler: extrato do banco vai para a conciliação; folha e holerites vão para o DP e a
+ *  contabilidade. Devolve null quando não reconhece (o arquivo fica para classificar à mão). */
+async function pdfNoModuloCerto(db: Db, u: Usuario, emp: Empresa, a: ArquivoRecebido, canal: string): Promise<ResultadoEntrada | null> {
+  const base = { tenantId: u.tenantId, empresaId: emp.id, nomeArquivo: a.nome, canal };
+  let layout = '';
+  try { layout = await textoComLayout(new Uint8Array(a.conteudo)); } catch { layout = ''; }
+  if (layout && lerExtratoPdf(layout)) {
+    const msg = await importarExtratoPdf(db, u, emp, a.nome, a.conteudo);
+    await db.insert(schema.documentosEntrada).values({ ...base, tipo: 'Extrato bancário', status: 'Processado', destino: 'Financeiro → Conciliação bancária · Contabilidade', confianca: 98, resultado: msg });
+    return { nome: a.nome, status: 'Processado', mensagem: msg };
+  }
+  let texto = '';
+  try { texto = await textoDoArquivo(a.nome, a.conteudo); } catch { texto = ''; }
+  const holerites = texto ? lerHolerites(texto).length : 0;
+  if (!texto || (!holerites && !lerResumoFolha(texto))) return null;
+  if (!podeVerDP(u)) {
+    const arq = await guardarArquivo(db, u.tenantId, a.nome, a.mime, a.conteudo);
+    const msg = 'É uma folha de pagamento, mas seu perfil não tem acesso ao Departamento Pessoal: peça a quem tem acesso para importar.';
+    await db.insert(schema.documentosEntrada).values({ ...base, arquivoId: arq.id, tipo: 'Folha de pagamento', status: 'Novo', destino: 'Departamento Pessoal (sem acesso)', confianca: 90, resultado: msg });
+    return { nome: a.nome, status: 'Novo', mensagem: msg };
+  }
+  const msg = await importarDocumentoDP(db, u, emp, { tipo: holerites ? 'holerites' : 'folha_sintetica', competencia: '', tipoFolha: 'mensal', nome: a.nome, mime: a.mime, conteudo: a.conteudo });
+  await db.insert(schema.documentosEntrada).values({ ...base, tipo: 'Folha de pagamento', status: 'Processado', destino: 'Departamento Pessoal · Contabilidade', confianca: 95, resultado: msg });
+  return { nome: a.nome, status: 'Processado', mensagem: msg };
+}
+
 async function receberUm(db: Db, u: Usuario, emp: Empresa, a: ArquivoRecebido, canal: string): Promise<ResultadoEntrada> {
   const ext = a.nome.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'pdf') {
+    const lido = await pdfNoModuloCerto(db, u, emp, a, canal);
+    if (lido) return lido;
+  }
   const arq = await guardarArquivo(db, u.tenantId, a.nome, a.mime, a.conteudo);
   const base = { tenantId: u.tenantId, empresaId: emp.id, nomeArquivo: a.nome, arquivoId: arq.id, canal };
 
   if (ext !== 'xml') {
-    await db.insert(schema.documentosEntrada).values({ ...base, tipo: ext === 'pdf' ? 'PDF' : 'Arquivo', status: 'Novo', destino: 'Classificar manualmente', confianca: 0, resultado: 'Leitura automática disponível só para XML por enquanto. O arquivo ficou guardado.' });
-    return { nome: a.nome, status: 'Novo', mensagem: 'Guardado. Leitura automática só de XML por enquanto: classifique manualmente.' };
+    await db.insert(schema.documentosEntrada).values({ ...base, tipo: ext === 'pdf' ? 'PDF' : 'Arquivo', status: 'Novo', destino: 'Classificar manualmente', confianca: 0, resultado: 'O ZARO lê automaticamente XML de NF, extrato em PDF (Itaú, Bradesco) e folha em PDF. Este arquivo não foi reconhecido e ficou guardado.' });
+    return { nome: a.nome, status: 'Novo', mensagem: 'Guardado, mas não reconheci o conteúdo: classifique manualmente.' };
   }
 
   const xml = a.conteudo.toString('utf8');
