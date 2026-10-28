@@ -14,7 +14,7 @@ interface Despesa {
   categoria: CategoriaDespesa;
   descricao: string;
   valorCentavos: number;
-  funcionario: string | null;
+  funcionarioNome: string | null;
 }
 interface Dados {
   de: string;
@@ -28,13 +28,19 @@ interface Dados {
 export default function Financeiro() {
   const [periodo, setPeriodo] = useState<{ de: string; ate: string } | null>(null);
   const { dados, erro } = useDados<Dados>(`/api/financeiro${periodo ? `?de=${periodo.de}&ate=${periodo.ate}` : ''}`);
-  const [nova, setNova] = useState(false);
+  const [nova, setNova] = useState<CategoriaDespesa | null>(null); // categoria já escolhida ao abrir o formulário
   const [msg, setMsg] = useState('');
+  const [filtro, setFiltro] = useState<CategoriaDespesa | ''>('');
   const r = dados?.resumo;
   const de = periodo?.de || dados?.de || '';
   const ate = periodo?.ate || dados?.ate || '';
   const maxCat = Math.max(1, ...(r?.porCategoria.map((c) => c.valorCentavos) || []));
   const gasto = (c: string) => r?.porCategoria.find((x) => x.categoria === c)?.valorCentavos || 0;
+  const maxFunc = Math.max(1, ...(r?.porFuncionario.map((f) => f.valorCentavos) || []));
+  // lista de despesas separada por categoria, na ordem das categorias
+  const grupos = CATEGORIAS_DESPESA.filter((c) => !filtro || c === filtro)
+    .map((c) => ({ categoria: c, itens: (dados?.despesas || []).filter((d) => d.categoria === c) }))
+    .filter((g) => g.itens.length);
 
   async function excluir(d: Despesa) {
     if (!confirm(`Excluir a despesa "${d.descricao}" de ${reais(d.valorCentavos)}?`)) return;
@@ -48,7 +54,7 @@ export default function Financeiro() {
   return (
     <>
       <Cabecalho titulo="Custos e lucro" sub={de ? `${dataBr(de)}${ate !== de ? ` a ${dataBr(ate)}` : ''} · lucro = vendas líquidas − despesas lançadas` : ''}>
-        <button className="btn primario" onClick={() => setNova(true)}>
+        <button className="btn primario" onClick={() => setNova(filtro || 'bebidas')}>
           + Lançar despesa
         </button>
         <button className="btn" onClick={() => window.print()}>
@@ -157,40 +163,91 @@ export default function Financeiro() {
 
             <div className="cartao">
               <header>
+                <h2>Pagamentos por funcionário</h2>
+                <button
+                  className="btn pequeno nao-imprimir"
+                  onClick={() => setNova('funcionarios')}
+                >
+                  + Pagar funcionário
+                </button>
+              </header>
+              <div className="barras-h">
+                {r.porFuncionario.map((f) => (
+                  <div key={f.nome} className="item" style={{ gridTemplateColumns: '150px 1fr auto' }}>
+                    <span>👤 {f.nome}</span>
+                    <div className="barra">
+                      <i style={{ width: `${(f.valorCentavos / maxFunc) * 100}%` }} />
+                    </div>
+                    <span className="num direita">
+                      {reais(f.valorCentavos)}
+                      <span className="fraco">
+                        {' '}
+                        · {f.lancamentos} {f.lancamentos === 1 ? 'pagamento' : 'pagamentos'}
+                      </span>
+                    </span>
+                  </div>
+                ))}
+                {!r.porFuncionario.length && <span className="fraco">Nenhum pagamento de funcionário no período.</span>}
+              </div>
+            </div>
+
+            <div className="cartao">
+              <header>
                 <h2>Despesas lançadas</h2>
-                <button className="btn pequeno nao-imprimir" onClick={() => setNova(true)}>
+                <button className="btn pequeno nao-imprimir" onClick={() => setNova(filtro || 'bebidas')}>
                   + Lançar despesa
                 </button>
               </header>
+              {dados.despesas.length > 0 && (
+                <div className="filtros-rolagem nao-imprimir" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
+                  <button type="button" className={!filtro ? 'ativo' : ''} onClick={() => setFiltro('')}>
+                    Todas
+                  </button>
+                  {r.porCategoria.map((c) => (
+                    <button type="button" key={c.categoria} className={filtro === c.categoria ? 'ativo' : ''} onClick={() => setFiltro(c.categoria)}>
+                      {NOME_CATEGORIA[c.categoria]}
+                    </button>
+                  ))}
+                </div>
+              )}
               <div className="tabela-rolagem">
                 <table className="tabela">
                   <thead>
                     <tr>
                       <th>Data</th>
-                      <th>Categoria</th>
                       <th>Descrição</th>
                       <th className="direita">Valor</th>
                       <th className="nao-imprimir"></th>
                     </tr>
                   </thead>
-                  <tbody>
-                    {dados.despesas.map((d) => (
-                      <tr key={d.id}>
-                        <td>{dataBr(d.data)}</td>
-                        <td>{NOME_CATEGORIA[d.categoria] || d.categoria}</td>
-                        <td>
-                          {d.descricao}
-                          {d.funcionario && <div className="fraco">Funcionário: {d.funcionario}</div>}
-                        </td>
-                        <td className="direita num">{reais(d.valorCentavos)}</td>
-                        <td className="nao-imprimir">
-                          <button className="btn fantasma pequeno" onClick={() => excluir(d)}>
-                            Excluir
-                          </button>
-                        </td>
+                  {grupos.map((g) => (
+                    <tbody key={g.categoria}>
+                      <tr>
+                        <th colSpan={2} style={{ paddingTop: 18, color: 'var(--texto)' }}>
+                          {NOME_CATEGORIA[g.categoria]}
+                        </th>
+                        <th className="direita num" style={{ paddingTop: 18, color: 'var(--texto)' }}>
+                          {reais(g.itens.reduce((a, d) => a + d.valorCentavos, 0))}
+                        </th>
+                        <th className="nao-imprimir"></th>
                       </tr>
-                    ))}
-                  </tbody>
+                      {g.itens.map((d) => (
+                        <tr key={d.id}>
+                          <td>{dataBr(d.data)}</td>
+                          <td>
+                            {d.funcionarioNome && <b>👤 {d.funcionarioNome} · </b>}
+                            {d.descricao}
+                          </td>
+                          <td className="direita num">{reais(d.valorCentavos)}</td>
+                          <td className="nao-imprimir">
+                            <button className="btn fantasma pequeno" onClick={() => excluir(d)}>
+                              Excluir
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  ))}
                 </table>
                 {!dados.despesas.length && <div className="vazio">Nenhuma despesa no período. Clique em “Lançar despesa”.</div>}
               </div>
@@ -232,14 +289,14 @@ export default function Financeiro() {
           </>
         )}
       </div>
-      {nova && <FormDespesa fechar={() => setNova(false)} />}
+      {nova && <FormDespesa inicial={nova} fechar={() => setNova(null)} />}
     </>
   );
 }
 
-function FormDespesa({ fechar }: { fechar: () => void }) {
+function FormDespesa({ inicial, fechar }: { inicial: CategoriaDespesa; fechar: () => void }) {
   const { dados: equipe } = useDados<{ equipe: { id: string; nome: string; ativo: boolean }[] }>('/api/equipe');
-  const [categoria, setCategoria] = useState<CategoriaDespesa>('bebidas');
+  const [categoria, setCategoria] = useState<CategoriaDespesa>(inicial);
   const [erro, setErro] = useState('');
   const [salvando, setSalvando] = useState(false);
   async function salvar(e: React.FormEvent<HTMLFormElement>) {
@@ -250,7 +307,7 @@ function FormDespesa({ fechar }: { fechar: () => void }) {
     setSalvando(true);
     setErro('');
     try {
-      await api('/api/despesas', 'POST', { data: f.get('data'), categoria, descricao: f.get('descricao'), valorCentavos: valor, funcionarioId: f.get('funcionarioId') || undefined });
+      await api('/api/despesas', 'POST', { data: f.get('data'), categoria, descricao: f.get('descricao'), valorCentavos: valor, funcionarioNome: f.get('funcionarioNome') || undefined });
       fechar();
     } catch (e) {
       setErro((e as Error).message);
@@ -279,17 +336,15 @@ function FormDespesa({ fechar }: { fechar: () => void }) {
         </div>
         {categoria === 'funcionarios' && (
           <label className="campo">
-            Funcionário (opcional)
-            <select name="funcionarioId" defaultValue="">
-              <option value="">—</option>
+            Nome do funcionário
+            <input name="funcionarioNome" list="nomes-equipe" required maxLength={60} placeholder="Escreva ou escolha da lista" autoComplete="off" />
+            <datalist id="nomes-equipe">
               {equipe?.equipe
                 .filter((u) => u.ativo)
                 .map((u) => (
-                  <option key={u.id} value={u.id}>
-                    {u.nome}
-                  </option>
+                  <option key={u.id} value={u.nome} />
                 ))}
-            </select>
+            </datalist>
           </label>
         )}
         <label className="campo">

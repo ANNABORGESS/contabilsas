@@ -158,6 +158,7 @@ export const despesas = pgTable(
     descricao: text('descricao').notNull(),
     valorCentavos: integer('valor_centavos').notNull(),
     funcionarioId: uuid('funcionario_id').references(() => usuarios.id), // quando é pagamento de funcionário
+    funcionarioNome: text('funcionario_nome'), // nome digitado (vale também para quem não tem login)
     criadoPorId: uuid('criado_por_id').notNull().references(() => usuarios.id),
     criadoEm: criadoEm(),
   },

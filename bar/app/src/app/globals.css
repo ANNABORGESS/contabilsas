@@ -1486,6 +1486,9 @@ label.campo {
   font-weight: 500;
   border-bottom-color: var(--linha);
 }
+.tabela th.direita {
+  text-align: right;
+}
 .tabela td {
   border-bottom-color: var(--linha);
 }

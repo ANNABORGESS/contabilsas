@@ -29,6 +29,21 @@ describe('custos e lucro', () => {
       { data: '2026-10-26', vendasCentavos: 0, despesasCentavos: 10000, lucroCentavos: -10000 },
     ]);
   });
+  it('soma o que cada funcionário recebeu, juntando o mesmo nome escrito de jeitos diferentes', () => {
+    const r = resumoFinanceiro(
+      [],
+      [
+        { data: '2026-10-24', categoria: 'funcionarios', valorCentavos: 8000, funcionarioNome: 'Maria' },
+        { data: '2026-10-25', categoria: 'funcionarios', valorCentavos: 8000, funcionarioNome: 'maria' },
+        { data: '2026-10-25', categoria: 'funcionarios', valorCentavos: 12000, funcionarioNome: 'João' },
+        { data: '2026-10-25', categoria: 'bebidas', valorCentavos: 50000, funcionarioNome: null },
+      ],
+    );
+    expect(r.porFuncionario).toEqual([
+      { nome: 'Maria', valorCentavos: 16000, lancamentos: 2 },
+      { nome: 'João', valorCentavos: 12000, lancamentos: 1 },
+    ]);
+  });
   it('sem vendas não calcula margem; prejuízo aparece negativo', () => {
     const r = resumoFinanceiro([], [{ data: '2026-10-24', categoria: 'contas', valorCentavos: 5000 }]);
     expect(r.lucroCentavos).toBe(-5000);
@@ -40,7 +55,10 @@ describe('custos e lucro', () => {
       categoria: 'bebidas',
       descricao: '10 caixas de cerveja',
       valorCentavos: 45000,
+      funcionarioNome: null,
     });
+    expect(validarDespesa({ data: '2026-10-24', categoria: 'funcionarios', descricao: 'Diária', valorCentavos: 8000, funcionarioNome: '  Maria  Souza ' }).funcionarioNome).toBe('Maria Souza');
+    expect(() => validarDespesa({ data: '2026-10-24', categoria: 'funcionarios', descricao: 'Diária', valorCentavos: 8000 })).toThrow(/nome do funcionário/);
     expect(() => validarDespesa({ data: 'ontem', categoria: 'bebidas', descricao: 'x', valorCentavos: 1 })).toThrow(/data/);
     expect(() => validarDespesa({ data: '2026-10-24', categoria: 'festa', descricao: 'x', valorCentavos: 1 })).toThrow(/categoria/);
     expect(() => validarDespesa({ data: '2026-10-24', categoria: 'bebidas', descricao: ' ', valorCentavos: 1 })).toThrow(/Descreva/);

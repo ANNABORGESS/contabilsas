@@ -23,16 +23,22 @@ export interface DespesaNova {
   categoria: CategoriaDespesa;
   descricao: string;
   valorCentavos: number;
+  funcionarioNome: string | null;
 }
 
-export function validarDespesa(d: { data?: unknown; categoria?: unknown; descricao?: unknown; valorCentavos?: unknown }): DespesaNova {
+const limpar = (t: unknown, max: number) => (typeof t === 'string' ? t.replace(/\s+/g, ' ').trim().slice(0, max) : '');
+
+export function validarDespesa(d: { data?: unknown; categoria?: unknown; descricao?: unknown; valorCentavos?: unknown; funcionarioNome?: unknown }): DespesaNova {
   if (typeof d.data !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(d.data) || Number.isNaN(Date.parse(`${d.data}T00:00:00Z`))) throw new ErroDespesa('Informe a data da despesa.');
   if (!ehCategoria(d.categoria)) throw new ErroDespesa('Escolha a categoria.');
-  const descricao = typeof d.descricao === 'string' ? d.descricao.replace(/\s+/g, ' ').trim().slice(0, 120) : '';
+  const descricao = limpar(d.descricao, 120);
   if (!descricao) throw new ErroDespesa('Descreva a despesa (ex.: salário da Ana, 10 caixas de cerveja).');
   const v = Number(d.valorCentavos);
   if (!Number.isInteger(v) || v <= 0 || v > 100_000_000) throw new ErroDespesa('Informe um valor válido.');
-  return { data: d.data, categoria: d.categoria, descricao, valorCentavos: v };
+  // pagamento de funcionário sempre leva o nome, para somar quanto cada um recebeu
+  const funcionarioNome = d.categoria === 'funcionarios' ? limpar(d.funcionarioNome, 60) : '';
+  if (d.categoria === 'funcionarios' && !funcionarioNome) throw new ErroDespesa('Informe o nome do funcionário.');
+  return { data: d.data, categoria: d.categoria, descricao, valorCentavos: v, funcionarioNome: funcionarioNome || null };
 }
 
 export interface VendaDia {
@@ -40,7 +46,7 @@ export interface VendaDia {
   liquidoCentavos: number;
 }
 
-export function resumoFinanceiro(vendas: VendaDia[], despesas: { data: string; categoria: string; valorCentavos: number }[]) {
+export function resumoFinanceiro(vendas: VendaDia[], despesas: { data: string; categoria: string; valorCentavos: number; funcionarioNome?: string | null }[]) {
   const vendasCentavos = vendas.reduce((a, v) => a + v.liquidoCentavos, 0);
   const despesasCentavos = despesas.reduce((a, d) => a + d.valorCentavos, 0);
   const lucroCentavos = vendasCentavos - despesasCentavos;
@@ -50,6 +56,18 @@ export function resumoFinanceiro(vendas: VendaDia[], despesas: { data: string; c
   }))
     .filter((c) => c.valorCentavos > 0)
     .map((c) => ({ ...c, percentualDasVendas: vendasCentavos ? Math.round((c.valorCentavos / vendasCentavos) * 1000) / 10 : null }));
+  // pagamentos de funcionários somados por nome (sem diferenciar maiúsculas)
+  const pagos = new Map<string, { nome: string; valorCentavos: number; lancamentos: number }>();
+  for (const d of despesas) {
+    if (d.categoria !== 'funcionarios') continue;
+    const nome = d.funcionarioNome?.trim() || 'Sem nome';
+    const k = nome.toLocaleLowerCase('pt-BR');
+    const atual = pagos.get(k) || { nome, valorCentavos: 0, lancamentos: 0 };
+    atual.valorCentavos += d.valorCentavos;
+    atual.lancamentos += 1;
+    pagos.set(k, atual);
+  }
+  const porFuncionario = [...pagos.values()].sort((a, b) => b.valorCentavos - a.valorCentavos);
   const datas = [...new Set([...vendas.map((v) => v.data), ...despesas.map((d) => d.data)])].sort();
   const porDia = datas.map((data) => {
     const v = vendas.filter((x) => x.data === data).reduce((a, x) => a + x.liquidoCentavos, 0);
@@ -62,6 +80,7 @@ export function resumoFinanceiro(vendas: VendaDia[], despesas: { data: string; c
     lucroCentavos,
     margem: vendasCentavos ? Math.round((lucroCentavos / vendasCentavos) * 1000) / 10 : null,
     porCategoria,
+    porFuncionario,
     porDia,
   };
 }

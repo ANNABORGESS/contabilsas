@@ -1,5 +1,5 @@
 // Despesas e o resumo de custos e lucro (só administrador).
-import { and, desc, eq, gte, lte } from 'drizzle-orm';
+import { and, desc, eq, gte, lte, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
@@ -18,7 +18,7 @@ export async function listarDespesas(db: Db, de: string, ate: string) {
       descricao: schema.despesas.descricao,
       valorCentavos: schema.despesas.valorCentavos,
       funcionarioId: schema.despesas.funcionarioId,
-      funcionario: schema.usuarios.nome,
+      funcionarioNome: sql<string | null>`coalesce(${schema.despesas.funcionarioNome}, ${schema.usuarios.nome})`,
       criadoEm: schema.despesas.criadoEm,
     })
     .from(schema.despesas)
@@ -35,15 +35,22 @@ export async function lancarDespesa(db: Db, u: Usuario, corpo: Record<string, un
     if (e instanceof ErroDespesa) throw new ErroRegra(e.message);
     throw e;
   }
+  // se o nome digitado for de alguém da equipe, liga a despesa à conta dele também
+  // e grava o nome como está no cadastro, para não somar "carlos" e "Carlos" separados
   let funcionarioId: string | null = null;
-  if (typeof corpo.funcionarioId === 'string' && corpo.funcionarioId) {
-    if (!/^[0-9a-f-]{36}$/i.test(corpo.funcionarioId)) throw new ErroRegra('Funcionário inválido.');
-    const [f] = await db.select({ id: schema.usuarios.id }).from(schema.usuarios).where(eq(schema.usuarios.id, corpo.funcionarioId));
-    if (!f) throw new ErroRegra('Funcionário não encontrado.');
-    funcionarioId = f.id;
+  if (d.funcionarioNome) {
+    const [f] = await db
+      .select({ id: schema.usuarios.id, nome: schema.usuarios.nome })
+      .from(schema.usuarios)
+      .where(sql`lower(${schema.usuarios.nome}) = lower(${d.funcionarioNome})`)
+      .limit(1);
+    if (f) {
+      funcionarioId = f.id;
+      d.funcionarioNome = f.nome;
+    }
   }
   const [nova] = await db.insert(schema.despesas).values({ ...d, funcionarioId, criadoPorId: u.id }).returning();
-  await registrar(db, { tipo: 'despesa_lancada', usuarioId: u.id, descricao: `${u.nome} lançou despesa de ${reais(d.valorCentavos)} em ${NOME_CATEGORIA[d.categoria]}: ${d.descricao} (${d.data.split('-').reverse().join('/')})` });
+  await registrar(db, { tipo: 'despesa_lancada', usuarioId: u.id, descricao: `${u.nome} lançou despesa de ${reais(d.valorCentavos)} em ${NOME_CATEGORIA[d.categoria]}${d.funcionarioNome ? ` para ${d.funcionarioNome}` : ''}: ${d.descricao} (${d.data.split('-').reverse().join('/')})` });
   return nova;
 }
 

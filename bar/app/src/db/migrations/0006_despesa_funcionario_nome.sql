@@ -1,0 +1,1 @@
+ALTER TABLE "despesas" ADD COLUMN "funcionario_nome" text;
