@@ -14,6 +14,7 @@ export const PLANO_PADRAO: Conta[] = [
   ['1.1.3.01', 'Estoques / matéria-prima', 'D'],
   ['1.1.4.01', 'Tributos a recuperar', 'D'],
   ['1.1.9.01', 'Créditos com empresas ligadas', 'D'],
+  ['1.1.9.02', 'Recursos da empresa em conta de terceiros', 'D'],
   ['1.1.9.97', 'Transferências entre contas próprias (em trânsito)', 'D'],
   ['1.1.9.98', 'Pagamentos e recebimentos a conciliar com o extrato', 'D'],
   ['1.1.9.99', 'Pagamentos a identificar', 'D'],
