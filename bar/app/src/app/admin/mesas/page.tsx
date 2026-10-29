@@ -1,5 +1,7 @@
 'use client';
 import { useState } from 'react';
+import { BuscaMesa } from '@/cliente/BuscaMesa';
+import { filtrarMesas, type FiltroMesa } from '@/domain/mesas';
 import { api, useDados } from '@/cliente/api';
 import { dataBr, hora, reais } from '@/cliente/formato';
 import { Aviso, ChipPedido, ChipSituacao, Modal } from '@/cliente/ui';
@@ -29,7 +31,10 @@ export default function Mesas() {
   const { dados, erro } = useDados<{ data: string; mesas: MesaTurno[] }>('/api/mesas/turno');
   const [historico, setHistorico] = useState<MesaTurno | null>(null);
   const [gerenciar, setGerenciar] = useState(false);
+  const [busca, setBusca] = useState('');
+  const [filtro, setFiltro] = useState<FiltroMesa>('todas');
   const total = (dados?.mesas || []).reduce((a, m) => a + m.totalCentavos, 0);
+  const visiveis = filtrarMesas(dados?.mesas || [], busca, filtro);
   return (
     <>
       <Cabecalho titulo="Mesas" sub={dados ? `Turno de ${dataBr(dados.data)} · ${dados.mesas.filter((m) => m.pedidos).length} mesa(s) com pedido · ${reais(total)}` : ''}>
@@ -38,8 +43,9 @@ export default function Mesas() {
         </button>
       </Cabecalho>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {dados && dados.mesas.length > 0 && <BuscaMesa busca={busca} setBusca={setBusca} filtro={filtro} setFiltro={setFiltro} total={dados.mesas.length} achadas={visiveis.length} />}
       <div className="mesas-grade" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
-        {dados?.mesas.map((m) => (
+        {visiveis.map((m) => (
           <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''}`} onClick={() => setHistorico(m)}>
             <span className="n">Mesa {m.numero}</span>
             {m.nome && <span className="fraco">{m.nome}</span>}
@@ -55,6 +61,7 @@ export default function Mesas() {
           </button>
         ))}
       </div>
+      {dados && dados.mesas.length > 0 && !visiveis.length && <div className="vazio">Nenhuma mesa encontrada.</div>}
       {historico && <HistoricoMesa mesa={historico} fechar={() => setHistorico(null)} />}
       {gerenciar && <GerenciarMesas fechar={() => setGerenciar(false)} />}
     </>
@@ -114,9 +121,10 @@ function GerenciarMesas({ fechar }: { fechar: () => void }) {
   const [de, setDe] = useState('');
   const [ate, setAte] = useState('');
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
-  async function criar() {
+  const [busca, setBusca] = useState('');
+  async function criar(a = Number(de), b = Number(ate || de)) {
     try {
-      const r = await api<{ criadas: number }>('/api/mesas', 'POST', { de: Number(de), ate: Number(ate || de) });
+      const r = await api<{ criadas: number }>('/api/mesas', 'POST', { de: a, ate: b });
       setMsg({ tipo: 'ok', texto: r.criadas ? `${r.criadas} mesa(s) criada(s).` : 'Essas mesas já existem.' });
       setDe('');
       setAte('');
@@ -142,10 +150,14 @@ function GerenciarMesas({ fechar }: { fechar: () => void }) {
           Até a mesa (opcional)
           <input type="number" min={1} value={ate} onChange={(e) => setAte(e.target.value)} />
         </label>
-        <button className="btn primario" disabled={!de} onClick={criar}>
+        <button className="btn primario" disabled={!de} onClick={() => criar()}>
           Criar
         </button>
+        <button className="btn" onClick={() => criar(1, 200)}>
+          Criar 1 a 200
+        </button>
       </div>
+      <input type="search" placeholder="🔍 Buscar mesa: número ou apelido" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ margin: '12px 0' }} />
       {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
       <table className="tabela">
         <thead>
@@ -156,7 +168,7 @@ function GerenciarMesas({ fechar }: { fechar: () => void }) {
           </tr>
         </thead>
         <tbody>
-          {dados?.mesas.map((m) => (
+          {filtrarMesas(dados?.mesas || [], busca).map((m) => (
             <tr key={m.id} className={m.ativa ? '' : 'apagado'}>
               <td>
                 <b>{m.numero}</b>

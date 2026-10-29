@@ -2302,3 +2302,15 @@ html {
   font-size: 14px;
   margin-bottom: 4px;
 }
+
+/* busca de mesa */
+.busca-mesa {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.busca-mesa input {
+  width: 100%;
+  font-size: 16px;
+}

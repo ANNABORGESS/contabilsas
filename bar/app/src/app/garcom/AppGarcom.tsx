@@ -8,6 +8,8 @@ import { decorrido, hora, reais } from '@/cliente/formato';
 import { Aviso, BotaoSair, ChipPedido, ChipPreparo, ChipSituacao, Conexao, Modal, useAgora } from '@/cliente/ui';
 import { FORMAS_PAGAMENTO, MAX_BALDE, NOME_FORMA, NOME_SETOR, agruparBaldes, textoItem, type FormaPagamento, type Setor } from '@/domain/pedido';
 import type { DetalhePedido, PedidoLista } from '@/server/pedidos';
+import { BuscaMesa } from '@/cliente/BuscaMesa';
+import { filtrarMesas, type FiltroMesa } from '@/domain/mesas';
 
 interface Produto {
   id: string;
@@ -85,6 +87,8 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   const [toast, setToast] = useState<{ texto: string; pedidoId?: string } | null>(null);
   const [detalhe, setDetalhe] = useState<string | null>(null);
   const [pronto, setPronto] = useState(false);
+  const [buscaMesa, setBuscaMesa] = useState('');
+  const [filtroMesa, setFiltroMesa] = useState<FiltroMesa>('todas');
 
   // rascunhos e tentativa de pagamento sobrevivem a recarregar a página
   useEffect(() => {
@@ -276,8 +280,18 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
           {aba === 'mesas' && (
             <>
               {mesas.erro && <Aviso tipo="erro">{mesas.erro}</Aviso>}
+              {(mesas.dados?.mesas.length || 0) > 0 && (
+                <BuscaMesa
+                  busca={buscaMesa}
+                  setBusca={setBuscaMesa}
+                  filtro={filtroMesa}
+                  setFiltro={setFiltroMesa}
+                  total={mesas.dados!.mesas.length}
+                  achadas={filtrarMesas(mesas.dados!.mesas, buscaMesa, filtroMesa).length}
+                />
+              )}
               <div className="mesas-grade" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
-                {(mesas.dados?.mesas || []).map((m) => {
+                {filtrarMesas(mesas.dados?.mesas || [], buscaMesa, filtroMesa).map((m) => {
                   const rascunho = Object.values(carrinhos[m.id] || {}).reduce((a, b) => a + b, 0) + (baldes[m.id] || []).length;
                   return (
                     <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
@@ -295,6 +309,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
                 })}
               </div>
               {mesas.dados && !mesas.dados.mesas.length && <div className="vazio">Nenhuma mesa ativa. Peça ao administrador para cadastrar.</div>}
+              {mesas.dados && mesas.dados.mesas.length > 0 && !filtrarMesas(mesas.dados.mesas, buscaMesa, filtroMesa).length && <div className="vazio">Nenhuma mesa encontrada.</div>}
             </>
           )}
           {aba === 'pedidos' && <ListaPedidos usuarioId={usuario.id} abrir={(id) => setDetalhe(id)} />}
