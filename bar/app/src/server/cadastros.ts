@@ -1,5 +1,5 @@
 // Mesas, cardápio e equipe (administração) e o primeiro acesso.
-import { and, asc, eq, ne, sql } from 'drizzle-orm';
+import { and, asc, eq, ne, notLike, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
@@ -139,7 +139,7 @@ export async function listarEquipe(db: Db) {
   return db
     .select({ id: schema.usuarios.id, nome: schema.usuarios.nome, usuario: schema.usuarios.usuario, papel: schema.usuarios.papel, ativo: schema.usuarios.ativo, pendente: schema.usuarios.pendente, criadoEm: schema.usuarios.criadoEm })
     .from(schema.usuarios)
-    .where(ne(schema.usuarios.usuario, 'tela-cozinha')) // conta interna da tela da cozinha
+    .where(notLike(schema.usuarios.usuario, 'tela-%')) // contas internas das telas da cozinha e do bar
     .orderBy(asc(schema.usuarios.nome));
 }
 
@@ -197,13 +197,13 @@ export async function atualizarFuncionario(db: Db, u: Usuario, id: string, d: { 
 
 // ---------- conta criada pelo próprio funcionário ----------
 
-// a cozinha entra pelo link sem senha (acessoTela.ts), então não cria conta própria
-const PAPEIS_AUTOCADASTRO = ['garcom', 'bar'] as const;
+// cozinha e bar abrem direto, sem senha (acessoTela.ts): só o garçom cria conta própria
+const PAPEIS_AUTOCADASTRO = ['garcom'] as const;
 const MAX_PENDENTES = 30;
 
 /** Garçom, cozinha ou bar criam a própria conta; ela fica pendente até o administrador aprovar. */
 export async function solicitarConta(db: Db, d: { nome?: unknown; usuario?: unknown; senha?: unknown; papel?: unknown }) {
-  if (!(PAPEIS_AUTOCADASTRO as readonly unknown[]).includes(d.papel)) throw new ErroRegra('Escolha garçom ou bar.');
+  if (!(PAPEIS_AUTOCADASTRO as readonly unknown[]).includes(d.papel)) throw new ErroRegra('Só o garçom cria conta. Cozinha e bar abrem direto, sem senha.');
   const papel = d.papel as (typeof PAPEIS_AUTOCADASTRO)[number];
   const nome = texto(d.nome, 60);
   if (!nome) throw new ErroRegra('Informe seu nome.');
