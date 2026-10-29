@@ -266,3 +266,18 @@ describe('contas do imobilizado', () => {
     expect(L.find((l) => l.id === 'DEP|A2|2026-01')).toMatchObject({ cred: '1.2.3.93', valor: 2000 });
   });
 });
+
+describe('contraparte do extrato', () => {
+  it('tira o tipo do PIX, datas e CNPJ e usa o nome completo do Itaú', async () => {
+    const { contraparteDoExtrato } = await import('./motor');
+    expect(contraparteDoExtrato('PIX ENVIADO FULANO DE TAL SILVA')).toBe('FULANO DE TAL SILVA');
+    expect(contraparteDoExtrato('PIX RECEBIDO BELTRA A06/02 BELTRANA ALVES COSTA DOS SANTOS')).toBe('BELTRANA ALVES COSTA DOS');
+    expect(contraparteDoExtrato('PIX ENVIADO PIX ENVIADO CICRANO TESTE')).toBe('CICRANO TESTE');
+    expect(contraparteDoExtrato('PIX ENVIADO EMPRESA TESTE 12.345.678/0001-90')).toBe('EMPRESA TESTE');
+    expect(contraparteDoExtrato('PIX RECEBIDO BELTRA A06/06')).toBe('BELTRA A');
+  });
+  it('regra aprendida por contraparte classifica o movimento', () => {
+    const L = gerarLancamentos({ titulos: [], extrato: [{ id: 'M1', conta: 'Banco Teste', data: '2026-03-02', valor: -500, memo: 'PIX ENVIADO FULANO DE TAL SILVA' }], decisoes: { regras: { 'contraparte:FULANO DE TAL SILVA': '4.1.3.06' } } });
+    expect(L.find((l) => l.id === 'BKX|M1')).toMatchObject({ deb: '4.1.3.06', contraparte: 'FULANO DE TAL SILVA' });
+  });
+});

@@ -33,6 +33,8 @@ export interface Lancamento {
   partes?: { nome: string; valor: number }[];
   /** natureza da receita pelo CFOP / tipo de nota, para o balancete no modelo do escritório */
   tipoReceita?: 'produto' | 'mercadoria' | 'servico' | 'outra';
+  /** quem enviou ou recebeu o movimento do extrato (para classificar por pessoa ou empresa) */
+  contraparte?: string;
 }
 
 export interface BaixaMotor {
@@ -425,6 +427,18 @@ const dias = (a: string, b: string) => Math.abs(Date.parse(`${a.slice(0, 10)}T12
 export const ehSaldoAnterior = (memo: string) => /^SALDO ANTERIOR\b/i.test(memo || '');
 export const chaveDoExtrato = (memo: string) => `extrato:${palavras(memo).slice(0, 3).join(' ')}`;
 
+/** Quem enviou ou recebeu o movimento, pelo texto do banco: tira "PIX ENVIADO/RECEBIDO", QR-code, boleto, datas
+ *  e CNPJ/CPF. No Itaú o nome vem curto com a data colada ("MARIA A06/02 MARIA ANITA ..."): usa o nome completo.
+ *  O banco às vezes junta o nome da linha seguinte; ficam só as primeiras palavras. */
+export function contraparteDoExtrato(memo: string): string {
+  let t = normal(memo).replace(/\d{2}\.?\d{3}\.?\d{3}\/?\d{4}-?\d{2}|\d{3}\.\d{3}\.\d{3}-\d{2}/g, ' ');
+  for (let i = 0; i < 3; i++) t = t.replace(/^\s*(PIX\s+(ENVIADO|RECEBIDO|TRANSF\w*|QRS?)|PAGAMENTOS?\s+PIX\s+QR-?CODE|PAGTO\s+PIX|BOLETO\s+PAGO|TED\s+\w+|DOC\s+\w+)\s*/, '');
+  const itau = t.match(/^(.*?)\d{2}\/\d{2}\s*(.*)$/);
+  if (itau) t = palavras(itau[2]).length >= 2 ? itau[2] : itau[1];
+  const p = normal(t).replace(/[^A-Z0-9 ]/g, ' ').split(/\s+/).filter(Boolean);
+  return p.slice(0, 4).join(' ') || 'SEM NOME NO EXTRATO';
+}
+
 const SAIDAS: [RegExp, string, string, number][] = [
   [/JUDICIAL/, '1.2.1.01', 'Bloqueio ou transferência judicial: depósito judicial', 85],
   [/OPERAC\w* VENCID/, '2.1.3.01', 'Operação de crédito vencida debitada pelo banco: amortiza empréstimo (confirme o contrato)', 75],
@@ -492,14 +506,14 @@ export function lancamentosDoExtrato(movs: MovimentoMotor[], titulos: TituloMoto
     const tipo = entrada ? 'receber' : 'pagar';
     const par = candidatos.find((c) => !c.usado && c.t.tipo === tipo && Math.abs(c.t.valor - v) < 0.011 && tk.some((w) => c.tk.has(w)) && dias(c.t.venc || m.data, m.data) <= 45)
       || candidatos.find((c) => !c.usado && c.t.tipo === tipo && Math.abs(c.t.valor - v) < 0.011 && dias(c.t.venc || m.data, m.data) <= 7);
-    const base = { id: `BKX|${m.id}`, data: m.data, comp: m.data.slice(0, 7), valor: v, hist: `${m.memo.slice(0, 120)} — ${m.conta}`, origemId: m.id, doc: 'Extrato', modulo: `Extrato bancário · ${entrada ? 'entrada' : 'saída'}`, chaveRegra: chaveDoExtrato(m.memo) };
+    const base = { id: `BKX|${m.id}`, data: m.data, comp: m.data.slice(0, 7), valor: v, hist: `${m.memo.slice(0, 120)} — ${m.conta}`, origemId: m.id, doc: 'Extrato', modulo: `Extrato bancário · ${entrada ? 'entrada' : 'saída'}`, chaveRegra: chaveDoExtrato(m.memo), contraparte: contraparteDoExtrato(m.memo) };
     if (par) {
       par.usado = true;
       out.push({ ...base, deb: entrada ? '1.1.1.02' : '2.1.1.01', cred: entrada ? '1.1.2.01' : '1.1.1.02', motivo: `Baixa do título ${par.t.id} (${par.t.nome}): mesmo valor e data próxima`, conf: 92, auto: true, tituloBaixado: par.t.id });
       continue;
     }
     const ajustada = contas[base.id];
-    const aprendida = regras[base.chaveRegra];
+    const aprendida = regras[base.chaveRegra] || regras[`contraparte:${base.contraparte}`];
     const tks = new Set(tk);
     const contem = (p: string[]) => p.every((w) => tks.has(w)) || (p.length >= 3 && p.filter((w) => tks.has(w)).length >= 2);
     // quem é a contraparte: funcionário, empresa do grupo, cliente ou fornecedor conhecido

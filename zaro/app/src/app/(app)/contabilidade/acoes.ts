@@ -5,7 +5,8 @@ import { getDb } from '@/db';
 import type { StatusLanc } from '@/domain/motor';
 import { PLANO_PADRAO } from '@/domain/plano-contas';
 import { exigirEdicao, exigirEmpresa } from '@/server/auth';
-import { ajustarConta, estornar, lancamentosDaEmpresa, mudarStatus, restaurar } from '@/server/contabil';
+import { ajustarConta, classificarContraparte, estornar, lancamentosDaEmpresa, mudarStatus, restaurar } from '@/server/contabil';
+import { STATUS_NO_LIVRO } from '@/domain/motor';
 import { separarParaAprovar } from '@/server/pedidos';
 import { salvarAbertura } from '@/server/abertura';
 import { numero } from '@/domain/dinheiro';
@@ -95,5 +96,25 @@ export async function salvarAberturaAcao(form: FormData) {
     }));
     await salvarAbertura(db, u, emp, { data: String(form.get('data') || ''), fonte: String(form.get('fonte') || '').slice(0, 120), contas });
     return 'Balanço de abertura gravado: a contabilidade parte destes saldos e o histórico até a data fica de fora.';
+  });
+}
+
+export async function classificarContraparteAcao(form: FormData) {
+  await executar(form, async ({ db, u, emp }) => {
+    const contraparte = String(form.get('contraparte') || '');
+    const conta = String(form.get('conta') || '');
+    if (!PLANO_PADRAO.some((c) => c.codigo === conta)) throw new Error('Escolha a conta.');
+    const ids = (await lancamentosDaEmpresa(db, emp)).filter((l) => l.id.startsWith('BKX|') && l.contraparte === contraparte && !STATUS_NO_LIVRO.includes(l.status)).map((l) => l.id);
+    await classificarContraparte(db, u, emp, contraparte, conta, ids);
+    return `${contraparte}: ${ids.length} movimento(s) classificados e aprovados. Os próximos extratos de ${contraparte} já entram nesta conta.`;
+  });
+}
+
+export async function aprovarContraparteAcao(form: FormData) {
+  await executar(form, async ({ db, u, emp }) => {
+    const contraparte = String(form.get('contraparte') || '');
+    const ids = (await lancamentosDaEmpresa(db, emp)).filter((l) => l.id.startsWith('BKX|') && l.contraparte === contraparte && !STATUS_NO_LIVRO.includes(l.status)).map((l) => l.id);
+    await mudarStatus(db, u, emp, ids, 'Aprovado');
+    return `${contraparte}: ${ids.length} movimento(s) aprovados na conta sugerida.`;
   });
 }

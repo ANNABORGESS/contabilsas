@@ -32,6 +32,7 @@ export const PLANO_PADRAO: Conta[] = [
   ['2.1.2.06', 'Outras retenções de empregados a recolher', 'C'],
   ['2.1.3.01', 'Empréstimos e financiamentos', 'C'],
   ['2.1.3.02', 'Empréstimos de terceiros (pessoas físicas)', 'C'],
+  ['2.1.3.03', 'Financiamento de veículo', 'C'],
   ['2.1.4.01', 'Tributos a recolher', 'C'],
   ['2.1.5.01', 'Empréstimos de sócios e empresas ligadas', 'C'],
   ['2.1.9.99', 'Entradas bancárias a identificar', 'C'],

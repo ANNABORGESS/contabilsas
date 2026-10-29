@@ -107,3 +107,16 @@ export async function regrasDaEmpresa(db: Db, emp: Empresa) {
   return db.select().from(schema.regrasClassificacao).where(eq(schema.regrasClassificacao.empresaId, emp.id));
 }
 
+
+/** Classifica todos os movimentos do extrato de uma pessoa ou empresa numa conta, aprova e aprende a regra
+ *  (os próximos extratos dessa contraparte já entram nessa conta). */
+export async function classificarContraparte(db: Db, u: Usuario, emp: Empresa, contraparte: string, conta: string, ids: string[]) {
+  if (!ids.length) throw new Error('Nenhum movimento pendente desta contraparte.');
+  await db.insert(schema.regrasClassificacao).values({ tenantId: u.tenantId, empresaId: emp.id, chave: `contraparte:${contraparte}`, conta, usuario: u.nome })
+    .onConflictDoUpdate({ target: [schema.regrasClassificacao.empresaId, schema.regrasClassificacao.chave], set: { conta, usuario: u.nome } });
+  for (let i = 0; i < ids.length; i += 500) {
+    await db.insert(schema.lancamentoDecisoes).values(ids.slice(i, i + 500).map((id) => ({ tenantId: u.tenantId, empresaId: emp.id, lancamentoId: id, conta, status: 'Aprovado', usuario: u.nome })))
+      .onConflictDoUpdate({ target: [schema.lancamentoDecisoes.empresaId, schema.lancamentoDecisoes.lancamentoId], set: { conta, status: 'Aprovado', usuario: u.nome, atualizadoEm: new Date() } });
+  }
+  await auditar(db, u, { empresaId: emp.id, acao: 'Classificou movimentos do extrato por contraparte', entidade: contraparte, depois: `${ids.length} movimento(s) → ${rotuloConta(conta)}` });
+}

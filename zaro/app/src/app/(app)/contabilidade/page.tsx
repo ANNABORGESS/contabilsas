@@ -12,7 +12,7 @@ import { redirect } from 'next/navigation';
 import { PedidoZaro } from '@/components/PedidoZaro';
 import { CamposPeriodo } from '@/components/CamposPeriodo';
 import { atenderPedido } from '@/server/pedidos';
-import { aplicarStatus, aprovarConfiaveis, aprovarTodosExceto, estornarLanc, salvarAberturaAcao, trocarConta } from './acoes';
+import { aplicarStatus, aprovarConfiaveis, aprovarContraparteAcao, aprovarTodosExceto, classificarContraparteAcao, estornarLanc, salvarAberturaAcao, trocarConta } from './acoes';
 import { aberturaDaEmpresa } from '@/server/abertura';
 import { CONTA_ABERTURA, type AberturaMotor } from '@/domain/motor';
 
@@ -31,7 +31,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
   if (resposta?.tipo === 'demonstracao' && resposta.itens.length === 1 && resposta.pedido.formato === 'tela') redirect(resposta.itens[0].links.tela);
   const todos = await lancamentosDaEmpresa(db, emp, { incluirExcluidos: true });
   const lancs = todos.filter((l) => l.status !== 'Excluído');
-  const aba = ['lancamentos', 'balancete', 'dre', 'balanco', 'abertura'].includes(sp.aba || '') ? sp.aba! : 'lancamentos';
+  const aba = ['lancamentos', 'extrato', 'balancete', 'dre', 'balanco', 'abertura'].includes(sp.aba || '') ? sp.aba! : 'lancamentos';
   const p = periodoContabil(sp, lancs.map((l) => l.comp));
   const previa = sp.previa === '1';
   const edita = podeEditar(u);
@@ -59,11 +59,11 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
       {sp.msg && <div className="aviso ok">{sp.msg}</div>}
       <PedidoZaro acao="/contabilidade" texto={pedido || undefined} resposta={resposta} />
       <div className="abas nao-imprimir">
-        {[['lancamentos', `Lançamentos (${pendentes} a aprovar)`], ['balancete', 'Balancete'], ['dre', 'DRE'], ['balanco', 'Balanço'], ['abertura', 'Saldos de abertura']].map(([k, n]) => (
+        {[['lancamentos', `Lançamentos (${pendentes} a aprovar)`], ['extrato', `Classificar PIX e extrato (${lancs.filter((l) => l.id.startsWith('BKX|') && !STATUS_NO_LIVRO.includes(l.status)).length})`], ['balancete', 'Balancete'], ['dre', 'DRE'], ['balanco', 'Balanço'], ['abertura', 'Saldos de abertura']].map(([k, n]) => (
           <Link key={k} href={qs({ aba: k })} className={aba === k ? 'ativo' : ''}>{n}</Link>
         ))}
       </div>
-      {aba !== 'abertura' && <form className="card linha nao-imprimir" style={{ marginBottom: 16 }} action="/contabilidade">
+      {aba !== 'abertura' && aba !== 'extrato' && <form className="card linha nao-imprimir" style={{ marginBottom: 16 }} action="/contabilidade">
         <input type="hidden" name="aba" value={aba} />
         <CamposPeriodo key={`${sp.per}|${sp.ref}|${sp.de}|${sp.ate}`} per={sp.per || 'ano'} refMes={sp.ref || p.ate} de={sp.de || p.de} ate={sp.ate || p.ate} anos={anos} />
         {aba === 'lancamentos' && <div><label>Status</label><select name="st" defaultValue={sp.st || 'A aprovar'}>{STATUS.map((s) => <option key={s}>{s}</option>)}</select></div>}
@@ -73,6 +73,7 @@ export default async function Contabilidade({ searchParams }: { searchParams: Pr
         <button className="btn" type="submit" style={{ alignSelf: 'flex-end' }}>Aplicar</button>
       </form>}
 
+      {aba === 'extrato' && <ClassificarExtrato lancs={lancs} edita={edita} volta={volta} />}
       {aba === 'abertura' && <Abertura ab={await aberturaDaEmpresa(db, emp.tenantId, emp.id)} edita={edita} volta={volta} />}
       {aba === 'lancamentos' && <Lancamentos lancs={sp.st === 'Excluído' ? todos : lancs} p={p} sp={sp} edita={edita} volta={volta} />}
       {aba === 'balancete' && (sp.modelo === 'zaro' ? <Balancete lancs={lancs} p={p} previa={previa} emp={emp.razao} /> : <BalanceteEscritorio lancs={lancs} p={p} previa={previa} emp={emp.razao} />)}
@@ -280,6 +281,69 @@ function Abertura({ ab, edita, volta }: { ab: AberturaMotor | null; edita: boole
         </table></div>
         {edita && <div><button className="btn primario">Gravar balanço de abertura</button></div>}
       </form>
+    </div>
+  );
+}
+
+// contas mais usadas para classificar movimentos do extrato, no topo da lista
+const CONTAS_EXTRATO: [string, string][] = [
+  ['2.1.5.01', 'Sócia ou empresa do grupo (empréstimo / conta corrente)'], ['2.1.2.01', 'Funcionário (salário, adiantamento, vale)'],
+  ['2.1.1.01', 'Fornecedor (pagamento de compra)'], ['1.1.2.01', 'Cliente (recebimento de venda)'], ['3.1.1.01', 'Receita de venda/serviço sem nota no ZARO'],
+  ['4.1.1.01', 'Compra de material (custo)'], ['4.1.3.06', 'Serviço de terceiros'], ['4.1.3.03', 'Manutenção'], ['4.1.3.04', 'Combustível e veículos'],
+  ['4.1.3.09', 'Despesas gerais'], ['4.1.2.04', 'Benefícios (alimentação, transporte)'], ['2.1.3.02', 'Empréstimo de pessoa física'], ['2.1.3.01', 'Empréstimo ou financiamento bancário'],
+  ['2.1.4.01', 'Tributos (guia)'], ['4.2.1.02', 'Tarifa bancária'], ['1.1.9.97', 'Transferência entre contas da empresa'],
+];
+
+function ClassificarExtrato({ lancs, edita, volta }: { lancs: Lancamento[]; edita: boolean; volta: string }) {
+  const pend = lancs.filter((l) => l.id.startsWith('BKX|') && !STATUS_NO_LIVRO.includes(l.status));
+  const grupos = new Map<string, { n: number; entradas: number; saidas: number; contas: Map<string, number>; exemplo: string; motivo: string }>();
+  for (const l of pend) {
+    const k = l.contraparte || 'SEM NOME NO EXTRATO';
+    const g = grupos.get(k) || { n: 0, entradas: 0, saidas: 0, contas: new Map(), exemplo: l.hist, motivo: l.motivo };
+    const entrada = l.deb.startsWith('1.1.1');
+    g.n++; if (entrada) g.entradas += l.valor; else g.saidas += l.valor;
+    const conta = entrada ? l.cred : l.deb;
+    g.contas.set(conta, (g.contas.get(conta) || 0) + 1);
+    grupos.set(k, g);
+  }
+  const lista = [...grupos].map(([nome, g]) => ({ nome, ...g, conta: [...g.contas].sort((a, b) => b[1] - a[1])[0][0] })).sort((a, b) => b.entradas + b.saidas - (a.entradas + a.saidas));
+  const outras = PLANO_PADRAO.filter((c) => !CONTAS_EXTRATO.some(([k]) => k === c.codigo) && c.codigo !== CONTA_ABERTURA);
+  return (
+    <div className="card">
+      <h2>Classificar PIX e extrato por pessoa ou empresa</h2>
+      <p className="pequeno">Cada linha junta todos os movimentos pendentes da mesma pessoa ou empresa. Escolha a conta e clique em <b>Classificar e aprovar</b>: todos entram nessa conta, ficam aprovados e os próximos extratos dela já vêm classificados. Se a conta sugerida já estiver certa, clique em <b>Aprovar como está</b>.</p>
+      <p className="pequeno mudo">{pend.length} movimento(s) pendente(s) de {lista.length} contraparte(s). O nome vem do texto do banco; quando ele junta o nome da linha seguinte, confira pelo exemplo.</p>
+      {!lista.length ? <div className="vazio">Nenhum movimento do extrato pendente.</div> : (
+        <div className="tabela-wrap"><table>
+          <thead><tr><th>Pessoa ou empresa</th><th className="num">Mov.</th><th className="num">Entradas</th><th className="num">Saídas</th><th>Conta hoje</th>{edita && <th>Classificar</th>}</tr></thead>
+          <tbody>{lista.slice(0, 300).map((g) => (
+            <tr key={g.nome}>
+              <td><b>{g.nome}</b><div className="pequeno mudo">{g.exemplo.slice(0, 90)}</div></td>
+              <td className="num">{g.n}</td>
+              <td className="num">{g.entradas ? brl(g.entradas) : '—'}</td>
+              <td className="num">{g.saidas ? brl(g.saidas) : '—'}</td>
+              <td className="pequeno">{rotuloConta(g.conta)}{g.contas.size > 1 && <div className="mudo">e outras {g.contas.size - 1}</div>}</td>
+              {edita && (
+                <td style={{ minWidth: 300 }}>
+                  <form action={classificarContraparteAcao} className="linha" style={{ gap: 6 }}>
+                    <input type="hidden" name="volta" value={volta} /><input type="hidden" name="contraparte" value={g.nome} />
+                    <select name="conta" defaultValue={g.conta} style={{ maxWidth: 230 }}>
+                      <optgroup label="Mais usadas">{CONTAS_EXTRATO.map(([c, n]) => <option key={c} value={c}>{n}</option>)}</optgroup>
+                      <optgroup label="Plano de contas">{outras.map((c) => <option key={c.codigo} value={c.codigo}>{c.codigo} · {c.nome}</option>)}</optgroup>
+                    </select>
+                    <button className="btn mini primario">Classificar e aprovar</button>
+                  </form>
+                  <form action={aprovarContraparteAcao} style={{ marginTop: 4 }}>
+                    <input type="hidden" name="volta" value={volta} /><input type="hidden" name="contraparte" value={g.nome} />
+                    <button className="btn mini">Aprovar como está</button>
+                  </form>
+                </td>
+              )}
+            </tr>
+          ))}</tbody>
+        </table></div>
+      )}
+      {lista.length > 300 && <p className="pequeno mudo">Mostrando as 300 maiores de {lista.length}.</p>}
     </div>
   );
 }
