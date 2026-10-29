@@ -281,3 +281,14 @@ describe('contraparte do extrato', () => {
     expect(L.find((l) => l.id === 'BKX|M1')).toMatchObject({ deb: '4.1.3.06', contraparte: 'FULANO DE TAL SILVA' });
   });
 });
+
+describe('financiamento de veículo', () => {
+  it('parcela paga abate o financiamento do veículo e, sem extrato, fica a conciliar', () => {
+    const L = gerarLancamentos({
+      titulos: [{ id: 'CP-VAN25', tipo: 'pagar', nome: 'FINANCIAMENTO VAN RENAULT MASTER', origem: 'emprestimo', contrato: 'VAN-2024', venc: '2026-01-10', competencia: '2026-01', valor: 5574.4, status: 'Pago' }],
+      extrato: [{ id: 'M1', conta: 'Banco Teste', data: '2026-01-02', valor: -10, memo: 'TARIFA' }, { id: 'M2', conta: 'Banco Teste', data: '2026-02-02', valor: -10, memo: 'TARIFA' }],
+    });
+    expect(L.find((l) => l.id === 'CP-VAN25|prov')).toMatchObject({ deb: '2.1.3.03', cred: '2.1.1.01', valor: 5574.4 });
+    expect(L.find((l) => l.id === 'CP-VAN25|pag')).toMatchObject({ deb: '2.1.1.01', cred: '1.1.9.98' });
+  });
+});

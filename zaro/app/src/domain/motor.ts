@@ -263,7 +263,7 @@ export function gerarLancamentos(e: EntradaMotor): Lancamento[] {
       if (t.origem === 'emprestimo') {
         const juros = t.juros != null ? Math.min(Number(t.juros) || 0, v) : null;
         const principal = juros != null ? v - juros : v;
-        const contaEmp = /pessoa f[ií]sica/i.test(t.nome) ? '2.1.3.02' : '2.1.3.01';
+        const contaEmp = /financiamento.*(ve[ií]culo|\bvan\b)|\bvan\b.*financ/i.test(`${t.nome} ${t.descricao || ''}`) ? '2.1.3.03' : /pessoa f[ií]sica/i.test(t.nome) ? '2.1.3.02' : '2.1.3.01';
         add({ ...base, id: `${t.id}|prov`, data: t.venc || data, comp, deb: contaEmp, cred: '2.1.1.01', valor: principal, hist: `Principal parcela — ${t.nome} — contrato ${t.contrato || ''}`, modulo: 'Empréstimos → Contas a Pagar', motivo: juros != null ? 'Amortização do principal conforme o contrato' : 'Parcela sem separação de juros: confirme o cronograma do contrato', conf: juros != null ? 92 : 68, auto: false });
         if (juros) add({ ...base, id: `${t.id}|jur`, data: t.venc || data, comp, deb: '4.2.1.01', cred: '2.1.1.01', valor: juros, hist: `Juros parcela — ${t.nome}`, modulo: 'Empréstimos → Contas a Pagar', motivo: `Juros do contrato ${t.contrato || ''}`, conf: 92, auto: false });
         if (pagoV > 0) add({ ...base, id: `${t.id}|pag`, data: dataPag, comp, deb: '2.1.1.01', cred: banco(dataPag), valor: pagoV, hist: `Pagamento parcela — ${t.nome}`, modulo: 'Empréstimos → Contas a Pagar', motivo: 'Pagamento registrado no Contas a Pagar', conf: 97, auto: true });
