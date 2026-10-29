@@ -183,7 +183,19 @@ const LINKS: [Papel, string, string][] = [
 function LinksDeAcesso() {
   const [base, setBase] = useState('');
   const [copiado, setCopiado] = useState('');
+  const cozinha = useDados<{ caminho: string }>('/api/acesso/cozinha');
+  const [trocando, setTrocando] = useState(false);
   useEffect(() => setBase(window.location.origin), []);
+  async function novoLink() {
+    if (!confirm('Gerar um link novo da cozinha? O link atual para de funcionar e o tablet da cozinha vai precisar abrir o link novo.')) return;
+    setTrocando(true);
+    try {
+      await api('/api/acesso/cozinha', 'POST', {});
+      await cozinha.recarregar();
+    } finally {
+      setTrocando(false);
+    }
+  }
   async function copiar(url: string) {
     try {
       await navigator.clipboard.writeText(url);
@@ -197,10 +209,37 @@ function LinksDeAcesso() {
     <div id="links" className="cartao" style={{ marginTop: 16 }}>
       <header>
         <h2>Links de acesso</h2>
-        <span className="fraco">Cada link abre a entrada com usuário e senha daquele perfil</span>
+        <span className="fraco">Garçom, bar e administrador entram com usuário e senha; a cozinha entra direto pelo link</span>
       </header>
       <div className="pilha" style={{ gap: 10 }}>
         {LINKS.map(([papel, nome, onde]) => {
+          if (papel === 'cozinha') {
+            const url = cozinha.dados ? `${base}${cozinha.dados.caminho}` : '';
+            return (
+              <div key={papel} style={{ borderBottom: '1px solid var(--borda)', paddingBottom: 10 }}>
+                <div className="fila entre">
+                  <div>
+                    <b>{nome}</b> <span className="fraco">· {onde} · sem usuário e senha</span>
+                    <div className="num" style={{ wordBreak: 'break-all' }}>
+                      {url || 'Carregando…'}
+                    </div>
+                  </div>
+                  <div className="fila">
+                    <button className="btn pequeno primario" disabled={!url} onClick={() => copiar(url)}>
+                      {copiado === url && url ? 'Copiado ✓' : 'Copiar'}
+                    </button>
+                    <button className="btn pequeno" disabled={trocando} onClick={novoLink}>
+                      Gerar novo link
+                    </button>
+                  </div>
+                </div>
+                <p className="fraco" style={{ marginTop: 6 }}>
+                  Mande este link para o tablet da cozinha e abra lá: ele entra direto e fica entrado. Não abra neste computador (ele sairia da sua conta de administrador). Se o link vazar,
+                  toque em “Gerar novo link”.
+                </p>
+              </div>
+            );
+          }
           const url = `${base}/login/${papel}`;
           return (
             <div key={papel} className="fila entre" style={{ borderBottom: '1px solid var(--borda)', paddingBottom: 10 }}>

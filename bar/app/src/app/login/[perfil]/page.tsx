@@ -7,8 +7,9 @@ import { PERFIS } from '../perfis';
 
 export const dynamic = 'force-dynamic';
 
-export default async function LoginPerfil({ params }: { params: Promise<{ perfil: string }> }) {
+export default async function LoginPerfil({ params, searchParams }: { params: Promise<{ perfil: string }>; searchParams: Promise<{ link?: string }> }) {
   const { perfil } = await params;
+  const { link } = await searchParams;
   if (!ehPapel(perfil)) notFound();
   if (await semUsuarios(await getDb())) redirect('/primeiro-acesso');
   const u = await usuarioAtual();
@@ -27,8 +28,21 @@ export default async function LoginPerfil({ params }: { params: Promise<{ perfil
             Este aparelho está com {u.nome}. Entre com um usuário de {p.titulo.toLowerCase()} para trocar.
           </p>
         )}
-        <FormLogin perfil={perfil} />
-        {perfil !== 'admin' && (
+        {perfil === 'cozinha' ? (
+          <>
+            {link === 'invalido' && <div className="aviso erro">Este link da cozinha não vale mais. Peça o link novo ao administrador.</div>}
+            <div className="aviso info">
+              A cozinha não usa usuário e senha. O administrador abre <b>Funcionários → Links de acesso</b> e manda o <b>link da cozinha</b>. Abra esse link uma vez no tablet da
+              cozinha e ele fica entrado.
+            </div>
+            <a href="/login/admin" className="btn bloco">
+              Sou o administrador
+            </a>
+          </>
+        ) : (
+          <FormLogin perfil={perfil} />
+        )}
+        {perfil !== 'admin' && perfil !== 'cozinha' && (
           <a href={`/cadastro/${perfil}`} className="btn bloco">
             Primeira vez aqui? Criar minha conta
           </a>

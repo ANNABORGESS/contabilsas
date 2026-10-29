@@ -10,6 +10,7 @@ import { mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
 import { relatorio, mesasDoTurno } from './relatorios';
 import { versaoAtual } from './eventos';
 import { custosELucro, excluirDespesa, lancarDespesa } from './financeiro';
+import { entrarPeloLinkDaCozinha, linkCozinha, novoLinkCozinha } from './acessoTela';
 
 let db: Db;
 let admin: Usuario;
@@ -191,7 +192,8 @@ describe('fluxo do pedido pago', () => {
   });
 
   it('garçom cria a própria conta; só entra depois que o administrador aprovar', async () => {
-    await expect(solicitarConta(db, { nome: 'Esperto', usuario: 'chefe', senha: '1234', papel: 'admin' })).rejects.toThrow(/garçom, cozinha ou bar/);
+    await expect(solicitarConta(db, { nome: 'Esperto', usuario: 'chefe', senha: '1234', papel: 'admin' })).rejects.toThrow(/garçom ou bar/);
+    await expect(solicitarConta(db, { nome: 'Cozinheira', usuario: 'cozinheira', senha: '1234', papel: 'cozinha' })).rejects.toThrow(/garçom ou bar/);
     await solicitarConta(db, { nome: 'Joao', usuario: 'joao', senha: '1234', papel: 'garcom' });
     await expect(solicitarConta(db, { nome: 'Outro', usuario: 'joao', senha: '1234', papel: 'garcom' })).rejects.toThrow(/já existe/);
     await solicitarConta(db, { nome: 'Fulano', usuario: 'fulano', senha: '1234', papel: 'bar' });
@@ -223,6 +225,17 @@ describe('fluxo do pedido pago', () => {
     const ticket = (await painelSetor(db, 'bar')).preparos.find((p) => p.pedidoId === pedido!.id)!;
     expect(ticket.itens.filter((i) => i.balde === 1).reduce((a, i) => a + i.quantidade, 0)).toBe(10);
     expect(ticket.itens.find((i) => !i.balde)).toMatchObject({ nome: 'Cerveja lata 350 ml', quantidade: 1 });
+  });
+
+  it('cozinha sem senha: link secreto; gerar outro invalida o anterior', async () => {
+    const link = await linkCozinha(db);
+    expect(link).toMatch(/^\/entrar\/cozinha\/[\w-]{20,}$/);
+    expect(await linkCozinha(db)).toBe(link); // o mesmo até o administrador trocar
+    expect(await entrarPeloLinkDaCozinha(db, 'chute-qualquer-de-tamanho-x')).toBe(false);
+    const novo = await novoLinkCozinha(db, admin);
+    expect(novo).not.toBe(link);
+    expect(await entrarPeloLinkDaCozinha(db, link.split('/').pop()!)).toBe(false);
+    expect((await listarEquipe(db)).some((f) => f.usuario === 'tela-cozinha')).toBe(false);
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

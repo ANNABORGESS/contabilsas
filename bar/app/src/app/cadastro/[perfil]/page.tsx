@@ -6,10 +6,11 @@ import FormCadastro from './FormCadastro';
 
 export const dynamic = 'force-dynamic';
 
-/** Garçom, cozinha ou bar criam a própria conta; o administrador aprova em Funcionários. */
+/** Garçom ou bar criam a própria conta; o administrador aprova em Funcionários. */
 export default async function Cadastro({ params }: { params: Promise<{ perfil: string }> }) {
   const { perfil } = await params;
-  const p = PERFIS.find((x) => x.papel === perfil && x.papel !== 'admin');
+  // a cozinha entra pelo link sem senha, então não cria conta
+  const p = PERFIS.find((x) => x.papel === perfil && x.papel !== 'admin' && x.papel !== 'cozinha');
   if (!p) notFound();
   if (await semUsuarios(await getDb())) redirect('/primeiro-acesso');
   return (

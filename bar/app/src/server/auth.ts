@@ -47,12 +47,17 @@ export async function entrar(login: string, senha: string, perfil?: Papel): Prom
   }
   if (u.pendente) return { erro: 'Sua conta ainda está aguardando a aprovação do administrador.' };
   if (perfil && !pode(u.papel, perfil)) return { erro: `Este usuário é de ${NOME_PAPEL[u.papel]}, não de ${NOME_PAPEL[perfil]}. Volte e escolha o perfil certo.` };
-  const token = crypto.randomBytes(32).toString('base64url');
-  const expiraEm = new Date(Date.now() + HORAS_SESSAO * 36e5);
-  await db.insert(schema.sessoes).values({ id: hashToken(token), usuarioId: u.id, expiraEm });
-  await registrar(db, { tipo: 'login', descricao: `${u.nome} entrou`, usuarioId: u.id });
-  (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.BAR_COOKIE_SEGURO === '1' || !!process.env.VERCEL, path: '/', expires: expiraEm });
+  await abrirSessao(db, u, HORAS_SESSAO, `${u.nome} entrou`);
   return { id: u.id, nome: u.nome, usuario: u.usuario, papel: u.papel };
+}
+
+/** Cria a sessão no banco e grava o cookie neste aparelho. */
+export async function abrirSessao(db: Db, u: { id: string; nome: string }, horas: number, descricao: string) {
+  const token = crypto.randomBytes(32).toString('base64url');
+  const expiraEm = new Date(Date.now() + horas * 36e5);
+  await db.insert(schema.sessoes).values({ id: hashToken(token), usuarioId: u.id, expiraEm });
+  await registrar(db, { tipo: 'login', descricao, usuarioId: u.id });
+  (await cookies()).set(COOKIE, token, { httpOnly: true, sameSite: 'lax', secure: process.env.BAR_COOKIE_SEGURO === '1' || !!process.env.VERCEL, path: '/', expires: expiraEm });
 }
 
 export async function sair() {
