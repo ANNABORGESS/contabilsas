@@ -183,6 +183,7 @@ const LINKS: [Papel, string, string][] = [
 function LinksDeAcesso() {
   const [base, setBase] = useState('');
   const [copiado, setCopiado] = useState('');
+  const [qr, setQr] = useState<{ nome: string; url: string } | null>(null);
   useEffect(() => setBase(window.location.origin), []);
   async function copiar(url: string) {
     try {
@@ -213,16 +214,50 @@ function LinksDeAcesso() {
                   </a>
                 </div>
               </div>
-              <button className="btn pequeno" onClick={() => copiar(url)}>
-                {copiado === url ? 'Copiado ✓' : 'Copiar'}
-              </button>
+              <div className="fila">
+                <button className="btn pequeno" onClick={() => copiar(url)}>
+                  {copiado === url ? 'Copiado ✓' : 'Copiar'}
+                </button>
+                <button className="btn pequeno" onClick={() => setQr({ nome, url })}>
+                  QR code
+                </button>
+              </div>
             </div>
           );
         })}
       </div>
+      {qr && <ModalQr nome={qr.nome} url={qr.url} fechar={() => setQr(null)} />}
       <p className="fraco" style={{ marginTop: 10 }}>
         Nos celulares e tablets, troque “localhost” pelo IP deste computador (aparece na janela do INICIAR-BAR.bat), com todos no mesmo Wi-Fi.
       </p>
     </div>
+  );
+}
+
+/** QR code do link para apontar a câmera do celular, baixar ou imprimir. */
+function ModalQr({ nome, url, fechar }: { nome: string; url: string; fechar: () => void }) {
+  const [img, setImg] = useState('');
+  useEffect(() => {
+    import('qrcode').then((QR) => QR.toDataURL(url, { errorCorrectionLevel: 'H', width: 640, margin: 2, color: { dark: '#141210', light: '#ffffff' } }).then(setImg));
+  }, [url]);
+  const arquivo = `qrcode-${nome.replace(/[^a-zA-Zà-úÀ-Ú]+/g, ' ').trim().toLowerCase().replace(/\s+/g, '-')}.png`;
+  return (
+    <Modal titulo={`QR code · ${nome}`} aoFechar={fechar}>
+      <div className="qr-caixa">{img ? <img src={img} alt={`QR code do link ${url}`} /> : <span className="fraco">Gerando…</span>}</div>
+      <p className="num" style={{ textAlign: 'center', wordBreak: 'break-all' }}>
+        {url}
+      </p>
+      <p className="fraco" style={{ textAlign: 'center' }}>
+        Aponte a câmera do celular para abrir. Dá para baixar e imprimir para deixar no balcão.
+      </p>
+      <div className="fila" style={{ justifyContent: 'center' }}>
+        <a className={`btn primario ${img ? '' : 'desativado'}`} href={img || undefined} download={arquivo}>
+          Baixar imagem
+        </a>
+        <button className="btn" disabled={!img} onClick={() => window.print()}>
+          Imprimir
+        </button>
+      </div>
+    </Modal>
   );
 }

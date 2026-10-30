@@ -1518,7 +1518,7 @@ label.campo {
   backdrop-filter: blur(8px);
 }
 .modal {
-  background: rgba(255, 255, 255, 0.78);
+  background: rgba(255, 255, 255, 0.95);
   box-shadow: var(--sombra-forte);
 }
 .modal > header {
@@ -2313,4 +2313,42 @@ html {
 .busca-mesa input {
   width: 100%;
   font-size: 16px;
+}
+
+/* QR code dos links de acesso */
+.qr-caixa {
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  margin: 4px auto 12px;
+  width: fit-content;
+  background: #fff;
+  border-radius: var(--raio);
+  box-shadow: var(--sombra);
+}
+.qr-caixa img {
+  width: min(300px, 70vw);
+  height: auto;
+  display: block;
+}
+@media print {
+  /* imprimindo com o QR aberto: só o QR code sai no papel */
+  body:has(.qr-caixa) * {
+    visibility: hidden;
+  }
+  body:has(.qr-caixa) .modal,
+  body:has(.qr-caixa) .modal * {
+    visibility: visible;
+  }
+  body:has(.qr-caixa) .modal {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    box-shadow: none;
+    border: none;
+  }
+  body:has(.qr-caixa) .modal button,
+  body:has(.qr-caixa) .modal a.btn {
+    display: none;
+  }
 }
