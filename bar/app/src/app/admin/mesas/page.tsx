@@ -30,16 +30,16 @@ interface Mesa {
 }
 
 export default function Mesas() {
-  const { dados, erro } = useDados<{ data: string; mesas: MesaTurno[] }>('/api/mesas/turno');
+  const { dados, erro } = useDados<{ data: string; mesas: MesaTurno[]; turno: { totalCentavos: number; porForma: Record<string, number> } }>('/api/mesas/turno');
   const [historico, setHistorico] = useState<MesaTurno | null>(null);
   const [gerenciar, setGerenciar] = useState(false);
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState<FiltroMesa>('todas');
-  const total = (dados?.mesas || []).reduce((a, m) => a + m.totalCentavos, 0);
+  const total = dados?.turno.totalCentavos ?? 0;
   const visiveis = filtrarMesas(dados?.mesas || [], busca, filtro);
   const abertas = (dados?.mesas || []).filter((m) => m.abertos > 0).length;
   // total do turno por forma de pagamento
-  const formas = FORMAS_PAGAMENTO.map((f) => [f, (dados?.mesas || []).reduce((a, m) => a + (m.porForma[f] || 0), 0)] as const);
+  const formas = FORMAS_PAGAMENTO.map((f) => [f, dados?.turno.porForma[f] || 0] as const);
   return (
     <>
       <Cabecalho titulo="Mesas" sub={dados ? `Turno de ${dataBr(dados.data)} · ${abertas} aberta(s) · ${reais(total)} no turno` : ''}>
@@ -65,12 +65,12 @@ export default function Mesas() {
             <span className="n">{nomeLocal(m.numero)}</span>
             {m.nome && m.numero !== BALCAO && <span className="fraco">{m.nome}</span>}
             {m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
-            <span className="num" style={{ fontWeight: 700 }}>
-              {m.pedidos ? reais(m.totalCentavos) : 'Sem pedidos'}
-            </span>
-            <span className="fraco">
-              {m.abertos ? `Aberta · ${m.abertos} pedido(s) em aberto` : m.pedidos ? `Finalizada · ${m.pedidos} pedido(s) · último ${hora(m.ultimoEm)}` : 'Livre'}
-            </span>
+            {m.abertos > 0 && (
+              <span className="num" style={{ fontWeight: 700 }}>
+                {reais(m.totalCentavos)}
+              </span>
+            )}
+            <span className="fraco">{m.abertos ? `Aberta · ${m.abertos} pedido(s) · último ${hora(m.ultimoEm)}` : 'Livre'}</span>
             {m.pedidos > 0 && (
               <span className="fraco" style={{ fontSize: 12 }}>
                 {Object.entries(m.porForma)
@@ -94,10 +94,14 @@ export default function Mesas() {
 
 function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }) {
   const [data, setData] = useState('');
+  // por padrão mostra só a conta atual (pedidos em aberto); o histórico do dia fica a um toque
+  const [verHistorico, setVerHistorico] = useState(false);
   const { dados } = useDados<{ de: string; pedidos: PedidoLista[] }>(`/api/pedidos?mesa=${mesa.id}${data ? `&de=${data}&ate=${data}` : ''}`);
   const [aberto, setAberto] = useState<string | null>(null);
-  const pagos = (dados?.pedidos || []).filter((p) => p.status === 'pago');
-  const emAberto = pagos.filter((p) => p.preparos.some((x) => ['novo', 'preparando', 'pronto'].includes(x.status))).length;
+  const abertoP = (p: PedidoLista) => p.status === 'pago' && p.preparos.some((x) => ['novo', 'preparando', 'pronto'].includes(x.status));
+  const lista = (dados?.pedidos || []).filter((p) => verHistorico || abertoP(p));
+  const pagos = lista.filter((p) => p.status === 'pago');
+  const emAberto = (dados?.pedidos || []).filter(abertoP).length;
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
   async function finalizarMesa() {
@@ -114,9 +118,13 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
     }
   }
   return (
-    <Modal titulo={`${nomeLocal(mesa.numero)} · histórico`} aoFechar={fechar} largura={720}>
+    <Modal titulo={`${nomeLocal(mesa.numero)} · ${verHistorico ? 'histórico' : 'conta atual'}`} aoFechar={fechar} largura={720}>
       <div className="fila entre">
-        <input type="date" value={data || dados?.de || ''} onChange={(e) => setData(e.target.value)} style={{ width: 170 }} />
+        {verHistorico ? (
+          <input type="date" value={data || dados?.de || ''} onChange={(e) => setData(e.target.value)} style={{ width: 170 }} />
+        ) : (
+          <span className="fraco">{emAberto ? 'Pedidos ainda na cozinha ou no bar' : 'Mesa livre: nenhuma conta aberta'}</span>
+        )}
         <b className="num">
           {pagos.length} pago(s) · {reais(pagos.reduce((a, p) => a + p.liquidoCentavos, 0))}
         </b>
@@ -131,7 +139,7 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
         </div>
       )}
       {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
-      {emAberto > 0 && !data && (
+      {emAberto > 0 && !data && !verHistorico && (
         <button className="btn sucesso grande bloco" disabled={ocupado} onClick={finalizarMesa}>
           ✓ Finalizar {nomeLocal(mesa.numero).toLowerCase()} ({emAberto} pedido(s) em aberto)
         </button>
@@ -149,7 +157,7 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
           </tr>
         </thead>
         <tbody>
-          {dados?.pedidos.map((p) => (
+          {lista.map((p) => (
             <tr key={p.id} className={`clicavel ${p.status !== 'pago' ? 'apagado' : ''}`} onClick={() => setAberto(p.id)}>
               <td>{p.numero}</td>
               <td>{hora(p.pagoEm)}</td>
@@ -165,7 +173,16 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
           ))}
         </tbody>
       </table>
-      {dados && !dados.pedidos.length && <div className="vazio">Nenhum pedido nesta data.</div>}
+      {dados && !lista.length && <div className="vazio">{verHistorico ? 'Nenhum pedido nesta data.' : 'Nenhuma conta aberta nesta mesa.'}</div>}
+      <button
+        className="btn fantasma bloco"
+        onClick={() => {
+          setVerHistorico((v) => !v);
+          setData('');
+        }}
+      >
+        {verHistorico ? '‹ Voltar para a conta atual' : 'Ver pedidos anteriores desta mesa'}
+      </button>
       {aberto && <DetalhePedidoAdmin id={aberto} fechar={() => setAberto(null)} />}
     </Modal>
   );

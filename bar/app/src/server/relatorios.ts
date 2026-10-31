@@ -29,36 +29,45 @@ export async function relatorio(db: Db, de: string, ate: string) {
   return { de, ate, resumo: resumir(paraRelatorio(lista)), pedidos: lista.length };
 }
 
-/** Situação de cada mesa no turno: pedidos, valor e o que está em preparo ou pronto. */
+/**
+ * Situação de cada mesa no turno. A mesa mostra só a conta atual: os pedidos ainda na cozinha ou no
+ * bar. Quando tudo é entregue ou finalizado, ela volta limpa (os pedidos continuam em Vendas e
+ * Relatórios). O total do turno por forma de pagamento vem à parte.
+ */
 export async function mesasDoTurno(db: Db, data: string) {
   const [mesas, pedidos] = await Promise.all([
     db.select().from(schema.mesas).where(eq(schema.mesas.ativa, true)).orderBy(schema.mesas.numero),
     listarPedidos(db, { de: data, ate: data, limite: 5000 }),
   ]);
-  return mesas.map((m) => {
-    const dela = pedidos.filter((p) => p.mesaId === m.id);
-    const pagos = dela.filter((p) => p.status === 'pago');
-    const prs = pagos.flatMap((p) => p.preparos);
-    const pendente = (st: string) => st === 'novo' || st === 'preparando' || st === 'pronto';
-    // valor do turno separado por forma de pagamento (débito, crédito, pix, dinheiro)
-    const porForma: Record<string, number> = {};
-    for (const p of pagos) porForma[p.formaPagamento] = (porForma[p.formaPagamento] || 0) + p.liquidoCentavos;
-    return {
-      id: m.id,
-      numero: m.numero,
-      nome: m.nome,
-      pedidos: pagos.length,
-      totalCentavos: pagos.reduce((a, p) => a + p.liquidoCentavos, 0),
-      ultimoEm: dela[0]?.pagoEm ?? null,
-      // nomes dos clientes dos pedidos do turno, do mais recente para o mais antigo
-      clientes: [...new Set(pagos.map((p) => p.cliente).filter((c): c is string => !!c))],
-      emPreparo: prs.filter((x) => x.status === 'novo' || x.status === 'preparando').length,
-      prontos: prs.filter((x) => x.status === 'pronto').length,
-      /** pedidos com algo ainda na cozinha ou no bar: a mesa está aberta */
-      abertos: pagos.filter((p) => p.preparos.some((x) => pendente(x.status))).length,
-      porForma,
-    };
-  });
+  const pendente = (st: string) => st === 'novo' || st === 'preparando' || st === 'pronto';
+  const pagos = pedidos.filter((p) => p.status === 'pago');
+  const abertos = pagos.filter((p) => p.preparos.some((x) => pendente(x.status)));
+  const porFormaDe = (lista: typeof pagos) => {
+    const r: Record<string, number> = {};
+    for (const p of lista) r[p.formaPagamento] = (r[p.formaPagamento] || 0) + p.liquidoCentavos;
+    return r;
+  };
+  return {
+    mesas: mesas.map((m) => {
+      const conta = abertos.filter((p) => p.mesaId === m.id);
+      const prs = conta.flatMap((p) => p.preparos);
+      return {
+        id: m.id,
+        numero: m.numero,
+        nome: m.nome,
+        pedidos: conta.length,
+        abertos: conta.length,
+        totalCentavos: conta.reduce((a, p) => a + p.liquidoCentavos, 0),
+        ultimoEm: conta[0]?.pagoEm ?? null,
+        // nomes dos clientes da conta atual, do mais recente para o mais antigo
+        clientes: [...new Set(conta.map((p) => p.cliente).filter((c): c is string => !!c))],
+        emPreparo: prs.filter((x) => x.status === 'novo' || x.status === 'preparando').length,
+        prontos: prs.filter((x) => x.status === 'pronto').length,
+        porForma: porFormaDe(conta),
+      };
+    }),
+    turno: { totalCentavos: pagos.reduce((a, p) => a + p.liquidoCentavos, 0), porForma: porFormaDe(pagos) },
+  };
 }
 
 export async function visaoGeral(db: Db, data: string) {

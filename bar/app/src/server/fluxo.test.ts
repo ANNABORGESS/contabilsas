@@ -6,7 +6,7 @@ import type { Usuario } from './auth';
 import { atualizarFuncionario, criarFuncionario, listarEquipe, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto, criarProduto, excluirProduto, recusarConta, solicitarConta } from './cadastros';
 import { cancelarItem, encerrar, recusar, solicitar, listarSolicitacoes } from './cancelamentos';
 import { confirmarPagamento, detalhePedido, listarPedidos, previa } from './pedidos';
-import { finalizarPedido, mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
+import { finalizarMesa, finalizarPedido, mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
 import { relatorio, mesasDoTurno } from './relatorios';
 import { versaoAtual } from './eventos';
 import { custosELucro, excluirDespesa, lancarDespesa } from './financeiro';
@@ -91,9 +91,22 @@ describe('fluxo do pedido pago', () => {
   it('a mesma mesa faz vários pedidos pagos, sem comanda', async () => {
     const lista = await listarPedidos(db, { mesaId: mesa });
     expect(lista.length).toBeGreaterThanOrEqual(2);
-    const turno = await mesasDoTurno(db, lista[0].dataOperacional);
-    expect(turno.find((m) => m.id === mesa)!.pedidos).toBe(lista.length);
-    expect(turno.find((m) => m.id === mesa)!.clientes).toEqual(['Mariana Souza']);
+    const { mesas } = await mesasDoTurno(db, lista[0].dataOperacional);
+    expect(mesas.find((m) => m.id === mesa)!.pedidos).toBe(lista.length); // todos ainda na cozinha e no bar
+    expect(mesas.find((m) => m.id === mesa)!.clientes).toEqual(['Mariana Souza']);
+  });
+
+  it('mesa finalizada volta limpa (sem total, clientes ou pedidos), mas o turno e as vendas guardam tudo', async () => {
+    const outra = (await listarMesas(db)).find((m) => m.numero === 4)!.id;
+    const { pedido } = await confirmarPagamento(db, garcom, { ...pedidoBase(), mesaId: outra, cliente: 'Lia' });
+    let r = await mesasDoTurno(db, pedido!.dataOperacional);
+    expect(r.mesas.find((m) => m.id === outra)).toMatchObject({ pedidos: 1, clientes: ['Lia'], totalCentavos: pedido!.totalCentavos });
+    const turnoAntes = r.turno.totalCentavos;
+    await finalizarMesa(db, admin, outra, pedido!.dataOperacional);
+    r = await mesasDoTurno(db, pedido!.dataOperacional);
+    expect(r.mesas.find((m) => m.id === outra)).toMatchObject({ pedidos: 0, abertos: 0, clientes: [], totalCentavos: 0, porForma: {} });
+    expect(r.turno.totalCentavos).toBe(turnoAntes);
+    expect((await listarPedidos(db, { mesaId: outra })).some((p) => p.id === pedido!.id)).toBe(true);
   });
 
   it('recusa forma de pagamento ausente e total cobrado que não confere', async () => {

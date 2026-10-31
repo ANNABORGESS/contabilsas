@@ -303,7 +303,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
                       <span className="n">{nomeLocal(m.numero)}</span>
                       {m.nome && m.numero !== BALCAO && <span className="fraco">{m.nome}</span>}
                       {m.abertos > 0 && m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
-                      <span className="fraco num">{m.abertos ? `Aberta · ${m.abertos} em aberto` : m.pedidos ? `Livre · ${m.pedidos} pedido${m.pedidos > 1 ? 's' : ''} hoje` : 'Livre'}</span>
+                      <span className="fraco num">{m.abertos ? `Aberta · ${m.abertos} pedido${m.abertos > 1 ? 's' : ''} · ${reais(m.totalCentavos)}` : 'Livre'}</span>
                       <span className="marcas">
                         {rascunho > 0 && <span className="chip" style={{ color: 'var(--marca)' }}>Rascunho: {rascunho}</span>}
                         {m.emPreparo > 0 && <span className="chip st-preparando">Em andamento {m.emPreparo}</span>}
@@ -409,13 +409,13 @@ function TelaProdutos(props: {
           </button>
           <div>
             <div style={{ fontWeight: 800, fontSize: 18 }}>{props.mesaNumero === undefined ? '…' : nomeLocal(props.mesaNumero)}</div>
-            <div className="fraco">{props.mesaInfo?.pedidos ? `${props.mesaInfo.pedidos} pedido(s) pago(s) no turno` : 'Novo pedido'}</div>
+            <div className="fraco">{props.mesaInfo?.pedidos ? `Conta aberta · ${props.mesaInfo.pedidos} pedido(s)` : 'Novo pedido'}</div>
           </div>
         </div>
         <div className="fila">
           {!!props.mesaInfo?.pedidos && (
             <button className="btn pequeno" onClick={props.abrirHistorico}>
-              Histórico
+              Conta atual
             </button>
           )}
           {qtdTotal > 0 && (
@@ -818,28 +818,30 @@ function Detalhes({ chave, fechar, abrir, usuarioId }: { chave: string; fechar: 
 
 function HistoricoMesa({ mesaId, fechar, abrir }: { mesaId: string; fechar: () => void; abrir: (id: string) => void }) {
   const { dados } = useDados<{ pedidos: PedidoLista[] }>(`/api/pedidos?mesa=${mesaId}`);
-  const pagos = (dados?.pedidos || []).filter((p) => p.status === 'pago');
+  // só a conta atual: pedidos ainda na cozinha ou no bar (mesa finalizada fica limpa)
+  const conta = (dados?.pedidos || []).filter((p) => p.status === 'pago' && p.preparos.some((x) => ['novo', 'preparando', 'pronto'].includes(x.status)));
   return (
-    <Modal titulo={`${dados?.pedidos[0] ? nomeLocal(dados.pedidos[0].mesa) : 'Mesa'} · pedidos do turno`} aoFechar={fechar}>
+    <Modal titulo={`${dados?.pedidos[0] ? nomeLocal(dados.pedidos[0].mesa) : 'Mesa'} · conta atual`} aoFechar={fechar}>
       <div className="fila entre">
-        <span className="mudo">{pagos.length} pedido(s) pago(s)</span>
-        <b className="num">{reais(pagos.reduce((a, p) => a + p.totalCentavos, 0))}</b>
+        <span className="mudo">{conta.length} pedido(s) em aberto</span>
+        <b className="num">{reais(conta.reduce((a, p) => a + p.liquidoCentavos, 0))}</b>
       </div>
-      {dados?.pedidos.map((p) => (
+      {conta.map((p) => (
         <button key={p.id} className="pedido-cartao" onClick={() => abrir(p.id)}>
           <div className="fila entre">
             <b>
               #{p.numero} · {hora(p.pagoEm)}
               {p.cliente && ` · ${p.cliente}`}
             </b>
-            {p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}
+            <ChipSituacao s={p.situacao} />
           </div>
           <div className="fraco">{p.itens.map(textoItem).join(', ')}</div>
           <div className="fraco">
-            {reais(p.totalCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]} · {p.garcom}
+            {reais(p.liquidoCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]} · {p.garcom}
           </div>
         </button>
       ))}
+      {dados && !conta.length && <div className="vazio">Mesa livre: nenhuma conta aberta.</div>}
     </Modal>
   );
 }
