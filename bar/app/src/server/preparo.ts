@@ -106,3 +106,39 @@ export async function prontosParaEntrega(db: Db) {
     .where(and(eq(schema.preparos.status, 'pronto'), ne(schema.pedidos.status, 'cancelado'), ne(schema.pedidos.status, 'estornado')))
     .orderBy(asc(schema.preparos.prontoEm));
 }
+
+/**
+ * O administrador finaliza o pedido de uma vez: tudo o que ainda está na cozinha ou no bar
+ * (novo, em preparo ou pronto) passa para entregue e sai dos painéis e do celular do garçom.
+ */
+export async function finalizarPedido(db: Db, u: Usuario, pedidoId: string) {
+  if (u.papel !== 'admin') throw new ErroRegra('Só o administrador finaliza o pedido inteiro.', 403);
+  if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) throw new ErroRegra('Pedido não encontrado.', 404);
+  const [p] = await db
+    .select({ id: schema.pedidos.id, numero: schema.pedidos.numero, status: schema.pedidos.status, mesa: schema.mesas.numero })
+    .from(schema.pedidos)
+    .innerJoin(schema.mesas, eq(schema.mesas.id, schema.pedidos.mesaId))
+    .where(eq(schema.pedidos.id, pedidoId));
+  if (!p) throw new ErroRegra('Pedido não encontrado.', 404);
+  if (p.status !== 'pago') throw new ErroRegra('Este pedido foi cancelado.', 409);
+  const agora = new Date();
+  return db.transaction(async (tx) => {
+    const abertos = await tx
+      .select()
+      .from(schema.preparos)
+      .where(and(eq(schema.preparos.pedidoId, p.id), inArray(schema.preparos.status, ['novo', 'preparando', 'pronto'])));
+    for (const pr of abertos)
+      await tx
+        .update(schema.preparos)
+        .set({ status: 'entregue', iniciadoEm: pr.iniciadoEm ?? agora, prontoEm: pr.prontoEm ?? agora, entregueEm: agora })
+        .where(eq(schema.preparos.id, pr.id));
+    if (abertos.length)
+      await registrar(tx as unknown as Db, {
+        tipo: 'pedido_finalizado',
+        pedidoId: p.id,
+        usuarioId: u.id,
+        descricao: `Pedido #${p.numero} (${nomeLocal(p.mesa).toLowerCase()}) finalizado por ${u.nome}: ${abertos.map((x) => NOME_SETOR[x.setor as Setor]).join(' e ')} marcado como entregue`,
+      });
+    return { finalizados: abertos.length };
+  });
+}

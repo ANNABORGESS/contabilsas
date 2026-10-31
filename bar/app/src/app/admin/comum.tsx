@@ -38,6 +38,19 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
   const p = dados?.pedido;
   const vaiSerEstorno = p?.preparos.some((x) => x.status !== 'novo' && x.status !== 'cancelado');
 
+  async function finalizar() {
+    setOcupado(true);
+    setMsg(null);
+    try {
+      await api(`/api/pedidos/${id}/finalizar`, 'POST', {});
+      setMsg({ tipo: 'ok', texto: 'Pedido finalizado: entregue e fora dos painéis da cozinha e do bar.' });
+    } catch (e) {
+      setMsg({ tipo: 'erro', texto: (e as Error).message });
+    } finally {
+      setOcupado(false);
+    }
+  }
+
   async function confirmarEncerramento() {
     setOcupado(true);
     setMsg(null);
@@ -161,6 +174,11 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
           )}
           {p.solicitacaoPendente && <Aviso tipo="alerta">Há uma solicitação de cancelamento pendente para este pedido.</Aviso>}
           {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
+          {p.status === 'pago' && p.preparos.some((x) => ['novo', 'preparando', 'pronto'].includes(x.status)) && (
+            <button className="btn sucesso grande bloco" disabled={ocupado} onClick={finalizar}>
+              ✓ Finalizar pedido (entregue)
+            </button>
+          )}
           {p.status === 'pago' && !encerrar && (
             <button className="btn contorno-perigo" onClick={() => setEncerrar(true)}>
               {vaiSerEstorno ? 'Estornar pedido' : 'Cancelar pedido'}

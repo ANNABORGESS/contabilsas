@@ -6,7 +6,7 @@ import type { Usuario } from './auth';
 import { atualizarFuncionario, criarFuncionario, listarEquipe, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto, criarProduto, excluirProduto, recusarConta, solicitarConta } from './cadastros';
 import { cancelarItem, encerrar, recusar, solicitar, listarSolicitacoes } from './cancelamentos';
 import { confirmarPagamento, detalhePedido, listarPedidos, previa } from './pedidos';
-import { mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
+import { finalizarPedido, mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
 import { relatorio, mesasDoTurno } from './relatorios';
 import { versaoAtual } from './eventos';
 import { custosELucro, excluirDespesa, lancarDespesa } from './financeiro';
@@ -268,6 +268,18 @@ describe('fluxo do pedido pago', () => {
     lista = (await listarPedidos(db, {})).find((x) => x.id === p.id)!;
     expect(lista.status).toBe('cancelado');
     expect(lista.liquidoCentavos).toBe(0);
+  });
+
+  it('administrador finaliza o pedido inteiro: tudo vira entregue e sai dos painéis', async () => {
+    const { pedido } = await confirmarPagamento(db, garcom, pedidoBase());
+    const p = pedido!;
+    await expect(finalizarPedido(db, garcom, p.id)).rejects.toThrow(/administrador/);
+    expect(await finalizarPedido(db, admin, p.id)).toEqual({ finalizados: 2 });
+    expect((await painelSetor(db, 'cozinha')).preparos.some((x) => x.pedidoId === p.id)).toBe(false);
+    expect((await painelSetor(db, 'bar')).preparos.some((x) => x.pedidoId === p.id)).toBe(false);
+    const depois = (await listarPedidos(db, {})).find((x) => x.id === p.id)!;
+    expect(depois.preparos.every((x) => x.status === 'entregue')).toBe(true);
+    expect(await finalizarPedido(db, admin, p.id)).toEqual({ finalizados: 0 }); // toque repetido
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {
