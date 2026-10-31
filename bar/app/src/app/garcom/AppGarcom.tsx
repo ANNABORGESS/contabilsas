@@ -30,6 +30,7 @@ interface MesaTurno {
   clientes: string[];
   emPreparo: number;
   prontos: number;
+  abertos: number;
 }
 interface Pronto {
   id: string;
@@ -177,7 +178,9 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
     const previa = await api<Previa>('/api/pedidos/previa', 'POST', { mesaId, itens });
     // sugere o nome do último cliente da mesa no turno; o garçom pode trocar ou apagar
     // no balcão cada pedido é de um cliente diferente: o nome começa vazio
-    const sugestao = previa.mesa.numero === BALCAO ? '' : (mesaPorId.get(mesaId)?.clientes[0] ?? '');
+    // mesa já finalizada também começa vazia: provavelmente é outro cliente
+    const m = mesaPorId.get(mesaId);
+    const sugestao = previa.mesa.numero === BALCAO || !m?.abertos ? '' : (m.clientes[0] ?? '');
     setTentativa({ mesaId, chave: novaChave(), previa, forma: null, observacao: '', cliente: sugestao });
     setTela({ t: 'pagamento' });
   }
@@ -296,11 +299,11 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
                 {filtrarMesas(mesas.dados?.mesas || [], buscaMesa, filtroMesa).map((m) => {
                   const rascunho = Object.values(carrinhos[m.id] || {}).reduce((a, b) => a + b, 0) + (baldes[m.id] || []).length;
                   return (
-                    <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''} ${m.numero === BALCAO ? 'balcao' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
+                    <button key={m.id} className={`mesa ${m.abertos ? 'ocupada' : ''} ${m.numero === BALCAO ? 'balcao' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
                       <span className="n">{nomeLocal(m.numero)}</span>
                       {m.nome && m.numero !== BALCAO && <span className="fraco">{m.nome}</span>}
-                      {m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
-                      <span className="fraco num">{m.pedidos ? `${m.pedidos} pedido${m.pedidos > 1 ? 's' : ''} · ${reais(m.totalCentavos)}` : 'Livre'}</span>
+                      {m.abertos > 0 && m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
+                      <span className="fraco num">{m.abertos ? `Aberta · ${m.abertos} em aberto` : m.pedidos ? `Livre · ${m.pedidos} pedido${m.pedidos > 1 ? 's' : ''} hoje` : 'Livre'}</span>
                       <span className="marcas">
                         {rascunho > 0 && <span className="chip" style={{ color: 'var(--marca)' }}>Rascunho: {rascunho}</span>}
                         {m.emPreparo > 0 && <span className="chip st-preparando">Em andamento {m.emPreparo}</span>}

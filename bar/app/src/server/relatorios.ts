@@ -39,6 +39,10 @@ export async function mesasDoTurno(db: Db, data: string) {
     const dela = pedidos.filter((p) => p.mesaId === m.id);
     const pagos = dela.filter((p) => p.status === 'pago');
     const prs = pagos.flatMap((p) => p.preparos);
+    const pendente = (st: string) => st === 'novo' || st === 'preparando' || st === 'pronto';
+    // valor do turno separado por forma de pagamento (débito, crédito, pix, dinheiro)
+    const porForma: Record<string, number> = {};
+    for (const p of pagos) porForma[p.formaPagamento] = (porForma[p.formaPagamento] || 0) + p.liquidoCentavos;
     return {
       id: m.id,
       numero: m.numero,
@@ -50,6 +54,9 @@ export async function mesasDoTurno(db: Db, data: string) {
       clientes: [...new Set(pagos.map((p) => p.cliente).filter((c): c is string => !!c))],
       emPreparo: prs.filter((x) => x.status === 'novo' || x.status === 'preparando').length,
       prontos: prs.filter((x) => x.status === 'pronto').length,
+      /** pedidos com algo ainda na cozinha ou no bar: a mesa está aberta */
+      abertos: pagos.filter((p) => p.preparos.some((x) => pendente(x.status))).length,
+      porForma,
     };
   });
 }

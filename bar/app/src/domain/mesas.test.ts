@@ -14,6 +14,11 @@ describe('busca de mesa', () => {
     expect(filtrarMesas(mesas, 'varan').map((m) => m.numero)).toEqual([5]);
     expect(filtrarMesas(mesas, 'goncalves').map((m) => m.numero)).toEqual([12]);
   });
+  it('aberta é a mesa com pedido ainda na cozinha ou no bar', () => {
+    const ms = [{ numero: 1, pedidos: 2, abertos: 0 }, { numero: 2, pedidos: 1, abertos: 1 }];
+    expect(filtrarMesas(ms, '', 'com-pedido').map((m) => m.numero)).toEqual([2]);
+    expect(filtrarMesas(ms, '', 'livres').map((m) => m.numero)).toEqual([1]);
+  });
   it('filtra mesas com pedido e livres', () => {
     expect(filtrarMesas(mesas, '', 'com-pedido').every((m) => m.pedidos)).toBe(true);
     expect(filtrarMesas(mesas, '', 'livres').every((m) => !m.pedidos)).toBe(true);

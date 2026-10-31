@@ -142,3 +142,16 @@ export async function finalizarPedido(db: Db, u: Usuario, pedidoId: string) {
     return { finalizados: abertos.length };
   });
 }
+
+/** Finaliza de uma vez todos os pedidos do turno ainda abertos na mesa (ou no balcão). */
+export async function finalizarMesa(db: Db, u: Usuario, mesaId: string, data: string) {
+  if (u.papel !== 'admin') throw new ErroRegra('Só o administrador finaliza a mesa.', 403);
+  if (!/^[0-9a-f-]{36}$/i.test(mesaId)) throw new ErroRegra('Mesa não encontrada.', 404);
+  const abertos = await db
+    .selectDistinct({ id: schema.pedidos.id })
+    .from(schema.pedidos)
+    .innerJoin(schema.preparos, eq(schema.preparos.pedidoId, schema.pedidos.id))
+    .where(and(eq(schema.pedidos.mesaId, mesaId), eq(schema.pedidos.dataOperacional, data), eq(schema.pedidos.status, 'pago'), inArray(schema.preparos.status, ['novo', 'preparando', 'pronto'])));
+  for (const p of abertos) await finalizarPedido(db, u, p.id);
+  return { pedidos: abertos.length };
+}

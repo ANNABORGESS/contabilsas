@@ -9,8 +9,10 @@ export type FiltroMesa = 'todas' | 'com-pedido' | 'livres';
  * Número: "7" acha a mesa 7 primeiro e depois as que começam com 7 (70, 71...); "07" vale como "7".
  * Texto: procura no apelido da mesa e nos nomes dos clientes do turno, sem diferenciar acentos.
  */
-export function filtrarMesas<T extends { numero: number; nome?: string | null; clientes?: string[]; pedidos?: number }>(mesas: T[], busca: string, filtro: FiltroMesa = 'todas'): T[] {
-  const porSituacao = mesas.filter((m) => (filtro === 'com-pedido' ? (m.pedidos || 0) > 0 : filtro === 'livres' ? !m.pedidos : true));
+export function filtrarMesas<T extends { numero: number; nome?: string | null; clientes?: string[]; pedidos?: number; abertos?: number }>(mesas: T[], busca: string, filtro: FiltroMesa = 'todas'): T[] {
+  // aberta = tem pedido ainda na cozinha ou no bar (sem a contagem, vale ter pedido no turno)
+  const aberta = (m: T) => (m.abertos ?? m.pedidos ?? 0) > 0;
+  const porSituacao = mesas.filter((m) => (filtro === 'com-pedido' ? aberta(m) : filtro === 'livres' ? !aberta(m) : true));
   const b = busca.trim();
   if (!b) return porSituacao;
   if (/^\d+$/.test(b)) {

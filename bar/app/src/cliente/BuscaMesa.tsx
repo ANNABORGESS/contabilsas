@@ -17,7 +17,7 @@ export function BuscaMesa(props: { busca: string; setBusca: (v: string) => void;
         {(
           [
             ['todas', 'Todas'],
-            ['com-pedido', 'Com pedido'],
+            ['com-pedido', 'Abertas'],
             ['livres', 'Livres'],
           ] as const
         ).map(([k, nome]) => (

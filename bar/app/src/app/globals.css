@@ -2387,3 +2387,27 @@ html {
   background: #2a2420;
   color: #fff;
 }
+
+/* total do turno por forma de pagamento */
+.formas-resumo {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  margin-bottom: 14px;
+}
+.formas-resumo .cartao {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px 16px;
+}
+.formas-resumo b {
+  font-family: var(--fonte-titulo);
+  font-weight: 400;
+  font-size: 22px;
+}
+@media (max-width: 700px) {
+  .formas-resumo {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

@@ -5,7 +5,7 @@ import { BALCAO, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas
 import { api, useDados } from '@/cliente/api';
 import { dataBr, hora, reais } from '@/cliente/formato';
 import { Aviso, ChipPedido, ChipSituacao, Modal } from '@/cliente/ui';
-import { NOME_FORMA, textoItem, type FormaPagamento } from '@/domain/pedido';
+import { FORMAS_PAGAMENTO, NOME_FORMA, textoItem, type FormaPagamento } from '@/domain/pedido';
 import type { PedidoLista } from '@/server/pedidos';
 import { Cabecalho, DetalhePedidoAdmin } from '../comum';
 
@@ -19,6 +19,8 @@ interface MesaTurno {
   clientes: string[];
   emPreparo: number;
   prontos: number;
+  abertos: number;
+  porForma: Record<string, number>;
 }
 interface Mesa {
   id: string;
@@ -35,25 +37,47 @@ export default function Mesas() {
   const [filtro, setFiltro] = useState<FiltroMesa>('todas');
   const total = (dados?.mesas || []).reduce((a, m) => a + m.totalCentavos, 0);
   const visiveis = filtrarMesas(dados?.mesas || [], busca, filtro);
+  const abertas = (dados?.mesas || []).filter((m) => m.abertos > 0).length;
+  // total do turno por forma de pagamento
+  const formas = FORMAS_PAGAMENTO.map((f) => [f, (dados?.mesas || []).reduce((a, m) => a + (m.porForma[f] || 0), 0)] as const);
   return (
     <>
-      <Cabecalho titulo="Mesas" sub={dados ? `Turno de ${dataBr(dados.data)} · ${dados.mesas.filter((m) => m.pedidos).length} mesa(s) com pedido · ${reais(total)}` : ''}>
+      <Cabecalho titulo="Mesas" sub={dados ? `Turno de ${dataBr(dados.data)} · ${abertas} aberta(s) · ${reais(total)} no turno` : ''}>
         <button className="btn" onClick={() => setGerenciar(true)}>
           Cadastrar e editar mesas
         </button>
       </Cabecalho>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {dados && (
+        <div className="formas-resumo">
+          {formas.map(([f, v]) => (
+            <div key={f} className="cartao">
+              <span className="fraco">{NOME_FORMA[f]}</span>
+              <b className="num">{reais(v)}</b>
+            </div>
+          ))}
+        </div>
+      )}
       {dados && dados.mesas.length > 0 && <BuscaMesa busca={busca} setBusca={setBusca} filtro={filtro} setFiltro={setFiltro} total={dados.mesas.length} achadas={visiveis.length} />}
       <div className="mesas-grade" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
         {visiveis.map((m) => (
-          <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''} ${m.numero === BALCAO ? 'balcao' : ''}`} onClick={() => setHistorico(m)}>
+          <button key={m.id} className={`mesa ${m.abertos ? 'ocupada' : ''} ${m.numero === BALCAO ? 'balcao' : ''}`} onClick={() => setHistorico(m)}>
             <span className="n">{nomeLocal(m.numero)}</span>
             {m.nome && m.numero !== BALCAO && <span className="fraco">{m.nome}</span>}
             {m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
             <span className="num" style={{ fontWeight: 700 }}>
               {m.pedidos ? reais(m.totalCentavos) : 'Sem pedidos'}
             </span>
-            <span className="fraco">{m.pedidos ? `${m.pedidos} pedido(s) · último ${hora(m.ultimoEm)}` : '—'}</span>
+            <span className="fraco">
+              {m.abertos ? `Aberta · ${m.abertos} pedido(s) em aberto` : m.pedidos ? `Finalizada · ${m.pedidos} pedido(s) · último ${hora(m.ultimoEm)}` : 'Livre'}
+            </span>
+            {m.pedidos > 0 && (
+              <span className="fraco" style={{ fontSize: 12 }}>
+                {Object.entries(m.porForma)
+                  .map(([f, v]) => `${NOME_FORMA[f as FormaPagamento]} ${reais(v)}`)
+                  .join(' · ')}
+              </span>
+            )}
             <span className="marcas">
               {m.emPreparo > 0 && <span className="chip st-preparando">Em andamento {m.emPreparo}</span>}
               {m.prontos > 0 && <span className="chip st-pronto">Pronto {m.prontos}</span>}
@@ -73,6 +97,22 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
   const { dados } = useDados<{ de: string; pedidos: PedidoLista[] }>(`/api/pedidos?mesa=${mesa.id}${data ? `&de=${data}&ate=${data}` : ''}`);
   const [aberto, setAberto] = useState<string | null>(null);
   const pagos = (dados?.pedidos || []).filter((p) => p.status === 'pago');
+  const emAberto = pagos.filter((p) => p.preparos.some((x) => ['novo', 'preparando', 'pronto'].includes(x.status))).length;
+  const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
+  const [ocupado, setOcupado] = useState(false);
+  async function finalizarMesa() {
+    if (!confirm(`Finalizar ${nomeLocal(mesa.numero).toLowerCase()}? Os ${emAberto} pedido(s) em aberto passam para entregue e saem da cozinha e do bar.`)) return;
+    setOcupado(true);
+    setMsg(null);
+    try {
+      const r = await api<{ pedidos: number }>(`/api/mesas/${mesa.id}/finalizar`, 'POST', {});
+      setMsg({ tipo: 'ok', texto: `${nomeLocal(mesa.numero)} finalizada (${r.pedidos} pedido(s)).` });
+    } catch (e) {
+      setMsg({ tipo: 'erro', texto: (e as Error).message });
+    } finally {
+      setOcupado(false);
+    }
+  }
   return (
     <Modal titulo={`${nomeLocal(mesa.numero)} · histórico`} aoFechar={fechar} largura={720}>
       <div className="fila entre">
@@ -81,6 +121,21 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
           {pagos.length} pago(s) · {reais(pagos.reduce((a, p) => a + p.liquidoCentavos, 0))}
         </b>
       </div>
+      {pagos.length > 0 && (
+        <div className="fila" style={{ flexWrap: 'wrap', gap: 6 }}>
+          {FORMAS_PAGAMENTO.filter((f) => pagos.some((p) => p.formaPagamento === f)).map((f) => (
+            <span key={f} className="chip">
+              {NOME_FORMA[f]}: {reais(pagos.filter((p) => p.formaPagamento === f).reduce((a, p) => a + p.liquidoCentavos, 0))}
+            </span>
+          ))}
+        </div>
+      )}
+      {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
+      {emAberto > 0 && !data && (
+        <button className="btn sucesso grande bloco" disabled={ocupado} onClick={finalizarMesa}>
+          ✓ Finalizar {nomeLocal(mesa.numero).toLowerCase()} ({emAberto} pedido(s) em aberto)
+        </button>
+      )}
       <table className="tabela">
         <thead>
           <tr>
