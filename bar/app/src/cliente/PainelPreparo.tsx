@@ -1,6 +1,7 @@
 'use client';
 // Painel da cozinha ou do bar: só pedidos pagos, do mais antigo para o mais novo.
 // Feito para tablet ou TV: letras grandes, um toque para avançar o status.
+import { nomeLocal } from '@/domain/mesas';
 import { useEffect, useRef, useState } from 'react';
 import { agruparBaldes, type Setor } from '@/domain/pedido';
 import { api, bipar, liberarSom, useDados } from './api';
@@ -127,7 +128,7 @@ export default function PainelPreparo({ setor, usuario }: { setor: Setor; usuari
                   <article key={t.id} className={`ticket ${t.status} ${nivel === 'critico' ? 'atrasado' : ''} ${chegaram.has(t.id) ? 'novo-chegou' : ''}`}>
                     <div className="cab">
                       <span className="numero">#{t.numero}</span>
-                      <span className="mesa-n">Mesa {t.mesa}</span>
+                      <span className="mesa-n">{nomeLocal(t.mesa)}</span>
                     </div>
                     <ul>
                       {agruparBaldes(t.itens).soltos.map((i, k) => (
@@ -179,7 +180,7 @@ export default function PainelPreparo({ setor, usuario }: { setor: Setor; usuari
       </div>
       {!!dados?.recentes.length && (
         <footer className="fraco" style={{ padding: '0 18px 16px' }}>
-          Entregues nos últimos 30 min: {dados.recentes.map((r) => `#${r.numero} (mesa ${r.mesa})`).join(' · ')}
+          Entregues nos últimos 30 min: {dados.recentes.map((r) => `#${r.numero} (${nomeLocal(r.mesa).toLowerCase()})`).join(' · ')}
         </footer>
       )}
     </div>

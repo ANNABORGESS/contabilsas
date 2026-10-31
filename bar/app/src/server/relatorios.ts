@@ -14,6 +14,7 @@ export function paraRelatorio(lista: PedidoLista[]): PedidoRel[] {
     mesa: p.mesa,
     garcom: p.garcom,
     totalCentavos: p.totalCentavos,
+    itensCanceladosCentavos: p.itensCanceladosCentavos,
     formaPagamento: p.formaPagamento,
     status: p.status,
     hora: horaLocal(new Date(p.pagoEm), FUSO),
@@ -43,7 +44,7 @@ export async function mesasDoTurno(db: Db, data: string) {
       numero: m.numero,
       nome: m.nome,
       pedidos: pagos.length,
-      totalCentavos: pagos.reduce((a, p) => a + p.totalCentavos, 0),
+      totalCentavos: pagos.reduce((a, p) => a + p.liquidoCentavos, 0),
       ultimoEm: dela[0]?.pagoEm ?? null,
       // nomes dos clientes dos pedidos do turno, do mais recente para o mais antigo
       clientes: [...new Set(pagos.map((p) => p.cliente).filter((c): c is string => !!c))],

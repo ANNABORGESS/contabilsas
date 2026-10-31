@@ -40,6 +40,10 @@ export default function Lateral({ nome, children }: { nome: string; children: Re
       </div>
       <nav className="lateral" onClick={(e) => e.target === e.currentTarget && setAberto(false)}>
         {logo}
+        {/* o administrador também lança e cobra pedidos (mesa ou balcão), como um caixa */}
+        <a href="/garcom" className="lancar-pedido">
+          🧾 Lançar pedido
+        </a>
         {ITENS.map(([href, rotulo]) => (
           <a key={href} href={href} className={caminho === href ? 'ativo' : ''}>
             {rotulo}

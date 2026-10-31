@@ -1,5 +1,6 @@
 'use client';
 // Peças comuns da administração: detalhe do pedido com cancelamento/estorno e período.
+import { nomeLocal } from '@/domain/mesas';
 import { useState } from 'react';
 import { api, useDados } from '@/cliente/api';
 import { dataHora, hora, reais } from '@/cliente/formato';
@@ -33,6 +34,7 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
   const [motivo, setMotivo] = useState('');
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [itemCancelar, setItemCancelar] = useState<DetalhePedido['itens'][number] | null>(null);
   const p = dados?.pedido;
   const vaiSerEstorno = p?.preparos.some((x) => x.status !== 'novo' && x.status !== 'cancelado');
 
@@ -51,7 +53,7 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
   }
 
   return (
-    <Modal titulo={p ? `Pedido #${p.numero} · Mesa ${p.mesa}` : 'Pedido'} aoFechar={fechar} largura={640}>
+    <Modal titulo={p ? `Pedido #${p.numero} · ${nomeLocal(p.mesa)}` : 'Pedido'} aoFechar={fechar} largura={640}>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {p && (
         <>
@@ -85,29 +87,64 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
                 <th className="direita">Qtd.</th>
                 <th className="direita">Unit.</th>
                 <th className="direita">Subtotal</th>
+                {p.status === 'pago' && <th className="nao-imprimir"></th>}
               </tr>
             </thead>
             <tbody>
               {p.itens.map((i) => (
-                <tr key={i.id}>
+                <tr key={i.id} className={i.quantidadeCancelada >= i.quantidade ? 'apagado' : ''}>
                   <td>
                     {i.nome}
                     {i.balde && <span className="fraco"> · 🪣 Balde {i.balde}</span>}
+                    {i.quantidadeCancelada > 0 && (
+                      <div style={{ color: 'var(--vermelho)', fontSize: 13 }}>
+                        {i.quantidadeCancelada} cancelado{i.quantidadeCancelada > 1 ? 's' : ''} (−{reais(i.quantidadeCancelada * i.precoCentavos)})
+                      </div>
+                    )}
                   </td>
                   <td>{i.setor === 'cozinha' ? 'Cozinha' : 'Bar'}</td>
                   <td className="direita num">{i.quantidade}</td>
                   <td className="direita num">{reais(i.precoCentavos)}</td>
                   <td className="direita num">{reais(i.subtotalCentavos)}</td>
+                  {p.status === 'pago' && (
+                    <td className="direita nao-imprimir">
+                      {i.quantidade > i.quantidadeCancelada && (
+                        <button className="btn pequeno contorno-perigo" onClick={() => setItemCancelar(i)}>
+                          Cancelar item
+                        </button>
+                      )}
+                    </td>
+                  )}
                 </tr>
               ))}
               <tr>
                 <td colSpan={4}>
-                  <b>Total</b>
+                  <b>Total pago</b>
                 </td>
                 <td className="direita num">
                   <b>{reais(p.totalCentavos)}</b>
                 </td>
               </tr>
+              {p.itensCanceladosCentavos > 0 && (
+                <>
+                  <tr>
+                    <td colSpan={4} style={{ color: 'var(--vermelho)' }}>
+                      Itens cancelados (devolver na maquininha)
+                    </td>
+                    <td className="direita num" style={{ color: 'var(--vermelho)' }}>
+                      −{reais(p.itensCanceladosCentavos)}
+                    </td>
+                  </tr>
+                  <tr>
+                    <td colSpan={4}>
+                      <b>Valendo</b>
+                    </td>
+                    <td className="direita num">
+                      <b>{reais(p.totalCentavos - p.itensCanceladosCentavos)}</b>
+                    </td>
+                  </tr>
+                </>
+              )}
             </tbody>
           </table>
           {p.divergenciaPreco && <Aviso tipo="alerta">Cobrado com preço diferente do cardápio da hora da confirmação (o cardápio mudou durante o atendimento). Confira.</Aviso>}
@@ -159,6 +196,7 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
           </div>
         </>
       )}
+      {p && itemCancelar && <CancelarItem pedidoId={p.id} item={itemCancelar} fechar={() => setItemCancelar(null)} aoCancelar={(t) => setMsg({ tipo: 'ok', texto: t })} />}
     </Modal>
   );
 }
@@ -196,5 +234,53 @@ export function Periodo({ de, ate, mudar }: { de: string; ate: string; mudar: (d
       <span className="fraco">até</span>
       <input type="date" value={ate} min={de} onChange={(e) => e.target.value && mudar(de, e.target.value)} style={{ width: 150 }} />
     </div>
+  );
+}
+
+/** Cancela uma parte do pedido: o item e quantas unidades, com motivo. Só o administrador. */
+function CancelarItem({ pedidoId, item, fechar, aoCancelar }: { pedidoId: string; item: DetalhePedido['itens'][number]; fechar: () => void; aoCancelar: (texto: string) => void }) {
+  const restante = item.quantidade - item.quantidadeCancelada;
+  const [qtd, setQtd] = useState(restante);
+  const [motivo, setMotivo] = useState('');
+  const [erro, setErro] = useState('');
+  const [ocupado, setOcupado] = useState(false);
+  async function confirmar() {
+    setOcupado(true);
+    setErro('');
+    try {
+      const r = await api<{ cancelados: number; valorCentavos: number; tipo: string }>(`/api/pedidos/${pedidoId}/cancelar-item`, 'POST', { itemId: item.id, quantidade: qtd, motivo });
+      aoCancelar(`${r.cancelados}× ${item.nome} ${r.tipo === 'cancelado' ? 'cancelado' : 'estornado'}. Devolva ${reais(r.valorCentavos)} na maquininha.`);
+      fechar();
+    } catch (e) {
+      setErro((e as Error).message);
+      setOcupado(false);
+    }
+  }
+  return (
+    <Modal titulo={`Cancelar ${item.nome}`} aoFechar={fechar}>
+      <p>
+        Valem ainda <b>{restante}</b> de {item.quantidade}. Quantos cancelar?
+      </p>
+      <div className="qtd" style={{ justifyContent: 'center', marginBottom: 12 }}>
+        <button onClick={() => setQtd((q) => Math.max(1, q - 1))} aria-label="Menos">
+          −
+        </button>
+        <span style={{ minWidth: 40, textAlign: 'center', fontSize: 22 }}>{qtd}</span>
+        <button className="mais" onClick={() => setQtd((q) => Math.min(restante, q + 1))} aria-label="Mais">
+          +
+        </button>
+      </div>
+      <p style={{ textAlign: 'center' }}>
+        Devolver na maquininha: <b>{reais(qtd * item.precoCentavos)}</b>
+      </p>
+      <label className="campo">
+        Motivo
+        <input value={motivo} onChange={(e) => setMotivo(e.target.value)} placeholder="ex.: cliente desistiu, acabou o produto" maxLength={500} autoFocus />
+      </label>
+      {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      <button className="btn perigo bloco" disabled={ocupado || motivo.trim().length < 5} onClick={confirmar}>
+        {ocupado ? 'Cancelando…' : `Cancelar ${qtd}× ${item.nome}`}
+      </button>
+    </Modal>
   );
 }

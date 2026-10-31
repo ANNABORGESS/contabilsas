@@ -80,6 +80,8 @@ export const pedidos = pgTable(
     divergenciaPreco: boolean('divergencia_preco').notNull().default(false),
     observacao: text('observacao'),
     cliente: text('cliente'), // nome do cliente informado pelo garçom (opcional)
+    // soma dos itens cancelados um a um pelo administrador (devolvidos na maquininha)
+    itensCanceladosCentavos: integer('itens_cancelados_centavos').notNull().default(0),
     encerradoPorId: uuid('encerrado_por_id').references(() => usuarios.id),
     encerradoEm: momento('encerrado_em'),
     motivoEncerramento: text('motivo_encerramento'),
@@ -105,6 +107,7 @@ export const pedidoItens = pgTable(
     precoCentavos: integer('preco_centavos').notNull(),
     subtotalCentavos: integer('subtotal_centavos').notNull(),
     balde: integer('balde'), // número do balde dentro do pedido (1, 2...); vazio quando não vai em balde
+    quantidadeCancelada: integer('quantidade_cancelada').notNull().default(0), // cancelados um a um pelo administrador
   },
   (t) => [index('pedido_itens_pedido_idx').on(t.pedidoId)],
 );

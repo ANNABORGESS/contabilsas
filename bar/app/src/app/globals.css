@@ -2352,3 +2352,38 @@ html {
     display: none;
   }
 }
+
+/* balcão: primeiro da lista e ocupa duas colunas */
+.mesa.balcao {
+  grid-column: span 2;
+  background: linear-gradient(120deg, rgba(20, 18, 16, 0.92), rgba(70, 45, 20, 0.88));
+  color: #fff;
+  border-color: rgba(20, 18, 16, 0.6);
+}
+.mesa.balcao .fraco,
+.mesa.balcao .cliente-mesa {
+  color: rgba(255, 255, 255, 0.75);
+}
+.mesa.balcao .n::before {
+  content: '🍺 ';
+}
+/* nome do cliente na hora de cobrar */
+.nome-cliente input {
+  font-size: 18px;
+  padding: 14px 16px;
+}
+.nome-cliente.pedindo input {
+  border-color: var(--marca);
+  box-shadow: 0 0 0 4px var(--marca-suave);
+}
+/* atalho do administrador para lançar pedido */
+.lateral a.lancar-pedido {
+  background: var(--tinta);
+  color: #fff;
+  justify-content: center;
+  margin-bottom: 8px;
+}
+.lateral a.lancar-pedido:hover {
+  background: #2a2420;
+  color: #fff;
+}

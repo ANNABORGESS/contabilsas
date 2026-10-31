@@ -1,8 +1,8 @@
 // Cancelamento e estorno: o garçom só pode pedir; quem decide é o administrador.
-import { and, desc, eq, inArray } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
-import { ErroCancelamento, NOME_ENCERRAMENTO, conferirEncerramento, tipoEncerramento, validarMotivo } from '@/domain/cancelamento';
+import { ErroCancelamento, NOME_ENCERRAMENTO, conferirCancelamentoItem, conferirEncerramento, tipoEncerramento, validarMotivo } from '@/domain/cancelamento';
 import { reais } from '@/domain/dinheiro';
 import type { StatusPreparo } from '@/domain/preparo';
 import type { Usuario } from './auth';
@@ -71,6 +71,64 @@ export async function encerrar(db: Db, u: Usuario, pedidoId: string, motivoBruto
     });
   });
   return { tipo };
+}
+
+/**
+ * Cancela só uma parte do pedido: o item e quantas unidades. Só o administrador. O valor volta na
+ * maquininha. Se o setor fica sem nada para preparar, sai do painel; se o pedido fica sem nada,
+ * ele inteiro vira cancelado (ou estornado, se já tinha preparo).
+ */
+export async function cancelarItem(db: Db, u: Usuario, pedidoId: string, itemId: unknown, quantidade: unknown, motivoBruto: unknown) {
+  const motivo = regra(() => validarMotivo(motivoBruto));
+  const p = await pedido(db, pedidoId);
+  if (typeof itemId !== 'string' || !/^[0-9a-f-]{36}$/i.test(itemId)) throw new ErroRegra('Item não encontrado.', 404);
+  const itens = await db.select().from(schema.pedidoItens).where(eq(schema.pedidoItens.pedidoId, p.id));
+  const item = itens.find((i) => i.id === itemId);
+  if (!item) throw new ErroRegra('Item não encontrado.', 404);
+  const q = regra(() => conferirCancelamentoItem(u.papel, p.status, quantidade, item.quantidade - item.quantidadeCancelada));
+  const valor = q * item.precoCentavos;
+  const agora = new Date();
+  const prs = await db.select().from(schema.preparos).where(eq(schema.preparos.pedidoId, p.id));
+  const restanteDepois = (i: (typeof itens)[number]) => i.quantidade - i.quantidadeCancelada - (i.id === item.id ? q : 0);
+  const preparoDoItem = prs.find((x) => x.setor === item.setor);
+  const tipoItem = tipoEncerramento(preparoDoItem ? [preparoDoItem.status as StatusPreparo] : []);
+  await db.transaction(async (tx) => {
+    const r = await tx
+      .update(schema.pedidoItens)
+      .set({ quantidadeCancelada: item.quantidadeCancelada + q })
+      .where(and(eq(schema.pedidoItens.id, item.id), eq(schema.pedidoItens.quantidadeCancelada, item.quantidadeCancelada)))
+      .returning({ id: schema.pedidoItens.id });
+    if (!r.length) throw new ErroRegra('Este item acabou de ser alterado. Atualize a tela e tente de novo.', 409);
+    await tx
+      .update(schema.pedidos)
+      .set({ itensCanceladosCentavos: sql`${schema.pedidos.itensCanceladosCentavos} + ${valor}` })
+      .where(eq(schema.pedidos.id, p.id));
+    // setor sem mais nada a preparar sai do painel
+    if (!itens.filter((i) => i.setor === item.setor).some((i) => restanteDepois(i) > 0))
+      await tx
+        .update(schema.preparos)
+        .set({ status: 'cancelado' })
+        .where(and(eq(schema.preparos.pedidoId, p.id), eq(schema.preparos.setor, item.setor), inArray(schema.preparos.status, ['novo', 'preparando', 'pronto'])));
+    const tx2 = tx as unknown as Db;
+    await registrar(tx2, {
+      tipo: 'item_cancelado',
+      pedidoId: p.id,
+      usuarioId: u.id,
+      descricao: `${NOME_ENCERRAMENTO[tipoItem]} de ${q}× ${item.nome} do pedido #${p.numero} (${reais(valor)}) autorizado por ${u.nome}: ${motivo}. Devolver ${reais(valor)} na maquininha.`,
+      dados: { itemId: item.id, quantidade: q, valorCentavos: valor },
+    });
+    // nada mais valendo: o pedido inteiro fica encerrado
+    if (!itens.some((i) => restanteDepois(i) > 0)) {
+      const tipo = tipoEncerramento(prs.map((x) => x.status as StatusPreparo));
+      await tx.update(schema.pedidos).set({ status: tipo, encerradoPorId: u.id, encerradoEm: agora, motivoEncerramento: motivo }).where(eq(schema.pedidos.id, p.id));
+      await tx
+        .update(schema.solicitacoes)
+        .set({ status: 'aprovada', decididoPorId: u.id, decididoEm: agora })
+        .where(and(eq(schema.solicitacoes.pedidoId, p.id), eq(schema.solicitacoes.status, 'pendente')));
+      await registrar(tx2, { tipo: tipo === 'cancelado' ? 'pedido_cancelado' : 'pedido_estornado', pedidoId: p.id, usuarioId: u.id, descricao: `Pedido #${p.numero} ficou sem itens: ${NOME_ENCERRAMENTO[tipo].toLowerCase()} completo` });
+    }
+  });
+  return { cancelados: q, valorCentavos: valor, tipo: tipoItem };
 }
 
 export async function recusar(db: Db, u: Usuario, solicitacaoId: string) {

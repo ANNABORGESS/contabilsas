@@ -72,7 +72,7 @@ export default function Vendas() {
             <h2>
               {lista.length} pedido(s){de && ` · ${dataBr(de)}${ate !== de ? ` a ${dataBr(ate)}` : ''}`}
             </h2>
-            <b className="num">Pagos: {reais(pagos.reduce((a, p) => a + p.totalCentavos, 0))}</b>
+            <b className="num">Pagos: {reais(pagos.reduce((a, p) => a + p.liquidoCentavos, 0))}</b>
           </header>
           <div className="tabela-rolagem">
             <table className="tabela">
@@ -105,7 +105,7 @@ export default function Vendas() {
                     <td>{p.garcom}</td>
                     <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
                     <td className="direita num">
-                      {reais(p.totalCentavos)}
+                      {reais(p.liquidoCentavos)}
                       {p.divergenciaPreco && <div className="chip st-preparando">preço divergente</div>}
                     </td>
                     <td>

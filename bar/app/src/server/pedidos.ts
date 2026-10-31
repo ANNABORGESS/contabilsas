@@ -1,6 +1,7 @@
 // Pedidos pagos. A confirmação do pagamento grava, numa única transação, o pedido, os itens,
 // um preparo por setor e o evento. A chave de envio do celular torna a operação idempotente:
 // toque duplo, rede instável ou reenvio devolvem o mesmo pedido, nunca um segundo.
+import { nomeLocal } from '@/domain/mesas';
 import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
@@ -107,7 +108,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
       tipo: 'pagamento_confirmado',
       pedidoId: p.id,
       usuarioId: u.id,
-      descricao: `Pedido #${p.numero} · mesa ${mesa.numero}${cliente ? ` (${cliente})` : ''} · ${reais(p.totalCentavos)} no ${NOME_FORMA[forma]} confirmado por ${u.nome} (confirmação manual)`,
+      descricao: `Pedido #${p.numero} · ${nomeLocal(mesa.numero).toLowerCase()}${cliente ? ` (${cliente})` : ''} · ${reais(p.totalCentavos)} no ${NOME_FORMA[forma]} confirmado por ${u.nome} (confirmação manual)`,
       dados: { forma, totalCentavos: p.totalCentavos, chave },
     });
     for (const s of final.setores)
@@ -192,6 +193,7 @@ export async function listarPedidos(db: Db, f: FiltroPedidos) {
       garcomId: schema.pedidos.garcomId,
       garcom: schema.usuarios.nome,
       totalCentavos: schema.pedidos.totalCentavos,
+      itensCanceladosCentavos: schema.pedidos.itensCanceladosCentavos,
       formaPagamento: schema.pedidos.formaPagamento,
       pagoEm: schema.pedidos.pagoEm,
       dataOperacional: schema.pedidos.dataOperacional,
@@ -218,7 +220,11 @@ export async function listarPedidos(db: Db, f: FiltroPedidos) {
     const prs = preparos.filter((x) => x.pedidoId === p.id).sort((a, b) => a.setor.localeCompare(b.setor));
     return {
       ...p,
-      itens: itens.filter((i) => i.pedidoId === p.id).map((i) => ({ nome: i.nome, setor: i.setor, quantidade: i.quantidade, precoCentavos: i.precoCentavos, subtotalCentavos: i.subtotalCentavos })),
+      itens: itens
+        .filter((i) => i.pedidoId === p.id)
+        .map((i) => ({ id: i.id, nome: i.nome, setor: i.setor, quantidade: i.quantidade, precoCentavos: i.precoCentavos, subtotalCentavos: i.subtotalCentavos, balde: i.balde, quantidadeCancelada: i.quantidadeCancelada })),
+      /** o que vale depois dos itens cancelados um a um */
+      liquidoCentavos: p.totalCentavos - p.itensCanceladosCentavos,
       preparos: prs.map((x) => ({ id: x.id, setor: x.setor, status: x.status, criadoEm: x.criadoEm, prontoEm: x.prontoEm, entregueEm: x.entregueEm })),
       situacao: p.status === 'pago' ? situacaoPedido(prs.map((x) => ({ setor: x.setor as 'cozinha', status: x.status as StatusPreparo }))) : 'cancelado',
       solicitacaoPendente: comPendencia.has(p.id),

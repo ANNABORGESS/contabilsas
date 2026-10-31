@@ -4,7 +4,7 @@ import { beforeAll, describe, expect, it } from 'vitest';
 import { abrirPglite, schema, type Db } from '@/db';
 import type { Usuario } from './auth';
 import { atualizarFuncionario, criarFuncionario, listarEquipe, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto, criarProduto, excluirProduto, recusarConta, solicitarConta } from './cadastros';
-import { encerrar, recusar, solicitar, listarSolicitacoes } from './cancelamentos';
+import { cancelarItem, encerrar, recusar, solicitar, listarSolicitacoes } from './cancelamentos';
 import { confirmarPagamento, detalhePedido, listarPedidos, previa } from './pedidos';
 import { mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
 import { relatorio, mesasDoTurno } from './relatorios';
@@ -29,7 +29,7 @@ beforeAll(async () => {
   garcom = comoUsuario(await criarFuncionario(db, admin, { nome: 'Ana', usuario: 'ana', senha: '1111', papel: 'garcom' }));
   cozinha = comoUsuario(await criarFuncionario(db, admin, { nome: 'Cozinha', usuario: 'cozinha', senha: '2222', papel: 'cozinha' }));
   bar = comoUsuario(await criarFuncionario(db, admin, { nome: 'Bar', usuario: 'bar', senha: '3333', papel: 'bar' }));
-  mesa = (await listarMesas(db))[2].id;
+  mesa = (await listarMesas(db)).find((m) => m.numero === 3)!.id;
   const prods = await listarProdutos(db);
   batata = prods.find((p) => p.nome === 'Batata frita')!;
   chopp = prods.find((p) => p.nome === 'Chopp 300 ml')!;
@@ -43,8 +43,10 @@ const pedidoBase = () => ({
 });
 
 describe('fluxo do pedido pago', () => {
-  it('primeiro acesso cria administrador, mesas e cardápio', async () => {
-    expect(await listarMesas(db)).toHaveLength(5);
+  it('primeiro acesso cria administrador, mesas, balcão e cardápio', async () => {
+    const mesas = await listarMesas(db);
+    expect(mesas.map((m) => m.numero)).toEqual([0, 1, 2, 3, 4, 5]); // 0 = balcão
+    expect(mesas[0].nome).toBe('Balcão');
     expect((await listarProdutos(db)).length).toBeGreaterThan(5);
     await expect(primeiroAcesso(db, { nome: 'X', usuario: 'x', senha: '1234' })).rejects.toThrow(/já foi configurado/);
   });
@@ -235,6 +237,37 @@ describe('fluxo do pedido pago', () => {
     expect(bar).toMatchObject({ usuario: 'tela-bar', papel: 'bar', ativo: true });
     expect((await contaDaTela(db, 'cozinha')).id).toBe(coz.id); // não cria outra
     expect((await listarEquipe(db)).some((f) => f.usuario.startsWith('tela-'))).toBe(false);
+  });
+
+  it('cancelar item por item: só o administrador, desconta do pedido, tira do painel e encerra o pedido quando não sobra nada', async () => {
+    const { pedido } = await confirmarPagamento(db, garcom, {
+      chave: randomUUID(),
+      mesaId: mesa,
+      formaPagamento: 'credito',
+      itens: [
+        { produtoId: batata.id, quantidade: 2 },
+        { produtoId: chopp.id, quantidade: 3 },
+      ],
+    });
+    const p = pedido!;
+    const itemChopp = p.itens.find((i) => i.produtoId === chopp.id)!;
+    const itemBatata = p.itens.find((i) => i.produtoId === batata.id)!;
+    await expect(cancelarItem(db, garcom, p.id, itemChopp.id, 1, 'cliente desistiu')).rejects.toThrow(/administrador/);
+    await expect(cancelarItem(db, admin, p.id, itemChopp.id, 4, 'cliente desistiu')).rejects.toThrow(/de 1 a 3/);
+    expect(await cancelarItem(db, admin, p.id, itemChopp.id, 1, 'cliente desistiu')).toMatchObject({ cancelados: 1, valorCentavos: chopp.precoCentavos, tipo: 'cancelado' });
+    let lista = (await listarPedidos(db, {})).find((x) => x.id === p.id)!;
+    expect(lista.liquidoCentavos).toBe(p.totalCentavos - chopp.precoCentavos);
+    expect((await painelSetor(db, 'bar')).preparos.find((x) => x.pedidoId === p.id)!.itens).toEqual([{ nome: 'Chopp 300 ml', quantidade: 2, balde: null }]);
+    // o resto do chopp: o bar fica sem nada desse pedido
+    await cancelarItem(db, admin, p.id, itemChopp.id, 2, 'cliente desistiu');
+    expect((await painelSetor(db, 'bar')).preparos.some((x) => x.pedidoId === p.id)).toBe(false);
+    expect((await painelSetor(db, 'cozinha')).preparos.some((x) => x.pedidoId === p.id)).toBe(true);
+    await expect(cancelarItem(db, admin, p.id, itemChopp.id, 1, 'de novo')).rejects.toThrow(/todo cancelado/);
+    // sem nada valendo, o pedido inteiro fica cancelado
+    await cancelarItem(db, admin, p.id, itemBatata.id, 2, 'cozinha sem batata');
+    lista = (await listarPedidos(db, {})).find((x) => x.id === p.id)!;
+    expect(lista.status).toBe('cancelado');
+    expect(lista.liquidoCentavos).toBe(0);
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

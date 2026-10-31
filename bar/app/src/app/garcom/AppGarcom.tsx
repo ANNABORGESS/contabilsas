@@ -9,7 +9,7 @@ import { Aviso, BotaoSair, ChipPedido, ChipPreparo, ChipSituacao, Conexao, Modal
 import { FORMAS_PAGAMENTO, MAX_BALDE, NOME_FORMA, NOME_SETOR, agruparBaldes, textoItem, type FormaPagamento, type Setor } from '@/domain/pedido';
 import type { DetalhePedido, PedidoLista } from '@/server/pedidos';
 import { BuscaMesa } from '@/cliente/BuscaMesa';
-import { filtrarMesas, type FiltroMesa } from '@/domain/mesas';
+import { BALCAO, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas';
 
 interface Produto {
   id: string;
@@ -129,7 +129,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
     const meus = novos.filter((p) => p.garcomId === usuario.id);
     if (meus.length) {
       const p = meus[0];
-      setToast({ texto: `✅ Mesa ${p.mesa}${p.cliente ? ` (${p.cliente})` : ''}: ${p.setor === 'cozinha' ? 'petiscos' : 'bebidas'} do pedido #${p.numero} prontos${meus.length > 1 ? ` (+${meus.length - 1})` : ''}`, pedidoId: p.pedidoId });
+      setToast({ texto: `✅ ${nomeLocal(p.mesa)}${p.cliente ? ` (${p.cliente})` : ''}: ${p.setor === 'cozinha' ? 'petiscos' : 'bebidas'} do pedido #${p.numero} prontos${meus.length > 1 ? ` (+${meus.length - 1})` : ''}`, pedidoId: p.pedidoId });
       bipar(3);
     }
   }, [prontos.dados, usuario.id]);
@@ -176,7 +176,9 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
     ];
     const previa = await api<Previa>('/api/pedidos/previa', 'POST', { mesaId, itens });
     // sugere o nome do último cliente da mesa no turno; o garçom pode trocar ou apagar
-    setTentativa({ mesaId, chave: novaChave(), previa, forma: null, observacao: '', cliente: mesaPorId.get(mesaId)?.clientes[0] ?? '' });
+    // no balcão cada pedido é de um cliente diferente: o nome começa vazio
+    const sugestao = previa.mesa.numero === BALCAO ? '' : (mesaPorId.get(mesaId)?.clientes[0] ?? '');
+    setTentativa({ mesaId, chave: novaChave(), previa, forma: null, observacao: '', cliente: sugestao });
     setTela({ t: 'pagamento' });
   }
 
@@ -232,7 +234,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
               <div className="icone">✓</div>
               <h1>Pedido #{p.numero} registrado</h1>
               <p className="mudo">
-                Mesa {p.mesa}
+                {nomeLocal(p.mesa)}
                 {p.cliente && ` · ${p.cliente}`} · {reais(p.totalCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]}
               </p>
               {tela.duplicado && <Aviso tipo="info">Este pagamento já estava registrado. Nenhum pedido novo foi criado.</Aviso>}
@@ -246,7 +248,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
               <p className="fraco">Você será avisado aqui quando ficar pronto.</p>
             </div>
             <button className="btn primario grande bloco" onClick={() => setTela({ t: 'pedido', mesaId: p.mesaId })}>
-              Novo pedido na mesa {p.mesa}
+              Novo pedido: {nomeLocal(p.mesa).toLowerCase()}
             </button>
             <button className="btn grande bloco" onClick={() => setTela({ t: 'inicio' })}>
               Voltar às mesas
@@ -294,9 +296,9 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
                 {filtrarMesas(mesas.dados?.mesas || [], buscaMesa, filtroMesa).map((m) => {
                   const rascunho = Object.values(carrinhos[m.id] || {}).reduce((a, b) => a + b, 0) + (baldes[m.id] || []).length;
                   return (
-                    <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
-                      <span className="n">Mesa {m.numero}</span>
-                      {m.nome && <span className="fraco">{m.nome}</span>}
+                    <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''} ${m.numero === BALCAO ? 'balcao' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
+                      <span className="n">{nomeLocal(m.numero)}</span>
+                      {m.nome && m.numero !== BALCAO && <span className="fraco">{m.nome}</span>}
                       {m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
                       <span className="fraco num">{m.pedidos ? `${m.pedidos} pedido${m.pedidos > 1 ? 's' : ''} · ${reais(m.totalCentavos)}` : 'Livre'}</span>
                       <span className="marcas">
@@ -403,7 +405,7 @@ function TelaProdutos(props: {
             ‹
           </button>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>Mesa {props.mesaNumero ?? '…'}</div>
+            <div style={{ fontWeight: 800, fontSize: 18 }}>{props.mesaNumero === undefined ? '…' : nomeLocal(props.mesaNumero)}</div>
             <div className="fraco">{props.mesaInfo?.pedidos ? `${props.mesaInfo.pedidos} pedido(s) pago(s) no turno` : 'Novo pedido'}</div>
           </div>
         </div>
@@ -587,6 +589,8 @@ function MontarBalde({ numero, produtos, inicial, fechar, salvar }: { numero: nu
 
 function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: Tentativa; atualizar: (t: Tentativa) => void; voltar: () => void; enviado: (p: DetalhePedido, dup: boolean) => void }) {
   const { previa, forma } = tentativa;
+  const noBalcao = previa.mesa.numero === BALCAO;
+  const nomeOk = !!tentativa.cliente?.trim();
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const [erro, setErro] = useState('');
@@ -629,7 +633,7 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
             ‹
           </button>
           <div>
-            <div style={{ fontWeight: 800, fontSize: 18 }}>Mesa {previa.mesa.numero} · Pagamento</div>
+            <div style={{ fontWeight: 800, fontSize: 18 }}>{nomeLocal(previa.mesa.numero)} · Pagamento</div>
             <div className="fraco">Receba na maquininha e confirme aqui</div>
           </div>
         </div>
@@ -642,6 +646,18 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
           </div>
           <div className="total-grande">{reais(previa.totalCentavos)}</div>
         </div>
+        <label className={`campo nome-cliente ${noBalcao && !nomeOk ? 'pedindo' : ''}`}>
+          {noBalcao ? '👤 Nome do cliente (obrigatório no balcão, para chamar quando ficar pronto)' : '👤 Nome do cliente'}
+          <input
+            value={tentativa.cliente ?? ''}
+            maxLength={60}
+            placeholder="ex.: João, Mariana"
+            autoCapitalize="words"
+            autoFocus={noBalcao}
+            onChange={(e) => atualizar({ ...tentativa, cliente: e.target.value })}
+            disabled={enviando}
+          />
+        </label>
         <div className="cartao resumo-itens">
           {previa.linhas.map((l) => (
             <div key={`${l.produtoId}-${l.balde ?? ''}`}>
@@ -652,10 +668,6 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
             </div>
           ))}
         </div>
-        <label className="campo">
-          Nome do cliente (opcional)
-          <input value={tentativa.cliente ?? ''} maxLength={60} placeholder="ex.: João, Mariana" autoCapitalize="words" onChange={(e) => atualizar({ ...tentativa, cliente: e.target.value })} disabled={enviando} />
-        </label>
         <div>
           <div className="mudo" style={{ fontWeight: 700, marginBottom: 8 }}>
             Forma de pagamento informada
@@ -682,15 +694,15 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
       </main>
       <div className="barra-acao">
         <div>
-          <button className="btn sucesso grande bloco" disabled={!forma || enviando} onClick={() => setConfirmar(true)}>
-            {enviando ? 'Registrando…' : falhouRede ? 'Tentar de novo' : 'Pagamento confirmado'}
+          <button className="btn sucesso grande bloco" disabled={!forma || enviando || (noBalcao && !nomeOk)} onClick={() => setConfirmar(true)}>
+            {enviando ? 'Registrando…' : falhouRede ? 'Tentar de novo' : noBalcao && !nomeOk ? 'Escreva o nome do cliente' : 'Pagamento confirmado'}
           </button>
         </div>
       </div>
       {confirmar && forma && (
         <Modal titulo="A maquininha aprovou?" aoFechar={() => !enviando && setConfirmar(false)}>
           <p style={{ fontSize: 17 }}>
-            Confirme que o pagamento de <b>{reais(previa.totalCentavos)}</b> no <b>{NOME_FORMA[forma]}</b> foi aprovado para a mesa <b>{previa.mesa.numero}</b>
+            Confirme que o pagamento de <b>{reais(previa.totalCentavos)}</b> no <b>{NOME_FORMA[forma]}</b> foi aprovado para <b>{nomeLocal(previa.mesa.numero).toLowerCase()}</b>
             {tentativa.cliente?.trim() && (
               <>
                 {' '}
@@ -733,7 +745,7 @@ function ListaPedidos({ usuarioId, abrir }: { usuarioId: string; abrir: (id: str
         <button key={p.id} className="pedido-cartao" onClick={() => abrir(p.id)}>
           <div className="fila entre">
             <b>
-              #{p.numero} · Mesa {p.mesa}
+              #{p.numero} · {nomeLocal(p.mesa)}
               {p.cliente && ` · ${p.cliente}`}
             </b>
             {p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}
@@ -776,7 +788,7 @@ function ListaProntos({ prontos, usuarioId, abrir }: { prontos: Pronto[]; usuari
         <div key={p.id} className={`pedido-cartao ${p.garcomId === usuarioId ? 'destaque' : ''}`}>
           <div className="fila entre" onClick={() => abrir(p.pedidoId)}>
             <b style={{ fontSize: 18 }}>
-              Mesa {p.mesa} · {p.setor === 'cozinha' ? '🍟 Petiscos' : '🍺 Bebidas'}
+              {nomeLocal(p.mesa)} · {p.setor === 'cozinha' ? '🍟 Petiscos' : '🍺 Bebidas'}
             </b>
             {p.cliente && <span className="cliente-mesa">👤 {p.cliente}</span>}
             <span className="fraco">#{p.numero}</span>
@@ -805,7 +817,7 @@ function HistoricoMesa({ mesaId, fechar, abrir }: { mesaId: string; fechar: () =
   const { dados } = useDados<{ pedidos: PedidoLista[] }>(`/api/pedidos?mesa=${mesaId}`);
   const pagos = (dados?.pedidos || []).filter((p) => p.status === 'pago');
   return (
-    <Modal titulo={`Mesa ${dados?.pedidos[0]?.mesa ?? ''} · pedidos do turno`} aoFechar={fechar}>
+    <Modal titulo={`${dados?.pedidos[0] ? nomeLocal(dados.pedidos[0].mesa) : 'Mesa'} · pedidos do turno`} aoFechar={fechar}>
       <div className="fila entre">
         <span className="mudo">{pagos.length} pedido(s) pago(s)</span>
         <b className="num">{reais(pagos.reduce((a, p) => a + p.totalCentavos, 0))}</b>
@@ -861,7 +873,7 @@ function DetalhePedidoModal({ id, fechar, usuarioId }: { id: string; fechar: () 
   }
 
   return (
-    <Modal titulo={p ? `Pedido #${p.numero} · Mesa ${p.mesa}` : 'Pedido'} aoFechar={fechar}>
+    <Modal titulo={p ? `Pedido #${p.numero} · ${nomeLocal(p.mesa)}` : 'Pedido'} aoFechar={fechar}>
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       {p && (
         <>

@@ -1,4 +1,5 @@
 'use client';
+import { nomeLocal } from '@/domain/mesas';
 import { useState } from 'react';
 import { api, useDados } from '@/cliente/api';
 import { dataHora, reais } from '@/cliente/formato';
@@ -56,7 +57,7 @@ export default function Cancelamentos() {
             <div key={s.id} className="fila entre" style={{ padding: '12px 0', borderBottom: '1px solid var(--borda)' }}>
               <div>
                 <b>
-                  Pedido #{s.numero} · Mesa {s.mesa} · {reais(s.totalCentavos)} ({NOME_FORMA[s.formaPagamento as FormaPagamento]})
+                  Pedido #{s.numero} · {nomeLocal(s.mesa)} · {reais(s.totalCentavos)} ({NOME_FORMA[s.formaPagamento as FormaPagamento]})
                 </b>
                 <div className="mudo">
                   {s.solicitante} em {dataHora(s.criadoEm)}: “{s.motivo}”
@@ -96,7 +97,7 @@ export default function Cancelamentos() {
                 {decididas.map((s) => (
                   <tr key={s.id} className="clicavel" onClick={() => setAberto(s.pedidoId)}>
                     <td>
-                      #{s.numero} · mesa {s.mesa} · {reais(s.totalCentavos)}
+                      #{s.numero} · {nomeLocal(s.mesa).toLowerCase()} · {reais(s.totalCentavos)}
                     </td>
                     <td>{s.solicitante}</td>
                     <td>{s.motivo}</td>

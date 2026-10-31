@@ -1,4 +1,5 @@
 // Painéis da cozinha e do bar e o aviso de "pronto" para o garçom.
+import { nomeLocal } from '@/domain/mesas';
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
@@ -46,7 +47,7 @@ export async function painelSetor(db: Db, setor: Setor) {
   return {
     setor,
     agora: new Date(),
-    preparos: lista.map((p) => ({ ...p, itens: itens.filter((i) => i.pedidoId === p.pedidoId).map((i) => ({ nome: i.nome, quantidade: i.quantidade, balde: i.balde })) })),
+    preparos: lista.map((p) => ({ ...p, itens: itens.filter((i) => i.pedidoId === p.pedidoId).filter((i) => i.quantidade > i.quantidadeCancelada).map((i) => ({ nome: i.nome, quantidade: i.quantidade - i.quantidadeCancelada, balde: i.balde })) })),
     recentes,
   };
 }
@@ -81,7 +82,7 @@ export async function mudarStatus(db: Db, u: Usuario, preparoId: string, para: u
       tipo: `preparo_${para}`,
       pedidoId: atual.preparo.pedidoId,
       usuarioId: u.id,
-      descricao: `${NOME_SETOR[setor]}: pedido #${atual.numero} (mesa ${atual.mesa}) ${NOME_STATUS[para].toLowerCase()} por ${u.nome}`,
+      descricao: `${NOME_SETOR[setor]}: pedido #${atual.numero} (${nomeLocal(atual.mesa).toLowerCase()}) ${NOME_STATUS[para].toLowerCase()} por ${u.nome}`,
     });
   });
 }

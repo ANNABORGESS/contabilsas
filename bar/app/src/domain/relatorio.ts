@@ -8,11 +8,12 @@ export interface PedidoRel {
   mesa: number;
   garcom: string;
   totalCentavos: number;
+  itensCanceladosCentavos?: number; // itens cancelados um a um (já descontados do que vale)
   formaPagamento: string;
   status: string; // pago | cancelado | estornado
   hora: number; // hora local do pagamento
   divergenciaPreco: boolean;
-  itens: { nome: string; setor: string; quantidade: number; subtotalCentavos: number }[];
+  itens: { nome: string; setor: string; quantidade: number; subtotalCentavos: number; quantidadeCancelada?: number; precoCentavos?: number }[];
   preparos: { setor: string; criadoEm: Date; prontoEm: Date | null }[];
 }
 
@@ -36,10 +37,13 @@ const ordenar = (m: Map<string, Linha>) => [...m.values()].sort((a, b) => b.valo
 export function resumir(pedidos: PedidoRel[]) {
   const validos = pedidos.filter((p) => p.status === 'pago');
   const encerrados = pedidos.filter((p) => p.status !== 'pago');
+  // o que vale de cada pedido depois dos itens cancelados um a um
+  const vale = (p: PedidoRel) => p.totalCentavos - (p.itensCanceladosCentavos || 0);
   const bruto = pedidos.reduce((a, p) => a + p.totalCentavos, 0);
-  const cancelado = encerrados.filter((p) => p.status === 'cancelado').reduce((a, p) => a + p.totalCentavos, 0);
-  const estornado = encerrados.filter((p) => p.status === 'estornado').reduce((a, p) => a + p.totalCentavos, 0);
-  const liquido = bruto - cancelado - estornado;
+  const itensCancelados = pedidos.reduce((a, p) => a + (p.itensCanceladosCentavos || 0), 0);
+  const cancelado = encerrados.filter((p) => p.status === 'cancelado').reduce((a, p) => a + vale(p), 0);
+  const estornado = encerrados.filter((p) => p.status === 'estornado').reduce((a, p) => a + vale(p), 0);
+  const liquido = bruto - itensCancelados - cancelado - estornado;
 
   const porForma = new Map<string, Linha>();
   const porGarcom = new Map<string, Linha>();
@@ -47,15 +51,17 @@ export function resumir(pedidos: PedidoRel[]) {
   const porProduto = new Map<string, Linha & { setor: string }>();
   const porHora = new Map<string, Linha>();
   for (const p of validos) {
-    somar(porForma, p.formaPagamento, p.totalCentavos);
-    somar(porGarcom, p.garcom, p.totalCentavos);
-    somar(porMesa, String(p.mesa), p.totalCentavos);
-    somar(porHora, String(p.hora).padStart(2, '0'), p.totalCentavos);
+    somar(porForma, p.formaPagamento, vale(p));
+    somar(porGarcom, p.garcom, vale(p));
+    somar(porMesa, String(p.mesa), vale(p));
+    somar(porHora, String(p.hora).padStart(2, '0'), vale(p));
     for (const i of p.itens) {
+      const canc = i.quantidadeCancelada || 0;
+      if (canc >= i.quantidade) continue;
       const l = porProduto.get(i.nome) || { chave: i.nome, setor: i.setor, pedidos: 0, quantidade: 0, valorCentavos: 0 };
       l.pedidos += 1;
-      l.quantidade += i.quantidade;
-      l.valorCentavos += i.subtotalCentavos;
+      l.quantidade += i.quantidade - canc;
+      l.valorCentavos += i.subtotalCentavos - canc * (i.precoCentavos ?? i.subtotalCentavos / i.quantidade);
       porProduto.set(i.nome, l);
     }
   }
@@ -72,6 +78,7 @@ export function resumir(pedidos: PedidoRel[]) {
     encerrados: encerrados.length,
     brutoCentavos: bruto,
     canceladoCentavos: cancelado,
+    itensCanceladosCentavos: itensCancelados,
     estornadoCentavos: estornado,
     liquidoCentavos: liquido,
     ticketMedioCentavos: validos.length ? Math.round(liquido / validos.length) : 0,

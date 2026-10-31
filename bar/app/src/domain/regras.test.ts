@@ -174,6 +174,18 @@ describe('relatório', () => {
     expect(r.porProduto[0]).toMatchObject({ chave: 'Chopp', quantidade: 4 });
     expect(r.tempoMedioMin.bar).toBe(5);
   });
+  it('itens cancelados um a um saem do líquido, do produto e não contam em dobro se o pedido for cancelado depois', () => {
+    const r = resumir([
+      base({ id: 'a', totalCentavos: 1000, itensCanceladosCentavos: 500, itens: [{ nome: 'Chopp', setor: 'bar', quantidade: 2, subtotalCentavos: 1000, quantidadeCancelada: 1, precoCentavos: 500 }] }),
+      base({ id: 'b', status: 'cancelado', totalCentavos: 1000, itensCanceladosCentavos: 500 }),
+    ]);
+    expect(r.brutoCentavos).toBe(2000);
+    expect(r.itensCanceladosCentavos).toBe(1000);
+    expect(r.canceladoCentavos).toBe(500); // só o que ainda valia no pedido b
+    expect(r.liquidoCentavos).toBe(500);
+    expect(r.porProduto[0]).toMatchObject({ chave: 'Chopp', quantidade: 1, valorCentavos: 500 });
+    expect(r.porForma[0].valorCentavos).toBe(500);
+  });
   it('gera CSV que o Excel abre', () => {
     expect(csv([['a;b', 1], ['x"y', 2]])).toBe('﻿"a;b";1\r\n"x""y";2');
   });

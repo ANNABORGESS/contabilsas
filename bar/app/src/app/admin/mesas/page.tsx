@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { BuscaMesa } from '@/cliente/BuscaMesa';
-import { filtrarMesas, type FiltroMesa } from '@/domain/mesas';
+import { BALCAO, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas';
 import { api, useDados } from '@/cliente/api';
 import { dataBr, hora, reais } from '@/cliente/formato';
 import { Aviso, ChipPedido, ChipSituacao, Modal } from '@/cliente/ui';
@@ -46,9 +46,9 @@ export default function Mesas() {
       {dados && dados.mesas.length > 0 && <BuscaMesa busca={busca} setBusca={setBusca} filtro={filtro} setFiltro={setFiltro} total={dados.mesas.length} achadas={visiveis.length} />}
       <div className="mesas-grade" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
         {visiveis.map((m) => (
-          <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''}`} onClick={() => setHistorico(m)}>
-            <span className="n">Mesa {m.numero}</span>
-            {m.nome && <span className="fraco">{m.nome}</span>}
+          <button key={m.id} className={`mesa ${m.pedidos ? 'ocupada' : ''} ${m.numero === BALCAO ? 'balcao' : ''}`} onClick={() => setHistorico(m)}>
+            <span className="n">{nomeLocal(m.numero)}</span>
+            {m.nome && m.numero !== BALCAO && <span className="fraco">{m.nome}</span>}
             {m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
             <span className="num" style={{ fontWeight: 700 }}>
               {m.pedidos ? reais(m.totalCentavos) : 'Sem pedidos'}
@@ -74,11 +74,11 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
   const [aberto, setAberto] = useState<string | null>(null);
   const pagos = (dados?.pedidos || []).filter((p) => p.status === 'pago');
   return (
-    <Modal titulo={`Mesa ${mesa.numero} · histórico`} aoFechar={fechar} largura={720}>
+    <Modal titulo={`${nomeLocal(mesa.numero)} · histórico`} aoFechar={fechar} largura={720}>
       <div className="fila entre">
         <input type="date" value={data || dados?.de || ''} onChange={(e) => setData(e.target.value)} style={{ width: 170 }} />
         <b className="num">
-          {pagos.length} pago(s) · {reais(pagos.reduce((a, p) => a + p.totalCentavos, 0))}
+          {pagos.length} pago(s) · {reais(pagos.reduce((a, p) => a + p.liquidoCentavos, 0))}
         </b>
       </div>
       <table className="tabela">
@@ -104,7 +104,7 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
               </td>
               <td>{p.garcom}</td>
               <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
-              <td className="direita num">{reais(p.totalCentavos)}</td>
+              <td className="direita num">{reais(p.liquidoCentavos)}</td>
               <td>{p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}</td>
             </tr>
           ))}
@@ -171,7 +171,7 @@ function GerenciarMesas({ fechar }: { fechar: () => void }) {
           {filtrarMesas(dados?.mesas || [], busca).map((m) => (
             <tr key={m.id} className={m.ativa ? '' : 'apagado'}>
               <td>
-                <b>{m.numero}</b>
+                <b>{nomeLocal(m.numero)}</b>
               </td>
               <td>
                 <input defaultValue={m.nome || ''} placeholder="ex.: Varanda" onBlur={(e) => e.target.value !== (m.nome || '') && alterar(m.id, { nome: e.target.value })} />

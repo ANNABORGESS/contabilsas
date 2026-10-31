@@ -46,7 +46,7 @@ export default function VisaoGeral() {
             <div className="cartao kpi">
               <span className="rotulo">Cancelados / estornados</span>
               <span className="valor">{r.encerrados}</span>
-              <span className="det">{reais(r.canceladoCentavos + r.estornadoCentavos)}</span>
+              <span className="det">{reais(r.canceladoCentavos + r.estornadoCentavos + r.itensCanceladosCentavos)}</span>
             </div>
             <div className="cartao kpi">
               <span className="rotulo">Tempo médio até ficar pronto</span>
@@ -121,7 +121,7 @@ export default function VisaoGeral() {
                       </td>
                       <td>{p.garcom}</td>
                       <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
-                      <td className="direita num">{reais(p.totalCentavos)}</td>
+                      <td className="direita num">{reais(p.liquidoCentavos)}</td>
                       <td>{p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}</td>
                     </tr>
                   ))}

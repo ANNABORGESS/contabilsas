@@ -21,3 +21,11 @@ export function filtrarMesas<T extends { numero: number; nome?: string | null; c
   const t = semAcento(b);
   return porSituacao.filter((m) => semAcento(m.nome || '').includes(t) || (m.clientes || []).some((c) => semAcento(c).includes(t)));
 }
+
+/** O balcão é o "lugar" de número 0: pedido de quem não está sentado em mesa. */
+export const BALCAO = 0;
+
+/** "Balcão" ou "Mesa 12". */
+export function nomeLocal(numero: number) {
+  return numero === BALCAO ? 'Balcão' : `Mesa ${numero}`;
+}

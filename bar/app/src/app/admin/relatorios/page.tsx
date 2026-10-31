@@ -1,4 +1,5 @@
 'use client';
+import { nomeLocal } from '@/domain/mesas';
 import { useState } from 'react';
 import { useDados } from '@/cliente/api';
 import { dataBr, reais } from '@/cliente/formato';
@@ -66,9 +67,9 @@ export default function Relatorios() {
               </div>
               <div className="cartao kpi">
                 <span className="rotulo">Cancelado + estornado</span>
-                <span className="valor">{reais(r.canceladoCentavos + r.estornadoCentavos)}</span>
+                <span className="valor">{reais(r.canceladoCentavos + r.estornadoCentavos + r.itensCanceladosCentavos)}</span>
                 <span className="det">
-                  {reais(r.canceladoCentavos)} canc. · {reais(r.estornadoCentavos)} estorno
+                  {reais(r.canceladoCentavos)} canc. · {reais(r.estornadoCentavos)} estorno · {reais(r.itensCanceladosCentavos)} em itens
                 </span>
               </div>
               <div className="cartao kpi">
@@ -133,7 +134,7 @@ export default function Relatorios() {
                   </table>
                 </div>
               </div>
-              <Tabela titulo="Por mesa" linhas={r.porMesa} nome={(k) => `Mesa ${k}`} />
+              <Tabela titulo="Por mesa" linhas={r.porMesa} nome={(k) => nomeLocal(Number(k))} />
             </div>
             <AvisoConfirmacaoManual />
           </>
