@@ -115,3 +115,15 @@ describe('títulos gerados pela nota', () => {
     expect(titulosDaNota(n, 'saida')).toEqual([]);
   });
 });
+
+describe('vencimento escrito na nota', () => {
+  const semDup = (infCpl: string) => {
+    const n = nota('nfe-compra-sem-dup.xml');
+    return { ...n, parcelas: [], dados: { ...n.dados, emissao: '2026-10-14', condicao: '', infCpl } } as NotaFiscal;
+  };
+  it('usa a data de vencimento do texto e, sem ela, o prazo em dias', () => {
+    expect(titulosDaNota(semDup('COND. PGTO: 60 DIAS -(VENCIMENTO: 14/12/2026)- DEPOSITO'), 'saida')[0]).toMatchObject({ venc: '2026-12-14', vencEstimado: false });
+    expect(titulosDaNota(semDup('COND. PGTO: 45 DIAS'), 'saida')[0]).toMatchObject({ venc: addDias('2026-10-14', 45), vencEstimado: false });
+    expect(titulosDaNota(semDup('pedido 123'), 'saida')[0]).toMatchObject({ venc: '2026-11-13', vencEstimado: true });
+  });
+});
