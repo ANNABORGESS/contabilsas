@@ -2990,3 +2990,20 @@ html {
 .taxa-servico.ligada .caixinha {
   background: var(--marca);
 }
+/* forma de pagamento escolhida: bem visível no tema escuro */
+.garcom-viking .formas button.ativo,
+.garcom-viking .divisao button.ativo {
+  background: linear-gradient(180deg, #ffd166, #f5b82e 50%, #d38f14);
+  border: 2px solid #ffe08a;
+  color: #1a1008;
+  font-weight: 800;
+  box-shadow: 0 0 0 3px rgba(245, 184, 46, 0.3), 0 8px 22px rgba(245, 184, 46, 0.35);
+}
+.garcom-viking .formas button.ativo::before,
+.garcom-viking .divisao button.ativo::before {
+  content: '✓ ';
+}
+.garcom-viking .formas button:not(.ativo),
+.garcom-viking .divisao button:not(.ativo) {
+  opacity: 0.85;
+}
