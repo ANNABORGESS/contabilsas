@@ -525,6 +525,9 @@ function TelaProdutos(props: {
   const qtdTotal = itens.reduce((a, [, q]) => a + q, 0) + baldes.length;
   // estimativa na tela; o valor que vale é o da prévia, calculado no servidor com o horário de lá
   const total = itens.reduce((a, [id, q]) => a + precoComPromo(porId.get(id)!.precoCentavos, q, promoDe.get(id)), 0) + baldes.reduce((a, b) => a + somaBalde(b), 0);
+  const gratisTotal =
+    itens.reduce((a, [id, q]) => a + gratisDe(porId.get(id)!.precoCentavos, q, promoDe.get(id)), 0) +
+    baldes.reduce((a, b) => a + Object.entries(b).reduce((x, [id, q]) => x + gratisDe(porId.get(id)?.precoCentavos || 0, q, promoDe.get(id)), 0), 0);
 
   async function cobrar() {
     setIndo(true);
@@ -670,7 +673,7 @@ function TelaProdutos(props: {
                 </div>
                 {gratisDe(p.precoCentavos, q, promo) > 0 && (
                   <div className="gratis">
-                    🎁 {q - gratisDe(p.precoCentavos, q, promo)} paga(s) + {gratisDe(p.precoCentavos, q, promo)} grátis
+                    🎁 + {gratisDe(p.precoCentavos, q, promo)} grátis · leva {q}
                   </div>
                 )}
                 {promo && q % promo.quantidadeCombo !== 0 && (
@@ -691,7 +694,7 @@ function TelaProdutos(props: {
                     <button onClick={() => definir(p.id, Math.max(0, q - (promo && q >= promo.quantidadeCombo && q % promo.quantidadeCombo === 0 ? promo.quantidadeCombo : 1)))} aria-label={`Tirar um ${p.nome}`}>
                       −
                     </button>
-                    <span>{q}</span>
+                    <span>{q - gratisDe(p.precoCentavos, q, promo)}</span>
                   </>
                 )}
                 <button className="mais" disabled={!podeMais} onClick={() => definir(p.id, q + passo)} aria-label={`Adicionar ${p.nome}`}>
@@ -723,7 +726,10 @@ function TelaProdutos(props: {
       <div className="barra-acao">
         <div>
           <div style={{ flex: 1 }}>
-            <div className="fraco">{qtdTotal ? `${qtdTotal} ${qtdTotal > 1 ? 'itens' : 'item'}` : 'Nenhum item'}</div>
+            <div className="fraco">
+              {qtdTotal ? `${qtdTotal} ${qtdTotal > 1 ? 'itens' : 'item'}` : 'Nenhum item'}
+              {gratisTotal > 0 && <span className="gratis" style={{ marginLeft: 6 }}>🎁 {gratisTotal} grátis</span>}
+            </div>
             <div style={{ fontSize: 24, fontWeight: 900 }} className="num">
               {reais(total)}
             </div>
@@ -744,6 +750,7 @@ function MontarBalde({ numero, produtos, promocoes, disponivel, inicial, fechar,
   const n = Object.values(b).reduce((a, q) => a + q, 0);
   // combo da promoção também vale dentro do balde (ex.: 4 Original por R$ 28)
   const total = Object.entries(b).reduce((a, [id, q]) => a + precoComPromo(produtos.find((p) => p.id === id)?.precoCentavos || 0, q, promoDe.get(id)), 0);
+  const gratisBalde = Object.entries(b).reduce((a, [id, q]) => a + gratisDe(produtos.find((p) => p.id === id)?.precoCentavos || 0, q, promoDe.get(id)), 0);
   const mudar = (id: string, q: number) =>
     setB((atual) => {
       const novo = { ...atual };
@@ -779,7 +786,7 @@ function MontarBalde({ numero, produtos, promocoes, disponivel, inicial, fechar,
               </div>
               {gratisDe(p.precoCentavos, q, promo) > 0 && (
                 <div className="gratis">
-                  🎁 {q - gratisDe(p.precoCentavos, q, promo)} paga(s) + {gratisDe(p.precoCentavos, q, promo)} grátis
+                  🎁 + {gratisDe(p.precoCentavos, q, promo)} grátis · leva {q}
                 </div>
               )}
               {disponivel[p.id] !== Infinity && disponivel[p.id] - q <= ESTOQUE_BAIXO && (
@@ -792,7 +799,7 @@ function MontarBalde({ numero, produtos, promocoes, disponivel, inicial, fechar,
                   <button onClick={() => mudar(p.id, q - (promo && q >= promo.quantidadeCombo && q % promo.quantidadeCombo === 0 ? promo.quantidadeCombo : 1))} aria-label={`Tirar um ${p.nome}`}>
                     −
                   </button>
-                  <span>{q}</span>
+                  <span>{q - gratisDe(p.precoCentavos, q, promo)}</span>
                 </>
               )}
               <button className="mais" disabled={n >= MAX_BALDE || q >= disponivel[p.id]} onClick={() => mudar(p.id, q + passo)} aria-label={`Adicionar ${p.nome}`}>
@@ -803,7 +810,7 @@ function MontarBalde({ numero, produtos, promocoes, disponivel, inicial, fechar,
         );
       })}
       <button className="btn primario grande bloco" disabled={!n} onClick={() => salvar(b)}>
-        {n ? `Colocar no pedido · ${n} ${n === 1 ? 'cerveja' : 'cervejas'} · ${reais(total)}` : 'Escolha as cervejas'}
+        {n ? (gratisBalde ? `Colocar · ${n} (${gratisBalde} grátis) · ${reais(total)}` : `Colocar no pedido · ${n} ${n === 1 ? 'cerveja' : 'cervejas'} · ${reais(total)}`) : 'Escolha as cervejas'}
       </button>
     </Modal>
   );
