@@ -9,7 +9,7 @@ import { Aviso, BotaoSair, ChipPedido, ChipPreparo, ChipSituacao, Conexao, Modal
 import { FORMAS_PAGAMENTO, MAX_BALDE, NOME_FORMA, NOME_SETOR, agruparBaldes, textoItem, type FormaPagamento, type Setor } from '@/domain/pedido';
 import type { DetalhePedido, PedidoLista } from '@/server/pedidos';
 import { BuscaMesa } from '@/cliente/BuscaMesa';
-import { BALCAO, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas';
+import { BALCAO, ehBalcao, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas';
 import { ESTOQUE_BAIXO } from '@/domain/estoque';
 
 interface Produto {
@@ -301,9 +301,9 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
                 {filtrarMesas(mesas.dados?.mesas || [], buscaMesa, filtroMesa).map((m) => {
                   const rascunho = Object.values(carrinhos[m.id] || {}).reduce((a, b) => a + b, 0) + (baldes[m.id] || []).length;
                   return (
-                    <button key={m.id} className={`mesa ${m.abertos ? 'ocupada' : ''} ${m.numero === BALCAO ? 'balcao' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
+                    <button key={m.id} className={`mesa ${m.abertos ? 'ocupada' : ''} ${ehBalcao(m.numero) ? 'balcao' : ''} ${m.numero === BALCAO ? 'balcao-geral' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
                       <span className="n">{nomeLocal(m.numero)}</span>
-                      {m.nome && m.numero !== BALCAO && <span className="fraco">{m.nome}</span>}
+                      {m.nome && !ehBalcao(m.numero) && <span className="fraco">{m.nome}</span>}
                       {m.abertos > 0 && m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
                       <span className="fraco num">{m.abertos ? `Aberta · ${m.abertos} pedido${m.abertos > 1 ? 's' : ''} · ${reais(m.totalCentavos)}` : 'Livre'}</span>
                       <span className="marcas">
@@ -608,7 +608,7 @@ function MontarBalde({ numero, produtos, disponivel, inicial, fechar, salvar }: 
 
 function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: Tentativa; atualizar: (t: Tentativa) => void; voltar: () => void; enviado: (p: DetalhePedido, dup: boolean) => void }) {
   const { previa, forma } = tentativa;
-  const noBalcao = previa.mesa.numero === BALCAO;
+  const noBalcao = ehBalcao(previa.mesa.numero);
   const nomeOk = !!tentativa.cliente?.trim();
   const [confirmar, setConfirmar] = useState(false);
   const [enviando, setEnviando] = useState(false);

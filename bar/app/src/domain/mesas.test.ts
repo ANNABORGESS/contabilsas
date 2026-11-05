@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { filtrarMesas } from './mesas';
+import { filtrarMesas, nomeLocal, ordemLocal } from './mesas';
 
 const mesas = Array.from({ length: 200 }, (_, i) => ({ numero: i + 1, nome: i === 4 ? 'Varanda' : null, clientes: i === 11 ? ['João Gonçalves'] : [], pedidos: i % 3 === 0 ? 1 : 0 }));
 
@@ -23,5 +23,11 @@ describe('busca de mesa', () => {
     expect(filtrarMesas(mesas, '', 'com-pedido').every((m) => m.pedidos)).toBe(true);
     expect(filtrarMesas(mesas, '', 'livres').every((m) => !m.pedidos)).toBe(true);
     expect(filtrarMesas(mesas, '', 'todas')).toHaveLength(200);
+  });
+  it('nome e ordem do balcão: cadeiras primeiro, depois as mesas', () => {
+    expect(nomeLocal(0)).toBe('Balcão');
+    expect(nomeLocal(1003)).toBe('Balcão 3');
+    expect(nomeLocal(12)).toBe('Mesa 12');
+    expect([{ numero: 2 }, { numero: 1002 }, { numero: 1 }, { numero: 1001 }].sort(ordemLocal).map((m) => m.numero)).toEqual([1001, 1002, 1, 2]);
   });
 });

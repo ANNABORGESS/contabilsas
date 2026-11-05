@@ -1,7 +1,7 @@
 'use client';
 import { useState } from 'react';
 import { BuscaMesa } from '@/cliente/BuscaMesa';
-import { BALCAO, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas';
+import { BALCAO, INICIO_LUGARES_BALCAO, ehBalcao, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas';
 import { api, useDados } from '@/cliente/api';
 import { dataBr, hora, reais } from '@/cliente/formato';
 import { Aviso, ChipPedido, ChipSituacao, Modal } from '@/cliente/ui';
@@ -61,9 +61,9 @@ export default function Mesas() {
       {dados && dados.mesas.length > 0 && <BuscaMesa busca={busca} setBusca={setBusca} filtro={filtro} setFiltro={setFiltro} total={dados.mesas.length} achadas={visiveis.length} />}
       <div className="mesas-grade" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))' }}>
         {visiveis.map((m) => (
-          <button key={m.id} className={`mesa ${m.abertos ? 'ocupada' : ''} ${m.numero === BALCAO ? 'balcao' : ''}`} onClick={() => setHistorico(m)}>
+          <button key={m.id} className={`mesa ${m.abertos ? 'ocupada' : ''} ${ehBalcao(m.numero) ? 'balcao' : ''} ${m.numero === BALCAO ? 'balcao-geral' : ''}`} onClick={() => setHistorico(m)}>
             <span className="n">{nomeLocal(m.numero)}</span>
-            {m.nome && m.numero !== BALCAO && <span className="fraco">{m.nome}</span>}
+            {m.nome && !ehBalcao(m.numero) && <span className="fraco">{m.nome}</span>}
             {m.clientes.length > 0 && <span className="cliente-mesa">👤 {m.clientes.join(', ')}</span>}
             {m.abertos > 0 && (
               <span className="num" style={{ fontWeight: 700 }}>
@@ -194,6 +194,17 @@ function GerenciarMesas({ fechar }: { fechar: () => void }) {
   const [ate, setAte] = useState('');
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [busca, setBusca] = useState('');
+  const cadeirasAtuais = (dados?.mesas || []).filter((m) => m.numero > INICIO_LUGARES_BALCAO && m.ativa).length;
+  const [cadeiras, setCadeiras] = useState('');
+  async function salvarCadeiras() {
+    try {
+      const r = await api<{ cadeiras: number }>('/api/mesas/balcao', 'POST', { cadeiras: Number(cadeiras) });
+      setMsg({ tipo: 'ok', texto: r.cadeiras ? `Balcão com ${r.cadeiras} cadeira(s): Balcão 1 a Balcão ${r.cadeiras}.` : 'Balcão sem cadeiras: volta o balcão geral.' });
+      setCadeiras('');
+    } catch (e) {
+      setMsg({ tipo: 'erro', texto: (e as Error).message });
+    }
+  }
   async function criar(a = Number(de), b = Number(ate || de)) {
     try {
       const r = await api<{ criadas: number }>('/api/mesas', 'POST', { de: a, ate: b });
@@ -227,6 +238,15 @@ function GerenciarMesas({ fechar }: { fechar: () => void }) {
         </button>
         <button className="btn" onClick={() => criar(1, 200)}>
           Criar 1 a 200
+        </button>
+      </div>
+      <div className="linha-campos" style={{ marginTop: 12 }}>
+        <label className="campo">
+          🍺 Cadeiras no balcão (hoje: {cadeirasAtuais})
+          <input type="number" min={0} max={30} placeholder={String(cadeirasAtuais)} value={cadeiras} onChange={(e) => setCadeiras(e.target.value)} />
+        </label>
+        <button className="btn" disabled={cadeiras === ''} onClick={salvarCadeiras}>
+          Salvar cadeiras
         </button>
       </div>
       <input type="search" placeholder="🔍 Buscar mesa: número ou apelido" value={busca} onChange={(e) => setBusca(e.target.value)} style={{ margin: '12px 0' }} />

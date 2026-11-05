@@ -24,10 +24,24 @@ export function filtrarMesas<T extends { numero: number; nome?: string | null; c
   return porSituacao.filter((m) => semAcento(m.nome || '').includes(t) || (m.clientes || []).some((c) => semAcento(c).includes(t)));
 }
 
-/** O balcão é o "lugar" de número 0: pedido de quem não está sentado em mesa. */
+/** O balcão geral (em pé ou para levar) é o número 0. */
 export const BALCAO = 0;
+/** As cadeiras do balcão são os números 1001, 1002... (Balcão 1, Balcão 2...). */
+export const INICIO_LUGARES_BALCAO = 1000;
+export const MAX_LUGARES_BALCAO = 30;
 
-/** "Balcão" ou "Mesa 12". */
+export const ehBalcao = (numero: number) => numero === BALCAO || numero > INICIO_LUGARES_BALCAO;
+
+/** "Balcão", "Balcão 3" ou "Mesa 12". */
 export function nomeLocal(numero: number) {
-  return numero === BALCAO ? 'Balcão' : `Mesa ${numero}`;
+  if (numero === BALCAO) return 'Balcão';
+  if (numero > INICIO_LUGARES_BALCAO) return `Balcão ${numero - INICIO_LUGARES_BALCAO}`;
+  return `Mesa ${numero}`;
+}
+
+/** Ordem da tela: balcão primeiro (geral e depois as cadeiras), depois as mesas. */
+export function ordemLocal(a: { numero: number }, b: { numero: number }) {
+  const ga = ehBalcao(a.numero) ? 0 : 1;
+  const gb = ehBalcao(b.numero) ? 0 : 1;
+  return ga - gb || a.numero - b.numero;
 }

@@ -2354,8 +2354,10 @@ html {
 }
 
 /* balcão: primeiro da lista e ocupa duas colunas */
-.mesa.balcao {
+.mesa.balcao-geral {
   grid-column: span 2;
+}
+.mesa.balcao {
   background: linear-gradient(120deg, rgba(20, 18, 16, 0.92), rgba(70, 45, 20, 0.88));
   color: #fff;
   border-color: rgba(20, 18, 16, 0.6);
@@ -2435,4 +2437,10 @@ html {
   color: var(--vermelho);
   font-weight: 600;
   font-size: 13px;
+}
+/* cadeira do balcão com conta aberta: borda e brilho amarelos */
+.mesa.balcao.ocupada {
+  border: 2px solid var(--marca);
+  box-shadow: 0 0 0 4px var(--marca-suave), var(--sombra);
+  background: linear-gradient(120deg, rgba(40, 30, 10, 0.95), rgba(120, 80, 10, 0.9));
 }

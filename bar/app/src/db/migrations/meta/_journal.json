@@ -78,6 +78,13 @@
       "when": 1793882077851,
       "tag": "0010_estoque",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1793883090709,
+      "tag": "0011_cadeiras_balcao",
+      "breakpoints": true
     }
   ]
 }

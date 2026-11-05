@@ -3,7 +3,7 @@ import { randomUUID } from 'node:crypto';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { abrirPglite, schema, type Db } from '@/db';
 import type { Usuario } from './auth';
-import { atualizarFuncionario, criarFuncionario, listarEquipe, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto, criarProduto, excluirProduto, recusarConta, solicitarConta } from './cadastros';
+import { definirLugaresBalcao, atualizarFuncionario, criarFuncionario, listarEquipe, listarMesas, listarProdutos, primeiroAcesso, atualizarProduto, criarProduto, excluirProduto, recusarConta, solicitarConta } from './cadastros';
 import { cancelarItem, encerrar, recusar, solicitar, listarSolicitacoes } from './cancelamentos';
 import { confirmarPagamento, detalhePedido, listarPedidos, previa } from './pedidos';
 import { finalizarMesa, finalizarPedido, mudarStatus, painelSetor, prontosParaEntrega } from './preparo';
@@ -46,8 +46,10 @@ const pedidoBase = () => ({
 describe('fluxo do pedido pago', () => {
   it('primeiro acesso cria administrador, mesas, balcão e cardápio', async () => {
     const mesas = await listarMesas(db);
-    expect(mesas.map((m) => m.numero)).toEqual([0, 1, 2, 3, 4, 5]); // 0 = balcão
-    expect(mesas[0].nome).toBe('Balcão');
+    // balcão com 10 cadeiras primeiro (1001 = Balcão 1), depois as mesas; o balcão geral (0) fica guardado
+    expect(mesas.map((m) => m.numero)).toEqual([...Array.from({ length: 10 }, (_, i) => 1001 + i), 1, 2, 3, 4, 5]);
+    expect(mesas[0].nome).toBe('Balcão 1');
+    expect((await listarMesas(db, true)).find((m) => m.numero === 0)).toMatchObject({ nome: 'Balcão', ativa: false });
     expect((await listarProdutos(db)).length).toBeGreaterThan(5);
     await expect(primeiroAcesso(db, { nome: 'X', usuario: 'x', senha: '1234' })).rejects.toThrow(/já foi configurado/);
   });
@@ -318,6 +320,20 @@ describe('fluxo do pedido pago', () => {
     expect(await est()).toBeNull();
     // sem controle, vende à vontade
     expect((await previa(db, { mesaId: mesa, itens: [{ produtoId: lata.id, quantidade: 50 }] })).totalCentavos).toBe(50 * lata.precoCentavos);
+  });
+
+  it('cadeiras do balcão: o administrador define quantas; sem cadeiras volta o balcão geral', async () => {
+    await expect(definirLugaresBalcao(db, garcom, 4)).rejects.toThrow();
+    await definirLugaresBalcao(db, admin, 4);
+    let ativas = (await listarMesas(db)).map((m) => m.numero);
+    expect(ativas.filter((n) => n > 1000)).toEqual([1001, 1002, 1003, 1004]);
+    expect(ativas.includes(0)).toBe(false);
+    await definirLugaresBalcao(db, admin, 0);
+    ativas = (await listarMesas(db)).map((m) => m.numero);
+    expect(ativas[0]).toBe(0);
+    expect(ativas.some((n) => n > 1000)).toBe(false);
+    await definirLugaresBalcao(db, admin, 10);
+    expect((await listarMesas(db)).filter((m) => m.numero > 1000)).toHaveLength(10);
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

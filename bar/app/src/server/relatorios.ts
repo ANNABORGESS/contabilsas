@@ -4,6 +4,7 @@ import type { Db } from '@/db';
 import { schema } from '@/db';
 import { resumir, type PedidoRel } from '@/domain/relatorio';
 import { horaLocal } from '@/domain/turno';
+import { ordemLocal } from '@/domain/mesas';
 import { FUSO } from './config';
 import { listarPedidos, type PedidoLista } from './pedidos';
 
@@ -48,7 +49,7 @@ export async function mesasDoTurno(db: Db, data: string) {
     return r;
   };
   return {
-    mesas: mesas.map((m) => {
+    mesas: [...mesas].sort(ordemLocal).map((m) => {
       const conta = abertos.filter((p) => p.mesaId === m.id);
       const prs = conta.flatMap((p) => p.preparos);
       return {

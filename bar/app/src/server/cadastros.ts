@@ -1,5 +1,6 @@
 // Mesas, cardápio e equipe (administração) e o primeiro acesso.
-import { and, asc, eq, ne, notLike, sql } from 'drizzle-orm';
+import { BALCAO, INICIO_LUGARES_BALCAO, MAX_LUGARES_BALCAO, nomeLocal, ordemLocal } from '@/domain/mesas';
+import { and, asc, eq, gt, lte, ne, notLike, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
@@ -16,7 +17,26 @@ const texto = (v: unknown, max = 120) => (typeof v === 'string' ? v.trim().slice
 // ---------- mesas ----------
 
 export async function listarMesas(db: Db, todas = false) {
-  return db.select().from(schema.mesas).where(todas ? undefined : eq(schema.mesas.ativa, true)).orderBy(asc(schema.mesas.numero));
+  const lista = await db.select().from(schema.mesas).where(todas ? undefined : eq(schema.mesas.ativa, true)).orderBy(asc(schema.mesas.numero));
+  return lista.sort(ordemLocal);
+}
+
+/**
+ * Cadeiras do balcão: deixa ativas Balcão 1 até Balcão n (cria as que faltam) e desativa as de
+ * cima. As cadeiras desativadas guardam o histórico. Com cadeiras, o balcão geral sai da tela.
+ */
+export async function definirLugaresBalcao(db: Db, u: Usuario, quantidade: unknown) {
+  if (u.papel !== 'admin') throw new ErroRegra('Só o administrador muda as cadeiras do balcão.', 403);
+  const n = Number(quantidade);
+  if (!Number.isInteger(n) || n < 0 || n > MAX_LUGARES_BALCAO) throw new ErroRegra(`Informe de 0 a ${MAX_LUGARES_BALCAO} cadeiras.`);
+  const numeros = Array.from({ length: n }, (_, i) => INICIO_LUGARES_BALCAO + i + 1);
+  if (n) await db.insert(schema.mesas).values(numeros.map((numero) => ({ numero, nome: nomeLocal(numero) }))).onConflictDoNothing({ target: schema.mesas.numero });
+  await db.update(schema.mesas).set({ ativa: true }).where(and(gt(schema.mesas.numero, INICIO_LUGARES_BALCAO), lte(schema.mesas.numero, INICIO_LUGARES_BALCAO + n)));
+  await db.update(schema.mesas).set({ ativa: false }).where(gt(schema.mesas.numero, INICIO_LUGARES_BALCAO + n));
+  // sem cadeiras, volta o balcão geral; com cadeiras, ele sai da tela (histórico guardado)
+  await db.update(schema.mesas).set({ ativa: n === 0 }).where(eq(schema.mesas.numero, BALCAO));
+  await registrar(db, { tipo: 'mesa_alterada', usuarioId: u.id, descricao: `${u.nome} definiu ${n} cadeira(s) no balcão` });
+  return { cadeiras: n };
 }
 
 export async function criarMesas(db: Db, u: Usuario, de: unknown, ate: unknown) {
