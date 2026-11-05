@@ -3007,3 +3007,26 @@ html {
 .garcom-viking .divisao button:not(.ativo) {
   opacity: 0.85;
 }
+/* combo da promoção dentro do cartão do balde */
+.balde-combo {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 10px;
+  padding: 10px 12px;
+  border-radius: 14px;
+  border: 1px solid var(--marca);
+  background: color-mix(in srgb, var(--marca) 16%, transparent);
+}
+.gratis {
+  display: inline-block;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(63, 212, 127, 0.16);
+  border: 1px solid rgba(63, 212, 127, 0.5);
+  color: #9ff0c2;
+  font-size: 12px;
+  font-weight: 700;
+}

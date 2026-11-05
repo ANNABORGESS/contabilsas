@@ -110,6 +110,14 @@ interface PromoAgora {
 /** Preço de q unidades com a promoção valendo: cada combo pelo preço dele, o resto no normal. */
 const precoComPromo = (preco: number, q: number, promo?: PromoAgora) => (promo ? Math.floor(q / promo.quantidadeCombo) * promo.precoComboCentavos + (q % promo.quantidadeCombo) * preco : preco * q);
 
+/** Quantas das q unidades saem de graça na promoção (2 por R$ 14 com a Original a R$ 14: 1 grátis a cada 2). */
+const gratisDe = (preco: number, q: number, promo?: PromoAgora) => {
+  if (!promo || preco <= 0) return 0;
+  const combos = Math.floor(q / promo.quantidadeCombo);
+  const pagas = (combos * promo.precoComboCentavos) / preco;
+  return Number.isInteger(pagas) ? combos * promo.quantidadeCombo - pagas : 0;
+};
+
 /** Faixa no topo: "🔥 Original em dobro até as 20h · termina em 1h 23min". Some sozinha no fim. */
 function FaixaPromocoes({ promocoes }: { promocoes: PromoAgora[] }) {
   const agora = useAgora(15000);
@@ -493,6 +501,7 @@ function TelaProdutos(props: {
   const { produtos, carrinho, definir, baldes } = props;
   const [filtro, setFiltro] = useState<string>('todos');
   const [editandoBalde, setEditandoBalde] = useState<number | null>(null); // índice; baldes.length = novo
+  const [baldeInicial, setBaldeInicial] = useState<Balde | null>(null); // balde novo já com o combo
   const deBalde = produtos.filter((p) => p.balde);
   // quanto deste produto já está no rascunho (solto e nos baldes), para não passar do estoque
   const noRascunho = (id: string, exceto?: number) => (carrinho[id] || 0) + baldes.reduce((a, b, i) => a + (i === exceto ? 0 : b[id] || 0), 0);
@@ -577,10 +586,44 @@ function TelaProdutos(props: {
                 <div style={{ fontWeight: 700 }}>🪣 Balde de cerveja</div>
                 <div className="fraco">Até {MAX_BALDE} cervejas pequenas por balde, pode misturar</div>
               </div>
-              <button className="btn primario" onClick={() => setEditandoBalde(baldes.length)}>
+              <button
+                className="btn primario"
+                onClick={() => {
+                  setBaldeInicial(null);
+                  setEditandoBalde(baldes.length);
+                }}
+              >
                 + Montar balde
               </button>
             </div>
+            {props.promocoes
+              .filter((x) => deBalde.some((p) => p.id === x.produtoId) && x.quantidadeCombo <= MAX_BALDE)
+              .map((x) => {
+                const p = deBalde.find((d) => d.id === x.produtoId)!;
+                const cabe = sobra(p) >= x.quantidadeCombo;
+                return (
+                  <div key={x.id} className="balde-combo">
+                    <div>
+                      <b>🔥 {x.nome}</b>
+                      <div className="fraco">
+                        {gratisDe(p.precoCentavos, x.quantidadeCombo, x) > 0
+                          ? `Cada ${p.nome} paga ganha ${gratisDe(p.precoCentavos, x.quantidadeCombo, x) === 1 ? 'outra' : `mais ${gratisDe(p.precoCentavos, x.quantidadeCombo, x)}`} · até ${x.fim}`
+                          : `${x.quantidadeCombo} ${p.nome} por ${reais(x.precoComboCentavos)} · até ${x.fim}`}
+                      </div>
+                    </div>
+                    <button
+                      className="btn primario"
+                      disabled={!cabe}
+                      onClick={() => {
+                        setBaldeInicial({ [p.id]: x.quantidadeCombo });
+                        setEditandoBalde(baldes.length);
+                      }}
+                    >
+                      {cabe ? '+ Balde com combo' : 'Sem estoque'}
+                    </button>
+                  </div>
+                );
+              })}
             {baldes.map((b, i) => (
               <div key={i} className="balde-linha">
                 <div>
@@ -625,6 +668,11 @@ function TelaProdutos(props: {
                   {reais(p.precoCentavos)} · {p.setor === 'cozinha' ? 'Cozinha' : 'Bar'}
                   {promo && q > 0 && <> · {reais(precoComPromo(p.precoCentavos, q, promo))} por {q}</>}
                 </div>
+                {gratisDe(p.precoCentavos, q, promo) > 0 && (
+                  <div className="gratis">
+                    🎁 {q - gratisDe(p.precoCentavos, q, promo)} paga(s) + {gratisDe(p.precoCentavos, q, promo)} grátis
+                  </div>
+                )}
                 {promo && q % promo.quantidadeCombo !== 0 && (
                   <div className="restam">
                     {q % promo.quantidadeCombo} fora do combo de {promo.quantidadeCombo}: {q % promo.quantidadeCombo === 1 ? 'sai' : 'saem'} no preço normal
@@ -647,7 +695,7 @@ function TelaProdutos(props: {
                   </>
                 )}
                 <button className="mais" disabled={!podeMais} onClick={() => definir(p.id, q + passo)} aria-label={`Adicionar ${p.nome}`}>
-                  {passo > 1 ? `+${passo}` : '+'}
+                  {passo > 1 && gratisDe(p.precoCentavos, passo, promo) === 0 ? `+${passo}` : '+'}
                 </button>
               </div>
             </div>
@@ -660,8 +708,9 @@ function TelaProdutos(props: {
         <MontarBalde
           numero={editandoBalde + 1}
           produtos={deBalde}
+          promocoes={props.promocoes}
           disponivel={Object.fromEntries(deBalde.map((p) => [p.id, sobra(p, editandoBalde)]))}
-          inicial={baldes[editandoBalde] || {}}
+          inicial={baldes[editandoBalde] || baldeInicial || {}}
           fechar={() => setEditandoBalde(null)}
           salvar={(b) => {
             const lista = [...baldes];
@@ -689,10 +738,12 @@ function TelaProdutos(props: {
 }
 
 /** Escolhe as cervejas de um balde: até MAX_BALDE no total, pode misturar marcas. */
-function MontarBalde({ numero, produtos, disponivel, inicial, fechar, salvar }: { numero: number; produtos: Produto[]; disponivel: Record<string, number>; inicial: Balde; fechar: () => void; salvar: (b: Balde) => void }) {
+function MontarBalde({ numero, produtos, promocoes, disponivel, inicial, fechar, salvar }: { numero: number; produtos: Produto[]; promocoes: PromoAgora[]; disponivel: Record<string, number>; inicial: Balde; fechar: () => void; salvar: (b: Balde) => void }) {
   const [b, setB] = useState<Balde>(inicial);
+  const promoDe = new Map(promocoes.map((x) => [x.produtoId, x]));
   const n = Object.values(b).reduce((a, q) => a + q, 0);
-  const total = Object.entries(b).reduce((a, [id, q]) => a + (produtos.find((p) => p.id === id)?.precoCentavos || 0) * q, 0);
+  // combo da promoção também vale dentro do balde (ex.: 4 Original por R$ 28)
+  const total = Object.entries(b).reduce((a, [id, q]) => a + precoComPromo(produtos.find((p) => p.id === id)?.precoCentavos || 0, q, promoDe.get(id)), 0);
   const mudar = (id: string, q: number) =>
     setB((atual) => {
       const novo = { ...atual };
@@ -710,11 +761,27 @@ function MontarBalde({ numero, produtos, disponivel, inicial, fechar, salvar }: 
       </div>
       {produtos.map((p) => {
         const q = b[p.id] || 0;
+        const promo = promoDe.get(p.id);
+        // na promoção, cada toque soma o combo inteiro se couber no balde e no estoque
+        const passo = promo && n + promo.quantidadeCombo <= MAX_BALDE && q + promo.quantidadeCombo <= disponivel[p.id] ? promo.quantidadeCombo : 1;
         return (
-          <div key={p.id} className={`produto ${q ? 'escolhido' : ''}`}>
-            <div className="info" onClick={() => n < MAX_BALDE && q < disponivel[p.id] && mudar(p.id, q + 1)}>
+          <div key={p.id} className={`produto ${q ? 'escolhido' : ''} ${promo ? 'em-promo' : ''}`}>
+            <div className="info" onClick={() => n < MAX_BALDE && q < disponivel[p.id] && mudar(p.id, q + passo)}>
               <div className="nome">{p.nome}</div>
-              <div className="preco">{reais(p.precoCentavos)} cada</div>
+              {promo && (
+                <div className="selo-promo">
+                  🔥 {promo.quantidadeCombo} por {reais(promo.precoComboCentavos)} até {promo.fim}
+                </div>
+              )}
+              <div className="preco">
+                {reais(p.precoCentavos)} cada
+                {promo && q > 0 && <> · {reais(precoComPromo(p.precoCentavos, q, promo))} por {q}</>}
+              </div>
+              {gratisDe(p.precoCentavos, q, promo) > 0 && (
+                <div className="gratis">
+                  🎁 {q - gratisDe(p.precoCentavos, q, promo)} paga(s) + {gratisDe(p.precoCentavos, q, promo)} grátis
+                </div>
+              )}
               {disponivel[p.id] !== Infinity && disponivel[p.id] - q <= ESTOQUE_BAIXO && (
                 <div className="restam">{disponivel[p.id] - q <= 0 ? 'Sem mais no estoque' : `Restam ${disponivel[p.id] - q}`}</div>
               )}
@@ -722,14 +789,14 @@ function MontarBalde({ numero, produtos, disponivel, inicial, fechar, salvar }: 
             <div className="qtd">
               {q > 0 && (
                 <>
-                  <button onClick={() => mudar(p.id, q - 1)} aria-label={`Tirar um ${p.nome}`}>
+                  <button onClick={() => mudar(p.id, q - (promo && q >= promo.quantidadeCombo && q % promo.quantidadeCombo === 0 ? promo.quantidadeCombo : 1))} aria-label={`Tirar um ${p.nome}`}>
                     −
                   </button>
                   <span>{q}</span>
                 </>
               )}
-              <button className="mais" disabled={n >= MAX_BALDE || q >= disponivel[p.id]} onClick={() => mudar(p.id, q + 1)} aria-label={`Adicionar ${p.nome}`}>
-                +
+              <button className="mais" disabled={n >= MAX_BALDE || q >= disponivel[p.id]} onClick={() => mudar(p.id, q + passo)} aria-label={`Adicionar ${p.nome}`}>
+                {passo > 1 && gratisDe(p.precoCentavos, passo, promo) === 0 ? `+${passo}` : '+'}
               </button>
             </div>
           </div>
