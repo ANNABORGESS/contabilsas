@@ -9,6 +9,7 @@ import { paraCentavos } from '@/domain/dinheiro';
 import { NOME_TIPO_CAIXA, conferirCaixa, type TipoCaixa } from '@/domain/pagamento';
 import { FORMAS_PAGAMENTO, NOME_FORMA, type FormaPagamento } from '@/domain/pedido';
 import { Cabecalho, EstornosPendentes } from '../comum';
+import { nomeLocal } from '@/domain/mesas';
 
 interface Fechamento {
   data: string;
@@ -27,8 +28,20 @@ interface Movimento {
   criadoEm: string;
   usuario: string | null;
 }
+interface MesaCaixa {
+  mesa: number;
+  pedidos: number;
+  totalCentavos: number;
+  taxaCentavos: number;
+  clientes: string[];
+  porForma: Record<string, number>;
+}
 interface Dados {
   data: string;
+  porMesa: MesaCaixa[];
+  hoje: string;
+  /** último turno com vendas que ainda não foi fechado */
+  semFechar: string | null;
   movimentos: Movimento[];
   aberto: boolean;
   fundoCentavos: number;
@@ -97,6 +110,16 @@ export default function Caixa() {
           Imprimir
         </button>
       </Cabecalho>
+      {dados && dados.semFechar && dados.semFechar !== dados.data && (
+        <div className="cartao fila entre" style={{ marginBottom: 14, borderColor: 'var(--marca)' }}>
+          <span>
+            {dados.pedidos === 0 ? 'Este turno ainda não tem vendas. ' : ''}O turno de <b>{dataBr(dados.semFechar)}</b> tem vendas e o caixa ainda não foi fechado.
+          </span>
+          <button className="btn primario" onClick={() => setData(dados.semFechar!)}>
+            Abrir o turno de {dataBr(dados.semFechar)}
+          </button>
+        </div>
+      )}
       {(erro || msg) && <Aviso tipo={msg?.tipo === 'ok' ? 'ok' : 'erro'}>{msg?.texto || erro}</Aviso>}
       {dados?.fechamento && (
         <Aviso tipo="info">
@@ -215,6 +238,60 @@ export default function Caixa() {
           <p className="fraco" style={{ marginTop: 8 }}>
             O sistema já desconta cancelamentos, estornos e itens cancelados. Conta dividida entra em cada forma pelo valor de cada parte. Até fechar, os valores são os{' '}
             <b>informados pelos garçons</b>; depois de fechado, o turno fica como <b>conferido no fechamento</b>, com o que foi contado e o relatório da maquininha.
+          </p>
+        </div>
+      )}
+      {dados && (
+        <div className="cartao" style={{ marginTop: 14 }}>
+          <header>
+            <h2>O que cada mesa lançou no turno</h2>
+            <span className="fraco">
+              {dados.porMesa.length} mesa(s)/lugar(es) · {reais(dados.porMesa.reduce((a, m) => a + m.totalCentavos, 0))}
+            </span>
+          </header>
+          {dados.porMesa.length ? (
+            <div className="tabela-rolagem">
+              <table className="tabela">
+                <thead>
+                  <tr>
+                    <th>Mesa</th>
+                    <th className="direita">Pedidos</th>
+                    {FORMAS_PAGAMENTO.map((f) => (
+                      <th key={f} className="direita">
+                        {NOME_FORMA[f]}
+                      </th>
+                    ))}
+                    <th className="direita">10% garçom</th>
+                    <th className="direita">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {dados.porMesa.map((m) => (
+                    <tr key={m.mesa}>
+                      <td>
+                        <b>{nomeLocal(m.mesa)}</b>
+                        {m.clientes.length > 0 && <div className="fraco">{m.clientes.join(', ')}</div>}
+                      </td>
+                      <td className="direita num">{m.pedidos}</td>
+                      {FORMAS_PAGAMENTO.map((f) => (
+                        <td key={f} className="direita num">
+                          {m.porForma[f] ? reais(m.porForma[f]) : '—'}
+                        </td>
+                      ))}
+                      <td className="direita num">{m.taxaCentavos ? reais(m.taxaCentavos) : '—'}</td>
+                      <td className="direita num">
+                        <b>{reais(m.totalCentavos)}</b>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="vazio">Nenhuma venda neste turno ainda.</div>
+          )}
+          <p className="fraco" style={{ marginTop: 8 }}>
+            Soma tudo o que foi pago nas mesas e no balcão neste turno (sem cancelados, estornos e itens cancelados). É o mesmo valor do “Sistema” do fechamento acima.
           </p>
         </div>
       )}

@@ -1,7 +1,8 @@
 // Fechamento de caixa do turno: soma o que o sistema registrou em cada forma (já sem cancelados e
 // itens cancelados), compara com o dinheiro contado e com o relatório da maquininha e guarda.
 import { tem } from '@/domain/papeis';
-import { and, asc, desc, eq, isNull } from 'drizzle-orm';
+import { ordemLocal } from '@/domain/mesas';
+import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
@@ -40,6 +41,7 @@ export async function resumoCaixa(db: Db, data: string) {
     fundoCentavos: fundoDoCaixa(movimentos),
     estornosPendentes: await estornosPendentes(db, data),
     estornados: estornos.length,
+    porMesa: porMesaDoTurno(pagos),
     pedidos: pagos.length,
     encerrados: pedidos.length - pagos.length,
     divididos: pagos.filter((p) => p.pagamentos.length > 1).length,
@@ -152,4 +154,29 @@ export async function conferirEstorno(db: Db, u: Usuario, pedidoId: string) {
     descricao: `${u.nome} confirmou que o estorno do pedido #${p.numero} (${reais(p.totalCentavos - p.itensCanceladosCentavos)}) foi feito ${p.formaPagamento === 'dinheiro' ? 'em dinheiro' : 'na maquininha'}`,
   });
   return { ok: true, jaConferido: false };
+}
+
+/** O que cada mesa (e cada lugar do balcão) lançou no turno: pedidos, total e por forma. */
+function porMesaDoTurno(pagos: Awaited<ReturnType<typeof listarPedidos>>) {
+  const m = new Map<number, { mesa: number; pedidos: number; totalCentavos: number; taxaCentavos: number; clientes: string[]; porForma: Record<string, number> }>();
+  for (const p of pagos) {
+    const l = m.get(p.mesa) || { mesa: p.mesa, pedidos: 0, totalCentavos: 0, taxaCentavos: 0, clientes: [], porForma: {} };
+    l.pedidos += 1;
+    l.totalCentavos += p.liquidoCentavos;
+    l.taxaCentavos += p.taxaValendoCentavos;
+    if (p.cliente && !l.clientes.includes(p.cliente)) l.clientes.push(p.cliente);
+    for (const f of p.valendoPorForma) l.porForma[f.forma] = (l.porForma[f.forma] || 0) + f.valorCentavos;
+    m.set(p.mesa, l);
+  }
+  return [...m.values()].sort((a, b) => ordemLocal({ numero: a.mesa }, { numero: b.mesa }));
+}
+
+/** Último turno com vendas pagas que ainda não teve o caixa fechado (para não esquecer nenhum). */
+export async function turnoSemFechamento(db: Db) {
+  const [r] = await db
+    .select({ data: sql<string>`max(${schema.pedidos.dataOperacional})` })
+    .from(schema.pedidos)
+    .leftJoin(schema.caixaFechamentos, eq(schema.caixaFechamentos.data, schema.pedidos.dataOperacional))
+    .where(and(eq(schema.pedidos.status, 'pago'), isNull(schema.caixaFechamentos.data)));
+  return r?.data ?? null;
 }

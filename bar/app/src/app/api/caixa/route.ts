@@ -1,5 +1,5 @@
 import { dataValida } from '@/domain/turno';
-import { fecharCaixa, listarFechamentos, resumoCaixa } from '@/server/caixa';
+import { fecharCaixa, listarFechamentos, resumoCaixa, turnoSemFechamento } from '@/server/caixa';
 import { hoje } from '@/server/config';
 import { rota } from '@/server/http';
 
@@ -7,8 +7,8 @@ import { rota } from '@/server/http';
 export const GET = rota(['fechamento'], async ({ db, req }) => {
   const d = req.nextUrl.searchParams.get('data');
   const data = dataValida(d) ? d! : hoje();
-  const [resumo, historico] = await Promise.all([resumoCaixa(db, data), listarFechamentos(db)]);
-  return { ...resumo, historico: historico.map((h) => ({ ...h.f, fechadoPor: h.por })) };
+  const [resumo, historico, semFechar] = await Promise.all([resumoCaixa(db, data), listarFechamentos(db), turnoSemFechamento(db)]);
+  return { ...resumo, hoje: hoje(), semFechar, historico: historico.map((h) => ({ ...h.f, fechadoPor: h.por })) };
 });
 
 /** Fecha (ou refaz) o caixa do turno. */

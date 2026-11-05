@@ -498,7 +498,7 @@ describe('fluxo do pedido pago', () => {
     expect(pv.taxaServicoCentavos).toBe(Math.round(2 * batata.precoCentavos * 0.1));
     const total = pv.totalCentavos + pv.taxaServicoCentavos;
     // sem a taxa no valor das partes: não confere
-    await expect(confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, itens, taxaServico: true, pagamentos: [{ forma: 'pix', valorCentavos: pv.totalCentavos }] })).rejects.toThrow();
+    await expect(confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, itens, formaPagamento: null, taxaServico: true, pagamentos: [{ forma: 'pix', valorCentavos: pv.totalCentavos }] })).rejects.toThrow();
     const { pedido } = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, itens, formaPagamento: 'credito', taxaServico: true });
     expect(pedido!).toMatchObject({ totalCentavos: total, taxaServicoCentavos: pv.taxaServicoCentavos });
     const semTaxa = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, itens, formaPagamento: 'pix' });
