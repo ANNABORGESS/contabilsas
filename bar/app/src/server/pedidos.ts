@@ -52,7 +52,8 @@ export async function previa(db: Db, entrada: { mesaId: unknown; itens: ItemSoli
   const produtos = await cardapio(db, itens.map((i) => i?.produtoId));
   const m = montar(itens, produtos);
   // confere o estoque antes de cobrar (depois do pagamento aprovado o pedido nunca é recusado)
-  const falta = faltaNoEstoque(m.linhas, new Map(produtos.map((p) => [p.id, p.estoque])));
+  // só trava os produtos com a trava ligada (comida sem estoque inicial vende e só registra)
+  const falta = faltaNoEstoque(m.linhas, new Map(produtos.map((p) => [p.id, p.estoqueTrava ? p.estoque : null])));
   if (falta) throw new ErroRegra(falta, 409);
   return { mesa: { id: mesa.id, numero: mesa.numero }, ...m };
 }

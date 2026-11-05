@@ -148,7 +148,10 @@ export async function excluirProduto(db: Db, u: Usuario, id: string) {
   const [vendas] = await db.select({ n: sql<number>`count(*)::int` }).from(schema.pedidoItens).where(eq(schema.pedidoItens.produtoId, id));
   const vendido = Number(vendas.n) > 0;
   if (vendido) await db.update(schema.produtos).set({ excluido: true, ativo: false, atualizadoEm: new Date() }).where(eq(schema.produtos.id, id));
-  else await db.delete(schema.produtos).where(eq(schema.produtos.id, id));
+  else {
+    await db.delete(schema.estoqueMovimentos).where(eq(schema.estoqueMovimentos.produtoId, id));
+    await db.delete(schema.produtos).where(eq(schema.produtos.id, id));
+  }
   await registrar(db, { tipo: 'produto_excluido', usuarioId: u.id, descricao: `${u.nome} excluiu ${p.nome} do cardápio${vendido ? ' (já vendido: fica no histórico das vendas)' : ''}` });
   return { apagado: !vendido };
 }

@@ -11,7 +11,7 @@ import { relatorio, mesasDoTurno } from './relatorios';
 import { versaoAtual } from './eventos';
 import { custosELucro, excluirDespesa, lancarDespesa } from './financeiro';
 import { contaDaTela } from './acessoTela';
-import { alterarEstoque } from './estoque';
+import { alterarEstoque, listarMovimentos } from './estoque';
 
 let db: Db;
 let admin: Usuario;
@@ -301,7 +301,7 @@ describe('fluxo do pedido pago', () => {
   it('estoque: venda baixa, prévia barra quando falta, cancelamento devolve e estorno não', async () => {
     const lata = (await listarProdutos(db)).find((p) => p.nome === 'Cerveja lata 350 ml')!;
     await expect(alterarEstoque(db, garcom, lata.id, 'ajustar', 10)).rejects.toThrow(/administrador/);
-    expect(await alterarEstoque(db, admin, lata.id, 'ajustar', 10)).toEqual({ estoque: 10 });
+    expect(await alterarEstoque(db, admin, lata.id, 'ajustar', 10)).toEqual({ estoque: 10, trava: true });
     const est = async () => (await listarProdutos(db, true)).find((p) => p.id === lata.id)!.estoque;
     await expect(previa(db, { mesaId: mesa, itens: [{ produtoId: lata.id, quantidade: 11 }] })).rejects.toThrow(/restam 10/);
     const { pedido } = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, formaPagamento: 'pix', itens: [{ produtoId: lata.id, quantidade: 6, balde: 1 }, { produtoId: lata.id, quantidade: 1 }] });
@@ -315,7 +315,7 @@ describe('fluxo do pedido pago', () => {
     await mudarStatus(db, bar, prep.id, 'preparando');
     await cancelarItem(db, admin, pedido!.id, item.id, 1, 'derrubou no chão');
     expect(await est()).toBe(5);
-    expect(await alterarEstoque(db, admin, lata.id, 'entrada', 24)).toEqual({ estoque: 29 });
+    expect(await alterarEstoque(db, admin, lata.id, 'entrada', 24)).toEqual({ estoque: 29, trava: true });
     await alterarEstoque(db, admin, lata.id, 'desligar', null);
     expect(await est()).toBeNull();
     // sem controle, vende à vontade
@@ -334,6 +334,29 @@ describe('fluxo do pedido pago', () => {
     expect(ativas.some((n) => n > 1000)).toBe(false);
     await definirLugaresBalcao(db, admin, 10);
     expect((await listarMesas(db)).filter((m) => m.numero > 1000)).toHaveLength(10);
+  });
+
+  it('estoque: entrada e saída com histórico; comida começa do zero sem travar a venda', async () => {
+    const prods = await listarProdutos(db, true);
+    const isca = prods.find((p) => p.nome === 'Isca de frango')!;
+    // comida sem estoque inicial: a primeira entrada começa o controle do zero e não trava a venda
+    expect(await alterarEstoque(db, admin, isca.id, 'entrada', 5, 'compra no açougue')).toEqual({ estoque: 5, trava: false });
+    await expect(alterarEstoque(db, admin, isca.id, 'saida', 1, '')).rejects.toThrow(/motivo/);
+    expect(await alterarEstoque(db, admin, isca.id, 'saida', 1, 'passou do ponto')).toMatchObject({ estoque: 4 });
+    // vende 6 mesmo com 4: só registra (fica negativo)
+    const { pedido } = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, formaPagamento: 'pix', itens: [{ produtoId: isca.id, quantidade: 6 }] });
+    expect((await listarProdutos(db, true)).find((p) => p.id === isca.id)!.estoque).toBe(-2);
+    const movs = (await listarMovimentos(db)).filter((m) => m.produto === 'Isca de frango');
+    expect(movs.map((m) => [m.tipo, m.quantidade, m.saldo])).toEqual([
+      ['venda', -6, -2],
+      ['saida', -1, 4],
+      ['entrada', 5, 5],
+    ]);
+    expect(movs[0].motivo).toBe(`Pedido #${pedido!.numero}`);
+    // ligando a trava, passa a barrar
+    await alterarEstoque(db, admin, isca.id, 'trava', true);
+    await expect(previa(db, { mesaId: mesa, itens: [{ produtoId: isca.id, quantidade: 1 }] })).rejects.toThrow(/esgotado/);
+    await alterarEstoque(db, admin, isca.id, 'desligar', null);
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

@@ -27,7 +27,7 @@ export default async function Site() {
   if (await semUsuarios(db)) redirect('/primeiro-acesso');
   const [site, todos, u] = await Promise.all([lerSite(db), listarProdutos(db), usuarioAtual()]);
   // esgotado não aparece no site
-  const produtos = todos.filter((p) => p.estoque === null || p.estoque > 0);
+  const produtos = todos.filter((p) => p.estoque === null || !p.estoqueTrava || p.estoque > 0);
   const whats = linkWhatsapp(site.whatsapp, `Olá! Vim pelo site do ${site.nome}.`);
   const mapa = linkMapa(site.endereco, site.cidade);
   const categorias = [...new Set(produtos.map((p) => p.categoria))];

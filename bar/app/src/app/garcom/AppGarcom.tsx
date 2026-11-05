@@ -21,6 +21,7 @@ interface Produto {
   precoCentavos: number;
   balde?: boolean;
   estoque?: number | null; // vazio = sem controle de estoque
+  estoqueTrava?: boolean; // false: só registra, não impede a venda
 }
 interface MesaTurno {
   id: string;
@@ -376,7 +377,8 @@ function TelaProdutos(props: {
   const deBalde = produtos.filter((p) => p.balde);
   // quanto deste produto já está no rascunho (solto e nos baldes), para não passar do estoque
   const noRascunho = (id: string, exceto?: number) => (carrinho[id] || 0) + baldes.reduce((a, b, i) => a + (i === exceto ? 0 : b[id] || 0), 0);
-  const sobra = (p: Produto, exceto?: number) => (p.estoque === null || p.estoque === undefined ? Infinity : p.estoque - noRascunho(p.id, exceto));
+  const travado = (p: Produto) => p.estoque !== null && p.estoque !== undefined && p.estoqueTrava !== false;
+  const sobra = (p: Produto, exceto?: number) => (travado(p) ? p.estoque! - noRascunho(p.id, exceto) : Infinity);
   const [busca, setBusca] = useState('');
   const [erro, setErro] = useState('');
   const [indo, setIndo] = useState(false);
@@ -484,7 +486,7 @@ function TelaProdutos(props: {
         {visiveis.map((p) => {
           const q = carrinho[p.id] || 0;
           const podeMais = sobra(p) > 0;
-          const esgotado = p.estoque !== null && p.estoque !== undefined && p.estoque <= 0;
+          const esgotado = travado(p) && p.estoque! <= 0;
           return (
             <div key={p.id} className={`produto ${q ? 'escolhido' : ''} ${esgotado ? 'esgotado' : ''}`}>
               <div className="info" onClick={() => podeMais && definir(p.id, q + 1)}>
@@ -495,7 +497,7 @@ function TelaProdutos(props: {
                 {esgotado ? (
                   <div className="restam">Esgotado</div>
                 ) : (
-                  p.estoque !== null && p.estoque !== undefined && p.estoque <= ESTOQUE_BAIXO && <div className="restam">Restam {p.estoque}</div>
+                  travado(p) && p.estoque! <= ESTOQUE_BAIXO && <div className="restam">Restam {p.estoque}</div>
                 )}
                 {p.descricao && <div className="fraco">{p.descricao}</div>}
               </div>

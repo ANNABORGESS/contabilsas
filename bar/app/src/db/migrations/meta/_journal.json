@@ -85,6 +85,13 @@
       "when": 1793883090709,
       "tag": "0011_cadeiras_balcao",
       "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1793884814782,
+      "tag": "0012_estoque_movimentos",
+      "breakpoints": true
     }
   ]
 }

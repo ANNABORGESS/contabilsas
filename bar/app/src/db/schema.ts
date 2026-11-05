@@ -56,6 +56,8 @@ export const produtos = pgTable('produtos', {
   balde: boolean('balde').notNull().default(false),
   // unidades em estoque; vazio = não controla estoque deste produto
   estoque: integer('estoque'),
+  // com true, acabou o estoque não deixa vender; com false só registra (pode ficar negativo)
+  estoqueTrava: boolean('estoque_trava').notNull().default(true),
   ativo: boolean('ativo').notNull().default(true),
   // excluído do cardápio depois de já ter sido vendido: some das listas, mas o histórico continua
   excluido: boolean('excluido').notNull().default(false),
@@ -181,3 +183,20 @@ export const configuracoes = pgTable('configuracoes', {
   valor: jsonb('valor').notNull(),
   atualizadoEm: momento('atualizado_em').notNull().defaultNow(),
 });
+
+/** Cada entrada, saída, venda, cancelamento e ajuste do estoque, com o saldo depois. */
+export const estoqueMovimentos = pgTable(
+  'estoque_movimentos',
+  {
+    id: id(),
+    produtoId: uuid('produto_id').notNull().references(() => produtos.id),
+    tipo: text('tipo').notNull(), // entrada | saida | venda | cancelamento | ajuste
+    quantidade: integer('quantidade').notNull(), // + entra, - sai
+    saldo: integer('saldo').notNull(),
+    motivo: text('motivo'),
+    pedidoId: uuid('pedido_id').references(() => pedidos.id, { onDelete: 'set null' }),
+    usuarioId: uuid('usuario_id').references(() => usuarios.id),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('estoque_mov_produto_idx').on(t.produtoId), index('estoque_mov_data_idx').on(t.criadoEm)],
+)
