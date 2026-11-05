@@ -90,6 +90,7 @@ export const pedidos = pgTable(
     cliente: text('cliente'), // nome do cliente informado pelo garçom (opcional)
     // soma dos itens cancelados um a um pelo administrador (devolvidos na maquininha)
     itensCanceladosCentavos: integer('itens_cancelados_centavos').notNull().default(0),
+    taxaServicoCentavos: integer('taxa_servico_centavos').notNull().default(0), // 10% do garçom (já dentro do total)
     encerradoPorId: uuid('encerrado_por_id').references(() => usuarios.id),
     encerradoEm: momento('encerrado_em'),
     motivoEncerramento: text('motivo_encerramento'),

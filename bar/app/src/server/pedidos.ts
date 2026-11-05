@@ -18,6 +18,7 @@ import { ErroPagamento, formaDoPedido, nomeForma, validarPartes, valendoPorForma
 import type { Usuario } from './auth';
 import { promocoesParaPedido } from './promocoes';
 import type { PromocaoVigente } from '@/domain/pedido';
+import { taxaServico } from '@/domain/servico';
 
 /** Unidades que saem do estoque: no combo da promoção cada item leva várias (2 Original). */
 export const unidadesDoEstoque = <L extends { produtoId: string; nome: string; quantidade: number; unidades?: number }>(linhas: L[]) =>
@@ -62,7 +63,7 @@ export async function previa(db: Db, entrada: { mesaId: unknown; itens: ItemSoli
   // só trava os produtos com a trava ligada (comida sem estoque inicial vende e só registra)
   const falta = faltaNoEstoque(unidadesDoEstoque(m.linhas), new Map(produtos.map((p) => [p.id, p.estoqueTrava ? p.estoque : null])));
   if (falta) throw new ErroRegra(falta, 409);
-  return { mesa: { id: mesa.id, numero: mesa.numero }, ...m };
+  return { mesa: { id: mesa.id, numero: mesa.numero }, ...m, taxaServicoCentavos: taxaDoPedido(m.linhas, produtos) };
 }
 
 export interface Confirmacao {
@@ -76,6 +77,14 @@ export interface Confirmacao {
   precosCobrados?: { produtoId: string; precoCentavos: number; promocaoId?: string | null }[];
   observacao?: unknown;
   cliente?: unknown;
+  /** 10% do garçom: o cliente aceitou pagar */
+  taxaServico?: unknown;
+}
+
+/** 10% do garçom sobre os itens (couver fora). */
+function taxaDoPedido(linhas: { produtoId: string; nome: string; subtotalCentavos: number }[], produtos: { id: string; categoria: string }[]) {
+  const cat = new Map(produtos.map((p) => [p.id, p.categoria]));
+  return taxaServico(linhas.map((l) => ({ ...l, categoria: cat.get(l.produtoId) })));
 }
 
 export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, agora = new Date()) {
@@ -99,9 +108,11 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
     if (e instanceof ErroPedido) throw new ErroRegra(e.message);
     throw e;
   }
+  const taxa = c.taxaServico === true ? taxaDoPedido(final.linhas, produtosPedido) : 0;
+  const totalCobrar = final.totalCentavos + taxa;
   let partes;
   try {
-    partes = validarPartes(dividido ? c.pagamentos : [{ forma: c.formaPagamento, valorCentavos: final.totalCentavos }], final.totalCentavos);
+    partes = validarPartes(dividido ? c.pagamentos : [{ forma: c.formaPagamento, valorCentavos: totalCobrar }], totalCobrar);
   } catch (e) {
     if (e instanceof ErroPagamento) throw new ErroRegra(e.message);
     throw e;
@@ -117,7 +128,8 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
         chave,
         mesaId: mesa.id,
         garcomId: u.id,
-        totalCentavos: final.totalCentavos,
+        totalCentavos: totalCobrar,
+        taxaServicoCentavos: taxa,
         formaPagamento: forma,
         pagoEm: agora,
         dataOperacional: dataOperacional(agora, FUSO, VIRADA),
@@ -143,7 +155,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
       tipo: 'pagamento_confirmado',
       pedidoId: p.id,
       usuarioId: u.id,
-      descricao: `Pedido #${p.numero} · ${nomeLocal(mesa.numero).toLowerCase()}${cliente ? ` (${cliente})` : ''} · ${reais(p.totalCentavos)} ${partes.length === 1 ? `no ${nomeForma(forma)}` : `dividido em ${partes.length} (${partes.map((x) => `${nomeForma(x.forma)} ${reais(x.valorCentavos)}${x.pessoa ? ` ${x.pessoa}` : ''}`).join(', ')})`} confirmado por ${u.nome} (confirmação manual)`,
+      descricao: `Pedido #${p.numero} · ${nomeLocal(mesa.numero).toLowerCase()}${cliente ? ` (${cliente})` : ''} · ${reais(p.totalCentavos)} ${partes.length === 1 ? `no ${nomeForma(forma)}` : `dividido em ${partes.length} (${partes.map((x) => `${nomeForma(x.forma)} ${reais(x.valorCentavos)}${x.pessoa ? ` ${x.pessoa}` : ''}`).join(', ')})`} confirmado por ${u.nome} (confirmação manual)${taxa ? `; inclui ${reais(taxa)} de taxa de serviço (10%)` : ''}`,
       dados: { forma, totalCentavos: p.totalCentavos, chave, partes },
     });
     for (const s of final.setores)
@@ -236,6 +248,7 @@ export async function listarPedidos(db: Db, f: FiltroPedidos) {
       garcom: schema.usuarios.nome,
       totalCentavos: schema.pedidos.totalCentavos,
       itensCanceladosCentavos: schema.pedidos.itensCanceladosCentavos,
+      taxaServicoCentavos: schema.pedidos.taxaServicoCentavos,
       formaPagamento: schema.pedidos.formaPagamento,
       pagoEm: schema.pedidos.pagoEm,
       dataOperacional: schema.pedidos.dataOperacional,
@@ -271,6 +284,10 @@ export async function listarPedidos(db: Db, f: FiltroPedidos) {
         .map((i) => ({ id: i.id, nome: i.nome, setor: i.setor, quantidade: i.quantidade, precoCentavos: i.precoCentavos, subtotalCentavos: i.subtotalCentavos, balde: i.balde, quantidadeCancelada: i.quantidadeCancelada })),
       /** o que vale depois dos itens cancelados um a um */
       liquidoCentavos: p.totalCentavos - p.itensCanceladosCentavos,
+      /** 10% do garçom que vale (sem a parte dos itens cancelados) */
+      taxaValendoCentavos: p.taxaServicoCentavos
+        ? taxaServico(itens.filter((i) => i.pedidoId === p.id).map((i) => ({ nome: i.nome, subtotalCentavos: (i.quantidade - i.quantidadeCancelada) * i.precoCentavos })))
+        : 0,
       pagamentos: pagamentosDe(p.id),
       /** o que vale em cada forma (conta dividida reparte o que foi cancelado) */
       valendoPorForma: valendoPorForma(pagamentosDe(p.id), p.totalCentavos, p.totalCentavos - p.itensCanceladosCentavos),

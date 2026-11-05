@@ -15,6 +15,7 @@ export function paraRelatorio(lista: PedidoLista[]): PedidoRel[] {
     mesa: p.mesa,
     garcom: p.garcom,
     totalCentavos: p.totalCentavos,
+    taxaServicoCentavos: p.taxaValendoCentavos,
     itensCanceladosCentavos: p.itensCanceladosCentavos,
     formaPagamento: p.formaPagamento,
     valendoPorForma: p.valendoPorForma,

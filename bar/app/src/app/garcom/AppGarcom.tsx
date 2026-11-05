@@ -131,6 +131,8 @@ interface Previa {
   linhas: { produtoId: string; nome: string; setor: Setor; quantidade: number; precoCentavos: number; subtotalCentavos: number; balde: number | null; unidades?: number; promocaoId?: string | null }[];
   totalCentavos: number;
   setores: Setor[];
+  /** 10% do garçom sobre os itens (couver fora) */
+  taxaServicoCentavos?: number;
 }
 interface Tentativa {
   mesaId: string;
@@ -141,6 +143,8 @@ interface Tentativa {
   cliente?: string;
   /** conta dividida: cada parte com valor em centavos, forma e (opcional) quem pagou */
   partes?: Parte[];
+  /** cliente não quis pagar os 10% */
+  semTaxa?: boolean;
 }
 interface Parte {
   valor: number;
@@ -744,14 +748,18 @@ const emReais = (c: number) => (c / 100).toFixed(2).replace('.', ',');
 
 function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: Tentativa; atualizar: (t: Tentativa) => void; voltar: () => void; enviado: (p: DetalhePedido, dup: boolean) => void }) {
   const { previa, forma } = tentativa;
+  const taxaPossivel = previa.taxaServicoCentavos ?? 0;
+  const taxa = tentativa.semTaxa ? 0 : taxaPossivel;
+  // o que a maquininha cobra: itens + 10% do garçom (se o cliente aceitou)
+  const totalCobrar = previa.totalCentavos + taxa;
   const partes = tentativa.partes;
   const dividindo = !!partes && partes.length > 0;
   const somaPartes = (partes || []).reduce((a, x) => a + x.valor, 0);
-  const faltaPartes = previa.totalCentavos - somaPartes;
+  const faltaPartes = totalCobrar - somaPartes;
   const partesOk = dividindo && faltaPartes === 0 && partes!.every((x) => x.forma && x.valor > 0);
   const pagamentoOk = dividindo ? partesOk : !!forma;
   const dividirEm = (n: number) =>
-    atualizar({ ...tentativa, partes: dividirIgual(previa.totalCentavos, n).map((valor, i) => ({ valor, texto: emReais(valor), forma: partes?.[i]?.forma ?? null, pessoa: partes?.[i]?.pessoa ?? '' })) });
+    atualizar({ ...tentativa, partes: dividirIgual(totalCobrar, n).map((valor, i) => ({ valor, texto: emReais(valor), forma: partes?.[i]?.forma ?? null, pessoa: partes?.[i]?.pessoa ?? '' })) });
   const mudarParte = (i: number, d: Partial<Parte>) => atualizar({ ...tentativa, partes: partes!.map((x, k) => (k === i ? { ...x, ...d } : x)) });
   const noBalcao = ehBalcao(previa.mesa.numero);
   const nomeOk = !!tentativa.cliente?.trim();
@@ -775,6 +783,7 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
         formaPagamento: dividindo ? null : forma,
         pagamentos: dividindo ? partes!.map((x) => ({ forma: x.forma, valorCentavos: x.valor, pessoa: x.pessoa })) : undefined,
         totalCobradoCentavos: previa.totalCentavos,
+        taxaServico: taxa > 0,
         precosCobrados: previa.linhas.map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos, promocaoId: l.promocaoId ?? null })),
         observacao: tentativa.observacao,
         cliente: tentativa.cliente ?? '',
@@ -810,7 +819,12 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
           <div className="mudo" style={{ fontWeight: 700 }}>
             Cobrar na maquininha
           </div>
-          <div className="total-grande">{reais(previa.totalCentavos)}</div>
+          <div className="total-grande">{reais(totalCobrar)}</div>
+          {taxa > 0 && (
+            <div className="fraco">
+              {reais(previa.totalCentavos)} + {reais(taxa)} de serviço (10%)
+            </div>
+          )}
         </div>
         <label className={`campo nome-cliente ${noBalcao && !nomeOk ? 'pedindo' : ''}`}>
           {noBalcao ? '👤 Nome do cliente (obrigatório no balcão, para chamar quando ficar pronto)' : '👤 Nome do cliente'}
@@ -834,6 +848,28 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
             </div>
           ))}
         </div>
+        {taxaPossivel > 0 && (
+          <button
+            type="button"
+            className={`taxa-servico ${taxa ? 'ligada' : ''}`}
+            disabled={enviando}
+            onClick={() => {
+              const semTaxa = !tentativa.semTaxa;
+              const novoTotal = previa.totalCentavos + (semTaxa ? 0 : taxaPossivel);
+              // conta dividida: refaz as partes com o novo total
+              atualizar({ ...tentativa, semTaxa, partes: dividindo ? dividirIgual(novoTotal, partes!.length).map((valor, i) => ({ ...partes![i], valor, texto: emReais(valor) })) : partes });
+            }}
+          >
+            <span className="caixinha">{taxa ? '✓' : ''}</span>
+            <span style={{ flex: 1, textAlign: 'left' }}>
+              <b>Taxa de serviço do garçom (10%)</b>
+              <span className="fraco" style={{ display: 'block' }}>
+                {taxa ? 'Opcional: toque para tirar se o cliente não quiser pagar' : 'Cliente não quis pagar · toque para incluir'}
+              </span>
+            </span>
+            <span className="num">{taxa ? `+ ${reais(taxaPossivel)}` : reais(0)}</span>
+          </button>
+        )}
         {!dividindo ? (
           <div>
             <div className="fila entre" style={{ marginBottom: 8 }}>
@@ -949,7 +985,7 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
             </div>
           )}
           <p style={{ fontSize: 17 }}>
-            Confirme que o pagamento de <b>{reais(previa.totalCentavos)}</b> {dividindo ? <>em <b>{partes!.length} partes</b></> : <>no <b>{NOME_FORMA[forma!]}</b></>} foi aprovado para <b>{nomeLocal(previa.mesa.numero).toLowerCase()}</b>
+            Confirme que o pagamento de <b>{reais(totalCobrar)}</b> {dividindo ? <>em <b>{partes!.length} partes</b></> : <>no <b>{NOME_FORMA[forma!]}</b></>} foi aprovado para <b>{nomeLocal(previa.mesa.numero).toLowerCase()}</b>
             {tentativa.cliente?.trim() && (
               <>
                 {' '}

@@ -9,6 +9,8 @@ export interface PedidoRel {
   garcom: string;
   totalCentavos: number;
   itensCanceladosCentavos?: number; // itens cancelados um a um (já descontados do que vale)
+  /** 10% do garçom que vale (já dentro do total) */
+  taxaServicoCentavos?: number;
   formaPagamento: string;
   /** o que vale em cada forma (conta dividida); sem isso, tudo na formaPagamento */
   valendoPorForma?: { forma: string; valorCentavos: number }[];
@@ -52,9 +54,11 @@ export function resumir(pedidos: PedidoRel[]) {
   const porMesa = new Map<string, Linha>();
   const porProduto = new Map<string, Linha & { setor: string }>();
   const porHora = new Map<string, Linha>();
+  const taxaPorGarcom = new Map<string, Linha>();
   for (const p of validos) {
     for (const f of p.valendoPorForma ?? [{ forma: p.formaPagamento, valorCentavos: vale(p) }]) somar(porForma, f.forma, f.valorCentavos);
     somar(porGarcom, p.garcom, vale(p));
+    if (p.taxaServicoCentavos) somar(taxaPorGarcom, p.garcom, p.taxaServicoCentavos);
     somar(porMesa, String(p.mesa), vale(p));
     somar(porHora, String(p.hora).padStart(2, '0'), vale(p));
     for (const i of p.itens) {
@@ -85,6 +89,9 @@ export function resumir(pedidos: PedidoRel[]) {
     liquidoCentavos: liquido,
     ticketMedioCentavos: validos.length ? Math.round(liquido / validos.length) : 0,
     divergencias: validos.filter((p) => p.divergenciaPreco).length,
+    /** 10% dos garçons (já dentro do líquido): total e de cada um */
+    taxaServicoCentavos: validos.reduce((a, p) => a + (p.taxaServicoCentavos || 0), 0),
+    taxaPorGarcom: ordenar(taxaPorGarcom),
     porForma: ordenar(porForma),
     porGarcom: ordenar(porGarcom),
     porMesa: ordenar(porMesa),

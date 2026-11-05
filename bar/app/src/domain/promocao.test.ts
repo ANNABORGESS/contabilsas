@@ -69,3 +69,11 @@ describe('promoção programada (horário de Manaus)', () => {
     expect(textoRestante(12 * 60_000 + 5000)).toBe('12min');
   });
 });
+
+import { taxaServico } from './servico';
+describe('taxa de serviço', () => {
+  it('10% sobre os itens, sem o couver', () => {
+    expect(taxaServico([{ nome: 'Batata frita', subtotalCentavos: 3500 }, { nome: 'COUVER ARTÍSTICO', subtotalCentavos: 2000, categoria: 'Couver' }])).toBe(350);
+    expect(taxaServico([{ nome: 'Filé', subtotalCentavos: 5995 }])).toBe(600);
+  });
+});

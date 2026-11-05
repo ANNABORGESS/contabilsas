@@ -2958,3 +2958,35 @@ html {
   border-radius: 50%;
   box-shadow: 0 6px 20px rgba(40, 24, 10, 0.25);
 }
+/* taxa de serviço do garçom (10%, opcional) na hora de cobrar */
+.taxa-servico {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 16px;
+  border-radius: var(--raio);
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  cursor: pointer;
+}
+.taxa-servico.ligada {
+  border-color: var(--marca);
+  background: color-mix(in srgb, var(--marca) 14%, var(--superficie));
+}
+.taxa-servico .caixinha {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 2px solid var(--marca);
+  font-weight: 900;
+  color: #1a1008;
+}
+.taxa-servico.ligada .caixinha {
+  background: var(--marca);
+}

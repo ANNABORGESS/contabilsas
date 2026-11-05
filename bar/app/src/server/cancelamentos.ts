@@ -1,4 +1,5 @@
 // Cancelamento e estorno: o garçom só pode pedir; quem decide é o administrador.
+import { entraNaTaxa, taxaDe } from '@/domain/servico';
 import { tem } from '@/domain/papeis';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
@@ -93,7 +94,9 @@ export async function cancelarItem(db: Db, u: Usuario, pedidoId: string, itemId:
   const item = itens.find((i) => i.id === itemId);
   if (!item) throw new ErroRegra('Item não encontrado.', 404);
   const q = regra(() => conferirCancelamentoItem(u.papel, p.status, quantidade, item.quantidade - item.quantidadeCancelada));
-  const valor = q * item.precoCentavos;
+  // se o cliente pagou os 10%, a taxa daquele item volta junto
+  const valorItens = q * item.precoCentavos;
+  const valor = valorItens + (p.taxaServicoCentavos > 0 && entraNaTaxa(item.nome) ? taxaDe(valorItens) : 0);
   const agora = new Date();
   const prs = await db.select().from(schema.preparos).where(eq(schema.preparos.pedidoId, p.id));
   const restanteDepois = (i: (typeof itens)[number]) => i.quantidade - i.quantidadeCancelada - (i.id === item.id ? q : 0);

@@ -65,7 +65,7 @@ export async function excluirDespesa(db: Db, u: Usuario, id: string) {
 export async function custosELucro(db: Db, de: string, ate: string) {
   const [pedidos, despesas] = await Promise.all([listarPedidos(db, { de, ate, status: 'pago', limite: 5000 }), listarDespesas(db, de, ate)]);
   const porData = new Map<string, number>();
-  for (const p of pedidos) porData.set(p.dataOperacional, (porData.get(p.dataOperacional) || 0) + p.liquidoCentavos);
+  for (const p of pedidos) porData.set(p.dataOperacional, (porData.get(p.dataOperacional) || 0) + p.liquidoCentavos - p.taxaValendoCentavos); // os 10% são do garçom, não do bar
   const vendas = [...porData].map(([data, liquidoCentavos]) => ({ data, liquidoCentavos }));
   // vendas por setor (petiscos x bebidas), para comparar com o que se gastou em cada um
   const vendasPorSetor = { cozinha: 0, bar: 0 } as Record<string, number>;

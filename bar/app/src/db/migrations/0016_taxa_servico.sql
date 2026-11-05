@@ -1,0 +1,1 @@
+ALTER TABLE "pedidos" ADD COLUMN "taxa_servico_centavos" integer DEFAULT 0 NOT NULL;

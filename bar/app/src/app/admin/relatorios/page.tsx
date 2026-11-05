@@ -81,6 +81,11 @@ export default function Relatorios() {
                 </span>
               </div>
               <div className="cartao kpi">
+                <span className="rotulo">Taxa de serviço (10%)</span>
+                <span className="valor">{reais(r.taxaServicoCentavos)}</span>
+                <span className="det">dos garçons · já dentro das vendas líquidas</span>
+              </div>
+              <div className="cartao kpi">
                 <span className="rotulo">Tempo médio até pronto</span>
                 <span className="valor">
                   {r.tempoMedioMin.cozinha ?? '—'} / {r.tempoMedioMin.bar ?? '—'}
@@ -93,6 +98,11 @@ export default function Relatorios() {
               <Tabela titulo="Por forma de pagamento (informada)" linhas={r.porForma} nome={(k) => nomeForma(k)} />
               <Tabela titulo="Por garçom" linhas={r.porGarcom} />
             </div>
+            {r.taxaPorGarcom.length > 0 && (
+              <div className="grade g2">
+                <Tabela titulo="10% de cada garçom (para pagar)" linhas={r.taxaPorGarcom} />
+              </div>
+            )}
             <div className="cartao">
               <header>
                 <h2>Vendas por hora</h2>

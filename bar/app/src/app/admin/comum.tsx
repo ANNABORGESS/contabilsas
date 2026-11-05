@@ -141,6 +141,12 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
                   )}
                 </tr>
               ))}
+              {p.taxaServicoCentavos > 0 && (
+                <tr>
+                  <td colSpan={4}>Taxa de serviço do garçom (10%)</td>
+                  <td className="direita num">{reais(p.taxaServicoCentavos)}</td>
+                </tr>
+              )}
               <tr>
                 <td colSpan={4}>
                   <b>Total pago</b>
