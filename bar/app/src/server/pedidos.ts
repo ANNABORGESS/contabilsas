@@ -18,7 +18,7 @@ import { ErroPagamento, formaDoPedido, nomeForma, validarPartes, valendoPorForma
 import type { Usuario } from './auth';
 import { promocoesParaPedido } from './promocoes';
 import type { PromocaoVigente } from '@/domain/pedido';
-import { taxaServico } from '@/domain/servico';
+import { TAXA_SERVICO_LIGADA, taxaServico } from '@/domain/servico';
 
 /** Unidades que saem do estoque: no combo da promoção cada item leva várias (2 Original). */
 export const unidadesDoEstoque = <L extends { produtoId: string; nome: string; quantidade: number; unidades?: number }>(linhas: L[]) =>
@@ -83,6 +83,7 @@ export interface Confirmacao {
 
 /** 10% do garçom sobre os itens (couver fora). */
 function taxaDoPedido(linhas: { produtoId: string; nome: string; subtotalCentavos: number }[], produtos: { id: string; categoria: string }[]) {
+  if (!TAXA_SERVICO_LIGADA) return 0;
   const cat = new Map(produtos.map((p) => [p.id, p.categoria]));
   return taxaServico(linhas.map((l) => ({ ...l, categoria: cat.get(l.produtoId) })));
 }

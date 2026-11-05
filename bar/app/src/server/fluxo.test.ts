@@ -490,27 +490,13 @@ describe('fluxo do pedido pago', () => {
     expect(await conferirEstorno(db, gerente, pedido!.id)).toEqual({ ok: true, jaConferido: true });
   });
 
-  it('taxa de serviço 10% opcional: couver fora da base, item cancelado devolve a taxa dele, relatório mostra por garçom', async () => {
+  it('taxa de serviço desligada: a prévia não sugere os 10% e o pedido sai só com os itens', async () => {
     const batata = (await listarProdutos(db)).find((p) => p.setor === 'cozinha')!;
-    const couver = await criarProduto(db, admin, { nome: 'Couver artístico', categoria: 'Couver', setor: 'bar', precoCentavos: 1000 });
-    const itens = [{ produtoId: batata.id, quantidade: 2 }, { produtoId: couver.id, quantidade: 2 }];
+    const itens = [{ produtoId: batata.id, quantidade: 2 }];
     const pv = await previa(db, { mesaId: mesa, itens });
-    expect(pv.taxaServicoCentavos).toBe(Math.round(2 * batata.precoCentavos * 0.1));
-    const total = pv.totalCentavos + pv.taxaServicoCentavos;
-    // sem a taxa no valor das partes: não confere
-    await expect(confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, itens, formaPagamento: null, taxaServico: true, pagamentos: [{ forma: 'pix', valorCentavos: pv.totalCentavos }] })).rejects.toThrow();
+    expect(pv.taxaServicoCentavos).toBe(0);
     const { pedido } = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, itens, formaPagamento: 'credito', taxaServico: true });
-    expect(pedido!).toMatchObject({ totalCentavos: total, taxaServicoCentavos: pv.taxaServicoCentavos });
-    const semTaxa = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, itens, formaPagamento: 'pix' });
-    expect(semTaxa.pedido!).toMatchObject({ totalCentavos: pv.totalCentavos, taxaServicoCentavos: 0 });
-    // cancelar 1 batata: devolve a batata + os 10% dela
-    const item = pedido!.itens.find((i) => i.produtoId === batata.id)!;
-    await cancelarItem(db, admin, pedido!.id, item.id, 1, 'cliente desistiu');
-    const depois = (await listarPedidos(db, {})).find((x) => x.id === pedido!.id)!;
-    expect(depois.itensCanceladosCentavos).toBe(batata.precoCentavos + Math.round(batata.precoCentavos * 0.1));
-    expect(depois.taxaValendoCentavos).toBe(Math.round(batata.precoCentavos * 0.1));
-    const rel = await relatorio(db, depois.dataOperacional, depois.dataOperacional);
-    expect(rel.resumo.taxaPorGarcom.find((l) => l.chave === 'Ana')!.valorCentavos).toBeGreaterThanOrEqual(Math.round(batata.precoCentavos * 0.1));
+    expect(pedido!).toMatchObject({ totalCentavos: pv.totalCentavos, taxaServicoCentavos: 0 });
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

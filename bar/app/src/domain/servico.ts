@@ -3,6 +3,8 @@
 // A taxa é do garçom: entra no que foi cobrado (caixa e maquininha), mas não no faturamento do bar.
 
 export const TAXA_SERVICO = 0.1;
+/** Desligada a pedido da administração: o garçom não cobra os 10%. */
+export const TAXA_SERVICO_LIGADA = false;
 
 /** Item entra na base da taxa? Couver não. */
 export function entraNaTaxa(nome: string, categoria?: string | null) {

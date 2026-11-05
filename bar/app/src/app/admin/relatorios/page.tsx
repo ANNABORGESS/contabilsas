@@ -80,11 +80,13 @@ export default function Relatorios() {
                   {r.pedidos} pedidos · ticket {reais(r.ticketMedioCentavos)}
                 </span>
               </div>
+              {r.taxaServicoCentavos > 0 && (
               <div className="cartao kpi">
                 <span className="rotulo">Taxa de serviço (10%)</span>
                 <span className="valor">{reais(r.taxaServicoCentavos)}</span>
                 <span className="det">dos garçons · já dentro das vendas líquidas</span>
               </div>
+              )}
               <div className="cartao kpi">
                 <span className="rotulo">Tempo médio até pronto</span>
                 <span className="valor">
