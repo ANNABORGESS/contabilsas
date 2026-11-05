@@ -5,7 +5,7 @@
 import { dividirIgual, nomeForma } from '@/domain/pagamento';
 import { paraCentavos } from '@/domain/dinheiro';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { api, bipar, liberarSom, novaChave, useDados } from '@/cliente/api';
+import { api, bipar, liberarSom, novaChave, sairDoSistema, useDados } from '@/cliente/api';
 import { decorrido, hora, reais } from '@/cliente/formato';
 import { Aviso, BotaoSair, ChipPedido, ChipPreparo, ChipSituacao, Conexao, Modal, useAgora } from '@/cliente/ui';
 import { FORMAS_PAGAMENTO, MAX_BALDE, NOME_FORMA, NOME_SETOR, agruparBaldes, textoItem, type FormaPagamento, type Setor } from '@/domain/pedido';
@@ -49,6 +49,57 @@ interface Pronto {
   cliente: string | null;
   garcomId: string;
 }
+/** Marca do bar no topo do garçom: escudo viking + VIKINGS · BAR. */
+function MarcaVikings() {
+  return (
+    <div className="marca-vikings" aria-label="Vikings Bar">
+      <img src="/escudo.png" alt="" />
+      <div>
+        <b>VIKINGS</b>
+        <span>BAR</span>
+      </div>
+    </div>
+  );
+}
+
+const ICONES: Record<string, React.ReactNode> = {
+  engrenagem: (
+    <>
+      <circle cx="12" cy="12" r="3" />
+      <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
+    </>
+  ),
+  sair: (
+    <>
+      <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
+      <path d="M16 17l5-5-5-5M21 12H9" />
+    </>
+  ),
+  grade: (
+    <>
+      <rect x="3" y="3" width="7" height="7" rx="2" />
+      <rect x="14" y="3" width="7" height="7" rx="2" />
+      <rect x="3" y="14" width="7" height="7" rx="2" />
+      <rect x="14" y="14" width="7" height="7" rx="2" />
+    </>
+  ),
+  lista: <path d="M4 6h16M4 12h16M4 18h16" />,
+  sino: (
+    <>
+      <path d="M18 8a6 6 0 0 0-12 0c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.7 21a2 2 0 0 1-3.4 0" />
+    </>
+  ),
+};
+
+function Icone({ nome }: { nome: keyof typeof ICONES }) {
+  return (
+    <svg className="icone" viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {ICONES[nome]}
+    </svg>
+  );
+}
+
 interface PromoAgora {
   id: string;
   nome: string;
@@ -255,7 +306,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   if (tela.t === 'pedido') {
     const mesa = mesaPorId.get(tela.mesaId);
     return (
-      <div className="tema-escuro" onPointerDown={liberarSom}>
+      <div className="tema-escuro garcom-viking" onPointerDown={liberarSom}>
         <TelaProdutos
           mesaNumero={mesa?.numero}
           mesaInfo={mesa}
@@ -277,7 +328,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   }
   if (tela.t === 'pagamento' && tentativa) {
     return (
-      <div className="tema-escuro" onPointerDown={liberarSom}>
+      <div className="tema-escuro garcom-viking" onPointerDown={liberarSom}>
         <TelaPagamento tentativa={tentativa} atualizar={setTentativa} voltar={desistirDoPagamento} enviado={aposEnvio} />
       </div>
     );
@@ -285,7 +336,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   if (tela.t === 'enviado') {
     const p = tela.pedido;
     return (
-      <div className="tema-escuro">
+      <div className="tema-escuro garcom-viking">
         <div className="app-garcom">
           <div className="corpo-garcom">
             <div className="sucesso-envio">
@@ -325,21 +376,26 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
 
   // ---------- tela inicial com abas ----------
   return (
-    <div className="tema-escuro" onPointerDown={liberarSom}>
+    <div className="tema-escuro garcom-viking" onPointerDown={liberarSom}>
       <div className="app-garcom">
-        <header className="topo-garcom">
-          <div>
-            <div style={{ fontWeight: 800 }}>{aba === 'mesas' ? 'Mesas' : aba === 'pedidos' ? 'Pedidos do turno' : 'Prontos para entregar'}</div>
-            <div className="fraco">{usuario.nome}</div>
+        <header className="topo-garcom topo-viking">
+          <div className="fila" style={{ gap: 14, minWidth: 0 }}>
+            <MarcaVikings />
+            <div className="titulo-topo">
+              <div className="t">{aba === 'mesas' ? 'Mesas' : aba === 'pedidos' ? 'Pedidos' : 'Prontos'}</div>
+              <div className="fraco">{usuario.nome}</div>
+            </div>
           </div>
-          <div className="fila">
+          <div className="fila acoes-topo">
             <Conexao />
             {ehGestao(usuario.papel) && (
-              <a className="btn fantasma pequeno" href={INICIO[usuario.papel as Papel]}>
-                Admin
+              <a className="acao-topo" href={INICIO[usuario.papel as Papel]}>
+                <Icone nome="engrenagem" /> <span>Admin</span>
               </a>
             )}
-            <BotaoSair />
+            <button type="button" className="acao-topo" onClick={() => void sairDoSistema()}>
+              <Icone nome="sair" /> <span>Sair</span>
+            </button>
           </div>
         </header>
         <main className="corpo-garcom">
@@ -385,13 +441,16 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
         <nav className="abas-baixo">
           <div>
             <button className={aba === 'mesas' ? 'ativo' : ''} onClick={() => setAba('mesas')}>
-              <span className="ic">▦</span>Mesas
+              <Icone nome="grade" />
+              Mesas
             </button>
             <button className={aba === 'pedidos' ? 'ativo' : ''} onClick={() => setAba('pedidos')}>
-              <span className="ic">☰</span>Pedidos
+              <Icone nome="lista" />
+              Pedidos
             </button>
             <button className={aba === 'prontos' ? 'ativo' : ''} onClick={() => setAba('prontos')}>
-              <span className="ic">🔔</span>Prontos
+              <Icone nome="sino" />
+              Prontos
               {meusProntos > 0 && <span className="selo">{meusProntos}</span>}
             </button>
           </div>

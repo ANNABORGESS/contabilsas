@@ -2515,3 +2515,423 @@ html {
   font-size: 12px;
   font-weight: 700;
 }
+
+/* ===================== Área do garçom: tema Vikings (escuro, âmbar e vidro) ===================== */
+.garcom-viking {
+  --fundo: #120b06;
+  --superficie: rgba(255, 232, 196, 0.06);
+  --superficie-2: rgba(255, 232, 196, 0.04);
+  --borda: rgba(255, 214, 150, 0.2);
+  --linha: rgba(255, 214, 150, 0.14);
+  --texto: #f7ecdc;
+  --texto-2: rgba(247, 236, 220, 0.74);
+  --texto-3: rgba(247, 236, 220, 0.5);
+  --marca: #f5b82e;
+  --marca-forte: #f5b82e;
+  --marca-suave: rgba(245, 184, 46, 0.2);
+  --tinta: #f5b82e;
+  --sombra: 0 1px 0 rgba(255, 230, 190, 0.08) inset, 0 10px 30px rgba(0, 0, 0, 0.35);
+  --desfoque: blur(18px) saturate(140%);
+  color-scheme: dark;
+  position: relative;
+  min-height: 100vh;
+  color: var(--texto);
+  background:
+    radial-gradient(70vw 50vh at 85% 0%, rgba(150, 90, 30, 0.35), transparent 70%),
+    radial-gradient(60vw 60vh at 0% 60%, rgba(110, 60, 20, 0.3), transparent 70%),
+    radial-gradient(80vw 50vh at 60% 110%, rgba(170, 110, 30, 0.28), transparent 70%),
+    linear-gradient(180deg, #1a100a 0%, #120b06 55%, #0d0805 100%);
+  background-attachment: fixed;
+}
+.garcom-viking a {
+  color: var(--marca);
+}
+.garcom-viking .fraco,
+.garcom-viking .mudo {
+  color: var(--texto-3);
+}
+
+/* topo: marca, título, ao vivo, admin e sair */
+.garcom-viking .topo-garcom {
+  background: linear-gradient(180deg, rgba(18, 11, 6, 0.92), rgba(18, 11, 6, 0.7));
+  border: none;
+  border-bottom: 1px solid rgba(255, 214, 150, 0.08);
+  box-shadow: none;
+  padding: 14px 16px;
+}
+.marca-vikings {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-right: 14px;
+  border-right: 1px solid rgba(255, 214, 150, 0.22);
+}
+.marca-vikings img {
+  width: 34px;
+  height: 34px;
+  object-fit: contain;
+  filter: drop-shadow(0 2px 6px rgba(0, 0, 0, 0.5));
+}
+.marca-vikings div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+}
+.marca-vikings b {
+  font-family: var(--fonte-titulo);
+  font-weight: 800;
+  font-size: 17px;
+  letter-spacing: 0.02em;
+  background: linear-gradient(180deg, #ffe08a, #f5b82e 55%, #b9771a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+  filter: drop-shadow(0 1px 0 rgba(0, 0, 0, 0.6));
+}
+.marca-vikings span {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.3em;
+  color: var(--texto-2);
+  margin-top: 3px;
+}
+.marca-vikings span::before,
+.marca-vikings span::after {
+  content: '—';
+  letter-spacing: 0;
+  margin: 0 4px;
+  opacity: 0.6;
+}
+.titulo-topo .t {
+  font-family: var(--fonte-titulo);
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.acoes-topo {
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+.acao-topo {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 6px 8px;
+  border-radius: 999px;
+  color: var(--texto) !important;
+  font: inherit;
+  font-size: 14px;
+  text-decoration: none;
+  cursor: pointer;
+}
+.acao-topo:hover {
+  background: rgba(255, 232, 196, 0.08);
+}
+.acao-topo .icone {
+  width: 20px;
+  height: 20px;
+}
+.garcom-viking .conexao {
+  background: rgba(47, 158, 106, 0.14);
+  border: 1px solid rgba(80, 200, 130, 0.5);
+  color: var(--texto);
+  border-radius: 999px;
+  padding: 4px 10px;
+  margin-right: 4px;
+}
+.garcom-viking .conexao.ok i {
+  background: #3fd47f;
+  box-shadow: 0 0 8px #3fd47f;
+}
+
+/* busca e filtros */
+.garcom-viking input,
+.garcom-viking select,
+.garcom-viking textarea {
+  background: rgba(255, 232, 196, 0.06);
+  border-color: rgba(255, 214, 150, 0.22);
+  color: var(--texto);
+}
+.garcom-viking .busca-mesa input,
+.garcom-viking input[type='search'] {
+  border-radius: 999px;
+  padding: 14px 18px 14px 48px;
+  font-size: 16px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='22' height='22' viewBox='0 0 24 24' fill='none' stroke='%23f7ecdc' stroke-width='1.8' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E")
+      no-repeat 18px center,
+    linear-gradient(180deg, rgba(255, 232, 196, 0.09), rgba(255, 232, 196, 0.04));
+  box-shadow: 0 1px 0 rgba(255, 230, 190, 0.08) inset;
+}
+.garcom-viking .filtros-rolagem {
+  align-items: center;
+}
+.garcom-viking .filtros-rolagem button {
+  background: rgba(255, 232, 196, 0.05);
+  border: 1px solid rgba(255, 214, 150, 0.3);
+  color: var(--texto);
+  font-weight: 500;
+  font-size: 15px;
+  padding: 9px 20px;
+}
+.garcom-viking .filtros-rolagem button.ativo {
+  background: linear-gradient(180deg, #ffd166, #f5b82e 50%, #d38f14);
+  border-color: #ffd166;
+  color: #1a1008;
+  font-weight: 700;
+  box-shadow: 0 4px 18px rgba(245, 184, 46, 0.35), 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+.garcom-viking .busca-mesa .filtros-rolagem > span {
+  padding-left: 14px;
+  margin-left: 4px;
+  border-left: 1px solid rgba(255, 214, 150, 0.25);
+  color: var(--texto-2);
+  font-size: 15px;
+}
+
+/* cartões de mesa: vidro marrom; balcão: âmbar com bolhas de cerveja */
+.garcom-viking .mesas-grade {
+  grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+  gap: 14px;
+}
+.garcom-viking .mesa {
+  text-align: left;
+  color: var(--texto);
+  border-radius: 18px;
+  padding: 16px 18px;
+  border: 1px solid rgba(255, 220, 170, 0.35);
+  background: linear-gradient(160deg, rgba(150, 115, 80, 0.42), rgba(70, 48, 28, 0.55));
+  box-shadow: 0 1px 0 rgba(255, 240, 210, 0.18) inset, 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+.garcom-viking .mesa:hover {
+  border-color: rgba(255, 220, 170, 0.6);
+}
+.garcom-viking .mesa .n {
+  font-size: 22px;
+  font-weight: 600;
+  color: #fff7ea;
+}
+.garcom-viking .mesa .fraco {
+  color: rgba(255, 240, 220, 0.62);
+}
+.garcom-viking .mesa.ocupada {
+  border-color: #f5b82e;
+  box-shadow: 0 0 0 1px rgba(245, 184, 46, 0.5), 0 0 22px rgba(245, 184, 46, 0.22), 0 10px 24px rgba(0, 0, 0, 0.35);
+}
+.garcom-viking .mesa.balcao {
+  border: 1px solid rgba(255, 200, 90, 0.75);
+  background:
+    radial-gradient(circle at 88% 22%, rgba(255, 236, 170, 0.55) 0 2px, transparent 3px),
+    radial-gradient(circle at 80% 38%, rgba(255, 236, 170, 0.45) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 93% 48%, rgba(255, 236, 170, 0.4) 0 2.5px, transparent 3.5px),
+    radial-gradient(circle at 74% 18%, rgba(255, 236, 170, 0.35) 0 1px, transparent 2px),
+    radial-gradient(circle at 85% 62%, rgba(255, 236, 170, 0.3) 0 1.5px, transparent 2.5px),
+    radial-gradient(120% 140% at 100% 0%, rgba(255, 190, 60, 0.55), transparent 60%),
+    linear-gradient(120deg, #3a2210 0%, #6e4214 55%, #a8661a 100%);
+  box-shadow: 0 0 0 1px rgba(255, 190, 60, 0.25), 0 0 18px rgba(245, 160, 30, 0.25), 0 1px 0 rgba(255, 240, 200, 0.35) inset, 0 10px 24px rgba(0, 0, 0, 0.4);
+}
+.garcom-viking .mesa.balcao .n::before {
+  content: '🍺';
+  margin-right: 10px;
+}
+.garcom-viking .mesa.balcao .fraco,
+.garcom-viking .mesa.balcao .cliente-mesa {
+  color: rgba(255, 240, 215, 0.8);
+}
+
+/* produtos, modais e barras no escuro */
+.garcom-viking .produto,
+.garcom-viking .cartao,
+.garcom-viking .pedido-cartao,
+.garcom-viking .formas button {
+  background: linear-gradient(160deg, rgba(150, 115, 80, 0.22), rgba(70, 48, 28, 0.35));
+  border-color: rgba(255, 220, 170, 0.22);
+  color: var(--texto);
+}
+.garcom-viking .produto.escolhido,
+.garcom-viking .produto.em-promo {
+  border-color: #f5b82e;
+  background: linear-gradient(160deg, rgba(245, 184, 46, 0.22), rgba(90, 58, 22, 0.45));
+}
+.garcom-viking .produto .preco {
+  color: var(--texto-2);
+}
+.garcom-viking .modal {
+  background: linear-gradient(170deg, rgba(48, 32, 18, 0.96), rgba(22, 14, 8, 0.97));
+  border-color: rgba(255, 214, 150, 0.22);
+  color: var(--texto);
+}
+.garcom-viking .btn {
+  background: rgba(255, 232, 196, 0.07);
+  border-color: rgba(255, 214, 150, 0.28);
+  color: var(--texto);
+}
+.garcom-viking .btn:hover:not(:disabled) {
+  background: rgba(255, 232, 196, 0.14);
+}
+.garcom-viking .btn.primario,
+.garcom-viking .qtd .mais {
+  background: linear-gradient(180deg, #ffd166, #f5b82e 50%, #d38f14);
+  border-color: #ffd166;
+  color: #1a1008;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(245, 184, 46, 0.3);
+}
+.garcom-viking .btn.primario:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffdc85, #f7c24a 50%, #dc9a20);
+}
+.garcom-viking .btn.fantasma {
+  background: transparent;
+  border-color: transparent;
+}
+.garcom-viking .btn.sucesso {
+  background: var(--verde);
+  color: #fff;
+}
+.garcom-viking .btn.perigo {
+  background: var(--vermelho);
+  color: #fff;
+}
+.garcom-viking .barra-acao {
+  background: rgba(22, 14, 8, 0.88);
+  border-color: rgba(255, 214, 150, 0.18);
+}
+.garcom-viking .chip {
+  background: rgba(255, 232, 196, 0.08);
+  border-color: rgba(255, 214, 150, 0.2);
+  color: var(--texto);
+}
+
+/* barra de baixo flutuante */
+.garcom-viking .abas-baixo {
+  left: 12px;
+  right: 12px;
+  bottom: calc(10px + env(safe-area-inset-bottom));
+  max-width: 616px;
+  margin: 0 auto;
+  border-radius: 24px;
+  padding: 6px;
+  background: linear-gradient(180deg, rgba(48, 32, 18, 0.88), rgba(22, 14, 8, 0.92));
+  border: 1px solid rgba(255, 214, 150, 0.2);
+  box-shadow: 0 1px 0 rgba(255, 230, 190, 0.1) inset, 0 14px 40px rgba(0, 0, 0, 0.55);
+}
+.garcom-viking .abas-baixo button {
+  color: var(--texto-2);
+  font-size: 14px;
+  font-weight: 500;
+  border-radius: 18px;
+  padding: 10px 4px;
+  gap: 4px;
+}
+.garcom-viking .abas-baixo button .icone {
+  width: 26px;
+  height: 26px;
+}
+.garcom-viking .abas-baixo button.ativo {
+  color: #f5b82e;
+  font-weight: 700;
+  background: linear-gradient(180deg, rgba(245, 184, 46, 0.28), rgba(160, 100, 20, 0.22));
+  box-shadow: 0 0 0 1px rgba(245, 184, 46, 0.45), 0 0 18px rgba(245, 184, 46, 0.18);
+}
+.garcom-viking .corpo-garcom {
+  padding-bottom: 130px;
+}
+@media (max-width: 420px) {
+  .marca-vikings b {
+    font-size: 14px;
+  }
+  .marca-vikings img {
+    width: 28px;
+    height: 28px;
+  }
+  .titulo-topo .t {
+    font-size: 19px;
+  }
+  .acao-topo span {
+    display: none;
+  }
+  .garcom-viking .filtros-rolagem button {
+    padding: 8px 15px;
+    font-size: 14px;
+  }
+}
+/* ajustes finos do topo e dos cartões do garçom */
+.garcom-viking .topo-garcom > .fila {
+  flex-wrap: nowrap;
+}
+.garcom-viking .topo-garcom {
+  flex-wrap: nowrap;
+}
+.garcom-viking .conexao {
+  white-space: nowrap;
+}
+.garcom-viking .titulo-topo {
+  min-width: 0;
+}
+.garcom-viking .titulo-topo .fraco {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.garcom-viking .filtros-rolagem button.ativo {
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.5) inset;
+}
+.garcom-viking .mesa {
+  padding: 12px 16px;
+  gap: 2px;
+}
+.garcom-viking .mesa .n {
+  font-size: 20px;
+  white-space: nowrap;
+}
+@media (max-width: 420px) {
+  .garcom-viking .topo-garcom {
+    padding: 12px;
+    gap: 8px;
+  }
+  .marca-vikings {
+    padding-right: 10px;
+  }
+  .marca-vikings b {
+    font-size: 13px;
+  }
+  .garcom-viking .conexao {
+    font-size: 12px;
+    padding: 3px 8px;
+  }
+  .acao-topo {
+    padding: 6px 4px;
+  }
+  .garcom-viking .mesa .n {
+    font-size: 18px;
+  }
+  .garcom-viking .mesa.balcao .n::before {
+    margin-right: 6px;
+  }
+}
+.garcom-viking .qtd button:not(.mais) {
+  background: rgba(255, 232, 196, 0.1);
+  border: 1px solid rgba(255, 214, 150, 0.3);
+  color: var(--texto);
+}
+.garcom-viking .aviso {
+  background: rgba(255, 232, 196, 0.07);
+  border-color: rgba(255, 214, 150, 0.22);
+  color: var(--texto-2);
+}
+.garcom-viking .aviso.erro {
+  background: rgba(224, 82, 74, 0.16);
+  color: #ffc9c4;
+}
+.garcom-viking .aviso.ok {
+  background: rgba(47, 158, 106, 0.16);
+  color: #bdf0d4;
+}
+.garcom-viking .aviso.alerta {
+  background: rgba(245, 184, 46, 0.16);
+  color: #ffe3a3;
+}

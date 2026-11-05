@@ -30,5 +30,5 @@ ALTER TABLE "caixa_movimentos" ADD CONSTRAINT "caixa_movimentos_usuario_id_usuar
 ALTER TABLE "promocoes" ADD CONSTRAINT "promocoes_produto_id_produtos_id_fk" FOREIGN KEY ("produto_id") REFERENCES "produtos"("id") ON DELETE no action ON UPDATE no action;--> statement-breakpoint
 CREATE INDEX "caixa_mov_data_idx" ON "caixa_movimentos" USING btree ("data");--> statement-breakpoint
 INSERT INTO "promocoes" ("nome", "produto_id", "quantidade_combo", "preco_combo_centavos", "dias", "inicio", "fim", "destaque")
-SELECT 'Original em dobro', "id", 2, 1200, '[0,1,2,3,4,5,6]'::jsonb, '10:00', '20:00', 'Original em dobro até as 20h'
+SELECT 'Original em dobro', "id", 2, 1200, '[0,1,2,3,4,5,6]'::jsonb, '18:00', '20:00', 'Original em dobro das 18h às 20h'
 FROM "produtos" WHERE "nome" ILIKE '%original%' AND "setor" = 'bar' ORDER BY "ativo" DESC, "nome" LIMIT 1;

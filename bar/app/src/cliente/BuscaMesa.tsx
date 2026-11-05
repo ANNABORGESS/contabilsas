@@ -8,7 +8,7 @@ export function BuscaMesa(props: { busca: string; setBusca: (v: string) => void;
       <input
         type="search"
         inputMode="search"
-        placeholder="🔍 Buscar mesa ou cliente"
+        placeholder="Buscar mesa ou cliente"
         value={props.busca}
         onChange={(e) => props.setBusca(e.target.value)}
         aria-label="Buscar mesa"
