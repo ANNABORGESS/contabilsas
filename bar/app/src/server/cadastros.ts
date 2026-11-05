@@ -79,6 +79,7 @@ interface DadosProduto {
   precoCentavos?: unknown;
   custoCentavos?: unknown;
   balde?: unknown;
+  servirDireto?: unknown;
   ativo?: unknown;
   ordem?: unknown;
 }
@@ -113,6 +114,7 @@ function validarProduto(d: DadosProduto, parcial: boolean) {
   if (d.descricao !== undefined) set.descricao = texto(d.descricao, 200) || null;
   if (typeof d.ativo === 'boolean') set.ativo = d.ativo;
   if (typeof d.balde === 'boolean') set.balde = d.balde;
+  if (typeof d.servirDireto === 'boolean') set.servirDireto = d.servirDireto;
   if (d.ordem !== undefined && Number.isInteger(Number(d.ordem))) set.ordem = Number(d.ordem);
   return set;
 }
@@ -133,6 +135,7 @@ export async function atualizarProduto(db: Db, u: Usuario, id: string, d: DadosP
   const mudancas = [];
   if (set.precoCentavos !== undefined && set.precoCentavos !== antes.precoCentavos) mudancas.push(`preço ${reais(antes.precoCentavos)} → ${reais(p.precoCentavos)}`);
   if (set.custoCentavos !== undefined && set.custoCentavos !== antes.custoCentavos) mudancas.push(`custo ${antes.custoCentavos === null ? '—' : reais(antes.custoCentavos)} → ${p.custoCentavos === null ? '—' : reais(p.custoCentavos)}`);
+  if (set.servirDireto !== undefined && set.servirDireto !== antes.servirDireto) mudancas.push(p.servirDireto ? 'sai direto (sem painel)' : 'passa pelo painel');
   if (set.balde !== undefined && set.balde !== antes.balde) mudancas.push(p.balde ? 'vai no balde' : 'não vai mais no balde');
   if (set.ativo !== undefined && set.ativo !== antes.ativo) mudancas.push(p.ativo ? 'disponível' : 'indisponível');
   if (set.nome && set.nome !== antes.nome) mudancas.push(`nome "${antes.nome}" → "${p.nome}"`);
@@ -271,7 +274,7 @@ export async function primeiroAcesso(db: Db, d: { nome?: unknown; usuario?: unkn
   await criarMesas(db, u, 1, Number.isInteger(n) && n >= 1 && n <= 200 ? n : 10);
   if (d.exemplo) {
     let ordem = 0;
-    await db.insert(schema.produtos).values(EXEMPLO.flatMap((c) => c.itens.map(([nome, precoCentavos]) => ({ nome, precoCentavos, categoria: c.categoria, setor: c.setor, ordem: ordem++, balde: NO_BALDE.includes(nome) }))));
+    await db.insert(schema.produtos).values(EXEMPLO.flatMap((c) => c.itens.map(([nome, precoCentavos]) => ({ nome, precoCentavos, categoria: c.categoria, setor: c.setor, ordem: ordem++, balde: NO_BALDE.includes(nome), servirDireto: c.setor === 'bar' && c.categoria !== 'Drinks' && nome !== 'Suco natural' }))));
     await registrar(db, { tipo: 'produto_criado', usuarioId: u.id, descricao: 'Cardápio de exemplo criado no primeiro acesso' });
   }
   return u;

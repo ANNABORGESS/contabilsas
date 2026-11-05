@@ -33,7 +33,16 @@ export async function painelSetor(db: Db, setor: Setor) {
     .orderBy(asc(schema.preparos.criadoEm));
   const ids = lista.map((p) => p.pedidoId);
   const itens = ids.length
-    ? await db.select().from(schema.pedidoItens).where(and(inArray(schema.pedidoItens.pedidoId, ids), eq(schema.pedidoItens.setor, setor))).orderBy(asc(schema.pedidoItens.nome))
+    ? (
+        await db
+          .select({ item: schema.pedidoItens, direto: schema.produtos.servirDireto })
+          .from(schema.pedidoItens)
+          .innerJoin(schema.produtos, eq(schema.produtos.id, schema.pedidoItens.produtoId))
+          .where(and(inArray(schema.pedidoItens.pedidoId, ids), eq(schema.pedidoItens.setor, setor)))
+          .orderBy(asc(schema.pedidoItens.nome))
+      )
+        .filter((r) => !r.direto) // o que sai direto o garçom já entregou
+        .map((r) => r.item)
     : [];
   // entregues nos últimos 30 minutos, para conferência
   const recentes = await db

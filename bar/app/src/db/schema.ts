@@ -58,6 +58,8 @@ export const produtos = pgTable('produtos', {
   estoque: integer('estoque'),
   // com true, acabou o estoque não deixa vender; com false só registra (pode ficar negativo)
   estoqueTrava: boolean('estoque_trava').notNull().default(true),
+  // sai direto (cerveja, refrigerante, água): o garçom entrega e já conta, sem passar pelo painel
+  servirDireto: boolean('servir_direto').notNull().default(false),
   ativo: boolean('ativo').notNull().default(true),
   // excluído do cardápio depois de já ter sido vendido: some das listas, mas o histórico continua
   excluido: boolean('excluido').notNull().default(false),

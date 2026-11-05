@@ -92,6 +92,13 @@
       "when": 1793884814782,
       "tag": "0012_estoque_movimentos",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1793885253567,
+      "tag": "0013_servir_direto",
+      "breakpoints": true
     }
   ]
 }

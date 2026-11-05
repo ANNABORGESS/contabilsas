@@ -34,6 +34,8 @@ beforeAll(async () => {
   const prods = await listarProdutos(db);
   batata = prods.find((p) => p.nome === 'Batata frita')!;
   chopp = prods.find((p) => p.nome === 'Chopp 300 ml')!;
+  // os testes do painel do bar usam bebidas que passam pelo bar; "sai direto" tem teste próprio
+  for (const p of prods.filter((x) => x.servirDireto)) await atualizarProduto(db, admin, p.id, { servirDireto: false });
 });
 
 const pedidoBase = () => ({
@@ -357,6 +359,23 @@ describe('fluxo do pedido pago', () => {
     await alterarEstoque(db, admin, isca.id, 'trava', true);
     await expect(previa(db, { mesaId: mesa, itens: [{ produtoId: isca.id, quantidade: 1 }] })).rejects.toThrow(/esgotado/);
     await alterarEstoque(db, admin, isca.id, 'desligar', null);
+  });
+
+  it('bebida que sai direto: o garçom já entrega ao confirmar; não vai para o painel nem deixa a mesa aberta', async () => {
+    await atualizarProduto(db, admin, chopp.id, { servirDireto: true });
+    const caipi = (await listarProdutos(db)).find((p) => p.nome === 'Aperol spritz')!;
+    const outra = (await listarMesas(db)).find((m) => m.numero === 5)!.id;
+    // só chopp: o bar já nasce entregue
+    const so = (await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: outra, formaPagamento: 'pix', itens: [{ produtoId: chopp.id, quantidade: 4 }] })).pedido!;
+    expect(so.preparos).toMatchObject([{ setor: 'bar', status: 'entregue' }]);
+    expect((await painelSetor(db, 'bar')).preparos.some((x) => x.pedidoId === so.id)).toBe(false);
+    expect((await listarPedidos(db, {})).find((x) => x.id === so.id)!.situacao).toBe('entregue');
+    expect((await mesasDoTurno(db, so.dataOperacional)).mesas.find((m) => m.id === outra)!.abertos).toBe(0);
+    // misturado com drink: o bar recebe só o drink
+    const mix = (await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: outra, formaPagamento: 'pix', itens: [{ produtoId: chopp.id, quantidade: 2 }, { produtoId: caipi.id, quantidade: 1 }] })).pedido!;
+    const ticket = (await painelSetor(db, 'bar')).preparos.find((x) => x.pedidoId === mix.id)!;
+    expect(ticket.itens).toEqual([{ nome: 'Aperol spritz', quantidade: 1, balde: null }]);
+    await atualizarProduto(db, admin, chopp.id, { servirDireto: false });
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

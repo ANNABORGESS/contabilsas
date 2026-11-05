@@ -79,7 +79,9 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
   const forma = c.formaPagamento;
   const mesa = await mesaAtiva(db, c.mesaId);
   const itens = Array.isArray(c.itens) ? c.itens : [];
-  const montado = montar(itens, await cardapio(db, itens.map((i) => i?.produtoId)));
+  const produtosPedido = await cardapio(db, itens.map((i) => i?.produtoId));
+  const montado = montar(itens, produtosPedido);
+  const diretos = new Set(produtosPedido.filter((x) => x.servirDireto).map((x) => x.id));
   let final;
   try {
     final = aplicarPrecosCobrados(montado, c.precosCobrados, c.totalCobradoCentavos);
@@ -110,7 +112,13 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
     if (!p) return null; // outro envio com a mesma chave chegou primeiro
     await tx.insert(schema.pedidoItens).values(final.linhas.map((l) => ({ pedidoId: p.id, ...l })));
     await baixarEstoque(tx as unknown as Db, final.linhas, p.id, p.numero, u.id);
-    await tx.insert(schema.preparos).values(final.setores.map((setor) => ({ pedidoId: p.id, setor, criadoEm: agora })));
+    // setor só com itens que saem direto (cerveja, refrigerante...): já nasce entregue e não entra no painel
+    const soDireto = (s: string) => final.linhas.filter((l) => l.setor === s).every((l) => diretos.has(l.produtoId));
+    await tx.insert(schema.preparos).values(
+      final.setores.map((setor) =>
+        soDireto(setor) ? { pedidoId: p.id, setor, criadoEm: agora, status: 'entregue', iniciadoEm: agora, prontoEm: agora, entregueEm: agora } : { pedidoId: p.id, setor, criadoEm: agora },
+      ),
+    );
     const tx2 = tx as unknown as Db;
     await registrar(tx2, {
       tipo: 'pagamento_confirmado',
@@ -120,7 +128,12 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
       dados: { forma, totalCentavos: p.totalCentavos, chave },
     });
     for (const s of final.setores)
-      await registrar(tx2, { tipo: 'enviado_preparo', pedidoId: p.id, usuarioId: u.id, descricao: `Pedido #${p.numero} enviado para ${NOME_SETOR[s]}` });
+      await registrar(
+        tx2,
+        soDireto(s)
+          ? { tipo: 'entregue_direto', pedidoId: p.id, usuarioId: u.id, descricao: `Pedido #${p.numero}: bebidas entregues direto por ${u.nome} (sem passar pelo painel)` }
+          : { tipo: 'enviado_preparo', pedidoId: p.id, usuarioId: u.id, descricao: `Pedido #${p.numero} enviado para ${NOME_SETOR[s]}` },
+      );
     if (final.divergencia)
       await registrar(tx2, { tipo: 'divergencia_preco', pedidoId: p.id, usuarioId: u.id, descricao: `Pedido #${p.numero} cobrado com preço diferente do cardápio atual (${reais(montado.totalCentavos)} pelo cardápio)` });
     return p;

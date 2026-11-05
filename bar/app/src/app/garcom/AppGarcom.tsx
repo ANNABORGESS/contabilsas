@@ -245,11 +245,17 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
               </p>
               {tela.duplicado && <Aviso tipo="info">Este pagamento já estava registrado. Nenhum pedido novo foi criado.</Aviso>}
               <div className="fila" style={{ justifyContent: 'center' }}>
-                {p.preparos.map((x) => (
-                  <span key={x.id} className="chip st-novo">
-                    Enviado para {NOME_SETOR[x.setor as Setor]}
-                  </span>
-                ))}
+                {p.preparos.map((x) =>
+                  x.status === 'entregue' ? (
+                    <span key={x.id} className="chip st-pronto">
+                      ⚡ Bebidas: entregue direto
+                    </span>
+                  ) : (
+                    <span key={x.id} className="chip st-novo">
+                      Enviado para {NOME_SETOR[x.setor as Setor]}
+                    </span>
+                  ),
+                )}
               </div>
               <p className="fraco">Você será avisado aqui quando ficar pronto.</p>
             </div>

@@ -15,6 +15,7 @@ interface Produto {
   precoCentavos: number;
   ativo: boolean;
   balde: boolean;
+  servirDireto: boolean;
   ordem: number;
 }
 
@@ -77,6 +78,7 @@ export default function Cardapio() {
                       <td onClick={() => setEditando(p)}>
                         <b>{p.nome}</b>
                         {p.balde && <span className="chip" style={{ marginLeft: 8 }}>🪣 vai no balde</span>}
+                        {p.servirDireto && <span className="chip" style={{ marginLeft: 8 }}>⚡ sai direto</span>}
                         {p.descricao && <div className="fraco">{p.descricao}</div>}
                       </td>
                       <td onClick={() => setEditando(p)}>{p.categoria}</td>
@@ -121,7 +123,7 @@ function FormProduto({ produto, setorInicial, categorias, fechar, excluir }: { p
     const f = new FormData(e.currentTarget);
     const preco = paraCentavos(String(f.get('preco') || ''));
     if (!preco || preco <= 0) return setErro('Informe um preço válido, ex.: 12,90');
-    const corpo = { nome: f.get('nome'), descricao: f.get('descricao'), categoria: f.get('categoria'), setor: f.get('setor'), precoCentavos: preco, ativo: f.get('ativo') === 'on', balde: f.get('balde') === 'on' };
+    const corpo = { nome: f.get('nome'), descricao: f.get('descricao'), categoria: f.get('categoria'), setor: f.get('setor'), precoCentavos: preco, ativo: f.get('ativo') === 'on', balde: f.get('balde') === 'on', servirDireto: f.get('servirDireto') === 'on' };
     setSalvando(true);
     try {
       if (produto) await api(`/api/cardapio/${produto.id}`, 'PATCH', corpo);
@@ -170,6 +172,10 @@ function FormProduto({ produto, setorInicial, categorias, fechar, excluir }: { p
         </label>
         <label className="fila">
           <input type="checkbox" name="balde" defaultChecked={produto?.balde ?? false} /> 🪣 Cerveja pequena que vai no balde (até 10 por balde)
+        </label>
+        <label className="fila">
+          <input type="checkbox" name="servirDireto" defaultChecked={produto ? produto.servirDireto : setorInicial === 'bar'} /> ⚡ Sai direto: o garçom entrega e já conta, sem
+          passar pelo painel (cerveja, refrigerante, água). Desmarque para drinks que o bar prepara.
         </label>
         {produto && <p className="fraco">Mudar o preço vale para os próximos pedidos. Pedidos já pagos mantêm o valor cobrado.</p>}
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
