@@ -2461,3 +2461,30 @@ html {
   color: var(--amarelo);
   border-color: transparent;
 }
+
+/* conta dividida */
+.divisao {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.divisao .parte {
+  border-top: 1px solid var(--linha);
+  padding-top: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.divisao .parte-pessoa {
+  flex: 1;
+  min-width: 0;
+}
+.divisao .parte-valor {
+  width: 110px;
+  text-align: right;
+  font-size: 17px;
+}
+.formas.pequenas button {
+  font-size: 14px;
+  padding: 8px 6px;
+}

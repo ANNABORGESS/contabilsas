@@ -1,4 +1,5 @@
 import { nomeLocal } from '@/domain/mesas';
+import { nomeForma } from '@/domain/pagamento';
 import { reais } from '@/domain/dinheiro';
 import { NOME_FORMA, type FormaPagamento } from '@/domain/pedido';
 import { csv } from '@/domain/relatorio';
@@ -27,7 +28,7 @@ export const GET = rota(['admin'], async ({ db, req }) => {
         nomeLocal(p.mesa),
         p.cliente || '',
         p.garcom,
-        NOME_FORMA[p.formaPagamento as FormaPagamento] || p.formaPagamento,
+        nomeForma(p.formaPagamento),
         'Manual (garçom)',
         STATUS[p.status] || p.status,
         (p.totalCentavos / 100).toFixed(2).replace('.', ','),

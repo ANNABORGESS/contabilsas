@@ -1,4 +1,5 @@
 'use client';
+import { nomeForma } from '@/domain/pagamento';
 import { nomeLocal } from '@/domain/mesas';
 import { useState } from 'react';
 import { useDados } from '@/cliente/api';
@@ -89,7 +90,7 @@ export default function Relatorios() {
             </div>
             {r.divergencias > 0 && <Aviso tipo="alerta">{r.divergencias} pedido(s) cobrado(s) com preço diferente do cardápio da hora (cardápio alterado durante o atendimento). Veja em Vendas.</Aviso>}
             <div className="grade g2">
-              <Tabela titulo="Por forma de pagamento (informada)" linhas={r.porForma} nome={(k) => NOME_FORMA[k as FormaPagamento] || k} />
+              <Tabela titulo="Por forma de pagamento (informada)" linhas={r.porForma} nome={(k) => nomeForma(k)} />
               <Tabela titulo="Por garçom" linhas={r.porGarcom} />
             </div>
             <div className="cartao">

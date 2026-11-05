@@ -17,6 +17,7 @@ export function paraRelatorio(lista: PedidoLista[]): PedidoRel[] {
     totalCentavos: p.totalCentavos,
     itensCanceladosCentavos: p.itensCanceladosCentavos,
     formaPagamento: p.formaPagamento,
+    valendoPorForma: p.valendoPorForma,
     status: p.status,
     hora: horaLocal(new Date(p.pagoEm), FUSO),
     divergenciaPreco: p.divergenciaPreco,
@@ -45,7 +46,7 @@ export async function mesasDoTurno(db: Db, data: string) {
   const abertos = pagos.filter((p) => p.preparos.some((x) => pendente(x.status)));
   const porFormaDe = (lista: typeof pagos) => {
     const r: Record<string, number> = {};
-    for (const p of lista) r[p.formaPagamento] = (r[p.formaPagamento] || 0) + p.liquidoCentavos;
+    for (const p of lista) for (const f of p.valendoPorForma) r[f.forma] = (r[f.forma] || 0) + f.valorCentavos;
     return r;
   };
   return {

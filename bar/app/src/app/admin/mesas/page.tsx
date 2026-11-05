@@ -1,4 +1,5 @@
 'use client';
+import { nomeForma } from '@/domain/pagamento';
 import { useState } from 'react';
 import { BuscaMesa } from '@/cliente/BuscaMesa';
 import { BALCAO, INICIO_LUGARES_BALCAO, ehBalcao, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas';
@@ -74,7 +75,7 @@ export default function Mesas() {
             {m.pedidos > 0 && (
               <span className="fraco" style={{ fontSize: 12 }}>
                 {Object.entries(m.porForma)
-                  .map(([f, v]) => `${NOME_FORMA[f as FormaPagamento]} ${reais(v)}`)
+                  .map(([f, v]) => `${nomeForma(f)} ${reais(v)}`)
                   .join(' · ')}
               </span>
             )}
@@ -131,11 +132,13 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
       </div>
       {pagos.length > 0 && (
         <div className="fila" style={{ flexWrap: 'wrap', gap: 6 }}>
-          {FORMAS_PAGAMENTO.filter((f) => pagos.some((p) => p.formaPagamento === f)).map((f) => (
-            <span key={f} className="chip">
-              {NOME_FORMA[f]}: {reais(pagos.filter((p) => p.formaPagamento === f).reduce((a, p) => a + p.liquidoCentavos, 0))}
-            </span>
-          ))}
+          {FORMAS_PAGAMENTO.map((f) => [f, pagos.flatMap((p) => p.valendoPorForma).filter((x) => x.forma === f).reduce((a, x) => a + x.valorCentavos, 0)] as const)
+            .filter(([, v]) => v > 0)
+            .map(([f, v]) => (
+              <span key={f} className="chip">
+                {NOME_FORMA[f]}: {reais(v)}
+              </span>
+            ))}
         </div>
       )}
       {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
@@ -166,7 +169,7 @@ function HistoricoMesa({ mesa, fechar }: { mesa: MesaTurno; fechar: () => void }
                 {p.itens.map(textoItem).join(', ')}
               </td>
               <td>{p.garcom}</td>
-              <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
+              <td>{nomeForma(p.formaPagamento)}</td>
               <td className="direita num">{reais(p.liquidoCentavos)}</td>
               <td>{p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}</td>
             </tr>

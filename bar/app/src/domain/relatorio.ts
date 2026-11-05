@@ -10,6 +10,8 @@ export interface PedidoRel {
   totalCentavos: number;
   itensCanceladosCentavos?: number; // itens cancelados um a um (já descontados do que vale)
   formaPagamento: string;
+  /** o que vale em cada forma (conta dividida); sem isso, tudo na formaPagamento */
+  valendoPorForma?: { forma: string; valorCentavos: number }[];
   status: string; // pago | cancelado | estornado
   hora: number; // hora local do pagamento
   divergenciaPreco: boolean;
@@ -51,7 +53,7 @@ export function resumir(pedidos: PedidoRel[]) {
   const porProduto = new Map<string, Linha & { setor: string }>();
   const porHora = new Map<string, Linha>();
   for (const p of validos) {
-    somar(porForma, p.formaPagamento, vale(p));
+    for (const f of p.valendoPorForma ?? [{ forma: p.formaPagamento, valorCentavos: vale(p) }]) somar(porForma, f.forma, f.valorCentavos);
     somar(porGarcom, p.garcom, vale(p));
     somar(porMesa, String(p.mesa), vale(p));
     somar(porHora, String(p.hora).padStart(2, '0'), vale(p));

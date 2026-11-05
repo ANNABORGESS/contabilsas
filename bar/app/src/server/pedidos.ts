@@ -14,6 +14,7 @@ import { ErroRegra } from './erros';
 import { registrar } from './eventos';
 import { baixarEstoque } from './estoque';
 import { faltaNoEstoque } from '@/domain/estoque';
+import { ErroPagamento, formaDoPedido, nomeForma, validarPartes, valendoPorForma } from '@/domain/pagamento';
 import type { Usuario } from './auth';
 
 /** Nome do cliente: opcional, uma linha, até 60 letras. */
@@ -63,6 +64,8 @@ export interface Confirmacao {
   mesaId: unknown;
   itens: ItemSolicitado[];
   formaPagamento: unknown;
+  /** conta dividida: várias partes, cada uma com forma e valor (soma = total) */
+  pagamentos?: unknown;
   totalCobradoCentavos?: number;
   precosCobrados?: { produtoId: string; precoCentavos: number }[];
   observacao?: unknown;
@@ -75,8 +78,8 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
   const existente = await pedidoPorChave(db, chave);
   if (existente) return { pedido: existente, duplicado: true };
 
-  if (!ehFormaPagamento(c.formaPagamento)) throw new ErroRegra('Informe a forma de pagamento.');
-  const forma = c.formaPagamento;
+  const dividido = Array.isArray(c.pagamentos) && c.pagamentos.length > 0;
+  if (!dividido && !ehFormaPagamento(c.formaPagamento)) throw new ErroRegra('Informe a forma de pagamento.');
   const mesa = await mesaAtiva(db, c.mesaId);
   const itens = Array.isArray(c.itens) ? c.itens : [];
   const produtosPedido = await cardapio(db, itens.map((i) => i?.produtoId));
@@ -89,6 +92,14 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
     if (e instanceof ErroPedido) throw new ErroRegra(e.message);
     throw e;
   }
+  let partes;
+  try {
+    partes = validarPartes(dividido ? c.pagamentos : [{ forma: c.formaPagamento, valorCentavos: final.totalCentavos }], final.totalCentavos);
+  } catch (e) {
+    if (e instanceof ErroPagamento) throw new ErroRegra(e.message);
+    throw e;
+  }
+  const forma = formaDoPedido(partes);
   const observacao = typeof c.observacao === 'string' && c.observacao.trim() ? c.observacao.trim().slice(0, 300) : null;
   const cliente = nomeCliente(c.cliente);
 
@@ -111,6 +122,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
       .returning();
     if (!p) return null; // outro envio com a mesma chave chegou primeiro
     await tx.insert(schema.pedidoItens).values(final.linhas.map((l) => ({ pedidoId: p.id, ...l })));
+    await tx.insert(schema.pedidoPagamentos).values(partes.map((x) => ({ pedidoId: p.id, ...x })));
     await baixarEstoque(tx as unknown as Db, final.linhas, p.id, p.numero, u.id);
     // setor só com itens que saem direto (cerveja, refrigerante...): já nasce entregue e não entra no painel
     const soDireto = (s: string) => final.linhas.filter((l) => l.setor === s).every((l) => diretos.has(l.produtoId));
@@ -124,8 +136,8 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
       tipo: 'pagamento_confirmado',
       pedidoId: p.id,
       usuarioId: u.id,
-      descricao: `Pedido #${p.numero} · ${nomeLocal(mesa.numero).toLowerCase()}${cliente ? ` (${cliente})` : ''} · ${reais(p.totalCentavos)} no ${NOME_FORMA[forma]} confirmado por ${u.nome} (confirmação manual)`,
-      dados: { forma, totalCentavos: p.totalCentavos, chave },
+      descricao: `Pedido #${p.numero} · ${nomeLocal(mesa.numero).toLowerCase()}${cliente ? ` (${cliente})` : ''} · ${reais(p.totalCentavos)} ${partes.length === 1 ? `no ${nomeForma(forma)}` : `dividido em ${partes.length} (${partes.map((x) => `${nomeForma(x.forma)} ${reais(x.valorCentavos)}${x.pessoa ? ` ${x.pessoa}` : ''}`).join(', ')})`} confirmado por ${u.nome} (confirmação manual)`,
+      dados: { forma, totalCentavos: p.totalCentavos, chave, partes },
     });
     for (const s of final.setores)
       await registrar(
@@ -158,7 +170,7 @@ export async function detalhePedido(db: Db, id: string) {
     .innerJoin(schema.usuarios, eq(schema.usuarios.id, schema.pedidos.garcomId))
     .where(eq(schema.pedidos.id, id));
   if (!p) return null;
-  const [itens, preparos, linhaDoTempo, solicitacoes] = await Promise.all([
+  const [itens, preparos, linhaDoTempo, solicitacoes, pagamentos] = await Promise.all([
     db.select().from(schema.pedidoItens).where(eq(schema.pedidoItens.pedidoId, id)).orderBy(asc(schema.pedidoItens.setor), asc(schema.pedidoItens.nome)),
     db.select().from(schema.preparos).where(eq(schema.preparos.pedidoId, id)).orderBy(asc(schema.preparos.setor)),
     db
@@ -168,6 +180,7 @@ export async function detalhePedido(db: Db, id: string) {
       .where(eq(schema.eventos.pedidoId, id))
       .orderBy(asc(schema.eventos.id)),
     db.select().from(schema.solicitacoes).where(eq(schema.solicitacoes.pedidoId, id)).orderBy(desc(schema.solicitacoes.criadoEm)),
+    db.select().from(schema.pedidoPagamentos).where(eq(schema.pedidoPagamentos.pedidoId, id)),
   ]);
   const encerradoPor = p.pedido.encerradoPorId
     ? (await db.select({ nome: schema.usuarios.nome }).from(schema.usuarios).where(eq(schema.usuarios.id, p.pedido.encerradoPorId)))[0]?.nome
@@ -180,6 +193,7 @@ export async function detalhePedido(db: Db, id: string) {
     encerradoPor,
     itens,
     preparos,
+    pagamentos: pagamentos.map(({ forma, valorCentavos, pessoa }) => ({ forma, valorCentavos, pessoa })),
     situacao: pedido.status === 'pago' ? situacaoPedido(preparos.map((x) => ({ setor: x.setor as 'cozinha', status: x.status as StatusPreparo }))) : 'cancelado',
     linhaDoTempo,
     solicitacaoPendente: solicitacoes.some((s) => s.status === 'pendente'),
@@ -231,12 +245,16 @@ export async function listarPedidos(db: Db, f: FiltroPedidos) {
     .limit(Math.min(f.limite || 500, 5000));
   if (!lista.length) return [];
   const ids = lista.map((p) => p.id);
-  const [itens, preparos, pendentes] = await Promise.all([
+  const [itens, preparos, pendentes, pags] = await Promise.all([
     db.select().from(schema.pedidoItens).where(inArray(schema.pedidoItens.pedidoId, ids)),
     db.select().from(schema.preparos).where(inArray(schema.preparos.pedidoId, ids)),
     db.select({ pedidoId: schema.solicitacoes.pedidoId }).from(schema.solicitacoes).where(and(inArray(schema.solicitacoes.pedidoId, ids), eq(schema.solicitacoes.status, 'pendente'))),
+    db.select().from(schema.pedidoPagamentos).where(inArray(schema.pedidoPagamentos.pedidoId, ids)),
   ]);
   const comPendencia = new Set(pendentes.map((s) => s.pedidoId));
+  const porPedido = new Map<string, { forma: string; valorCentavos: number; pessoa: string | null }[]>();
+  for (const x of pags) porPedido.set(x.pedidoId, [...(porPedido.get(x.pedidoId) || []), { forma: x.forma, valorCentavos: x.valorCentavos, pessoa: x.pessoa }]);
+  const pagamentosDe = (id: string, p = lista.find((x) => x.id === id)!) => porPedido.get(id) ?? [{ forma: p.formaPagamento, valorCentavos: p.totalCentavos, pessoa: null }];
   return lista.map((p) => {
     const prs = preparos.filter((x) => x.pedidoId === p.id).sort((a, b) => a.setor.localeCompare(b.setor));
     return {
@@ -246,6 +264,9 @@ export async function listarPedidos(db: Db, f: FiltroPedidos) {
         .map((i) => ({ id: i.id, nome: i.nome, setor: i.setor, quantidade: i.quantidade, precoCentavos: i.precoCentavos, subtotalCentavos: i.subtotalCentavos, balde: i.balde, quantidadeCancelada: i.quantidadeCancelada })),
       /** o que vale depois dos itens cancelados um a um */
       liquidoCentavos: p.totalCentavos - p.itensCanceladosCentavos,
+      pagamentos: pagamentosDe(p.id),
+      /** o que vale em cada forma (conta dividida reparte o que foi cancelado) */
+      valendoPorForma: valendoPorForma(pagamentosDe(p.id), p.totalCentavos, p.totalCentavos - p.itensCanceladosCentavos),
       preparos: prs.map((x) => ({ id: x.id, setor: x.setor, status: x.status, criadoEm: x.criadoEm, prontoEm: x.prontoEm, entregueEm: x.entregueEm })),
       situacao: p.status === 'pago' ? situacaoPedido(prs.map((x) => ({ setor: x.setor as 'cozinha', status: x.status as StatusPreparo }))) : 'cancelado',
       solicitacaoPendente: comPendencia.has(p.id),

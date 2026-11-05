@@ -1,4 +1,5 @@
 'use client';
+import { nomeForma } from '@/domain/pagamento';
 import { useState } from 'react';
 import { useDados } from '@/cliente/api';
 import { dataBr, hora, reais } from '@/cliente/formato';
@@ -103,7 +104,7 @@ export default function Vendas() {
                     </td>
                     <td style={{ maxWidth: 280 }}>{p.itens.map(textoItem).join(', ')}</td>
                     <td>{p.garcom}</td>
-                    <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
+                    <td>{nomeForma(p.formaPagamento)}</td>
                     <td className="direita num">
                       {reais(p.liquidoCentavos)}
                       {p.divergenciaPreco && <div className="chip st-preparando">preço divergente</div>}

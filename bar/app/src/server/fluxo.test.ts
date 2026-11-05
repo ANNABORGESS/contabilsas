@@ -12,6 +12,7 @@ import { versaoAtual } from './eventos';
 import { custosELucro, excluirDespesa, lancarDespesa } from './financeiro';
 import { contaDaTela } from './acessoTela';
 import { alterarEstoque, listarMovimentos } from './estoque';
+import { fecharCaixa, resumoCaixa } from './caixa';
 
 let db: Db;
 let admin: Usuario;
@@ -376,6 +377,43 @@ describe('fluxo do pedido pago', () => {
     const ticket = (await painelSetor(db, 'bar')).preparos.find((x) => x.pedidoId === mix.id)!;
     expect(ticket.itens).toEqual([{ nome: 'Aperol spritz', quantidade: 1, balde: null }]);
     await atualizarProduto(db, admin, chopp.id, { servirDireto: false });
+  });
+
+  it('conta dividida: várias formas que fecham o total; item cancelado reparte entre elas; fechamento de caixa confere', async () => {
+    const outra = (await listarMesas(db)).find((m) => m.numero === 2)!.id;
+    const total = 2 * batata.precoCentavos;
+    await expect(
+      confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: outra, formaPagamento: null, itens: [{ produtoId: batata.id, quantidade: 2 }], pagamentos: [{ forma: 'pix', valorCentavos: 100 }] }),
+    ).rejects.toThrow(/falta/);
+    const { pedido } = await confirmarPagamento(db, garcom, {
+      chave: randomUUID(),
+      mesaId: outra,
+      formaPagamento: null,
+      itens: [{ produtoId: batata.id, quantidade: 2 }],
+      pagamentos: [
+        { forma: 'pix', valorCentavos: total / 2, pessoa: 'Ana' },
+        { forma: 'dinheiro', valorCentavos: total / 2, pessoa: 'Bia' },
+      ],
+    });
+    expect(pedido!.formaPagamento).toBe('dividido');
+    expect(pedido!.pagamentos).toEqual([
+      { forma: 'pix', valorCentavos: total / 2, pessoa: 'Ana' },
+      { forma: 'dinheiro', valorCentavos: total / 2, pessoa: 'Bia' },
+    ]);
+    const data = pedido!.dataOperacional;
+    const antes = await resumoCaixa(db, data);
+    // cancelar 1 batata: metade sai de cada forma
+    await cancelarItem(db, admin, pedido!.id, pedido!.itens[0].id, 1, 'cliente desistiu');
+    const depois = await resumoCaixa(db, data);
+    expect(antes.sistema.pix - depois.sistema.pix).toBe(batata.precoCentavos / 2);
+    expect(antes.sistema.dinheiro - depois.sistema.dinheiro).toBe(batata.precoCentavos / 2);
+    expect(depois.divididos).toBeGreaterThanOrEqual(1);
+    // fechamento: dinheiro contado com R$ 5,00 a menos
+    await expect(fecharCaixa(db, garcom, data, { conferido: { dinheiro: 1 } })).rejects.toThrow(/administrador/);
+    const f = await fecharCaixa(db, admin, data, { trocoInicialCentavos: 10000, conferido: { dinheiro: 10000 + depois.sistema.dinheiro - 500, pix: depois.sistema.pix } });
+    expect(f.linhas.find((l) => l.forma === 'dinheiro')!.diferenca).toBe(-500);
+    expect(f.linhas.find((l) => l.forma === 'pix')!.diferenca).toBe(0);
+    expect((await resumoCaixa(db, data)).fechamento).toMatchObject({ trocoInicialCentavos: 10000, fechadoPor: 'Dona' });
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

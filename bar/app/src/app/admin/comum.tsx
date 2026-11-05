@@ -1,5 +1,6 @@
 'use client';
 // Peças comuns da administração: detalhe do pedido com cancelamento/estorno e período.
+import { nomeForma } from '@/domain/pagamento';
 import { nomeLocal } from '@/domain/mesas';
 import { useState } from 'react';
 import { api, useDados } from '@/cliente/api';
@@ -85,7 +86,17 @@ export function DetalhePedidoAdmin({ id, fechar }: { id: string; fechar: () => v
             </div>
             <div>
               <div className="fraco">Forma informada</div>
-              <b>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</b> <span className="fraco">· confirmação manual</span>
+              <b>{nomeForma(p.formaPagamento)}</b> <span className="fraco">· confirmação manual</span>
+              {p.pagamentos.length > 1 && (
+                <div className="fraco">
+                  {p.pagamentos.map((x, i) => (
+                    <div key={i}>
+                      {x.pessoa ? `${x.pessoa}: ` : ''}
+                      {nomeForma(x.forma)} {reais(x.valorCentavos)}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div>
               <div className="fraco">Situação</div>

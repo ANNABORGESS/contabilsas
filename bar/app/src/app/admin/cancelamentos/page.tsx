@@ -1,4 +1,5 @@
 'use client';
+import { nomeForma } from '@/domain/pagamento';
 import { nomeLocal } from '@/domain/mesas';
 import { useState } from 'react';
 import { api, useDados } from '@/cliente/api';
@@ -35,7 +36,7 @@ export default function Cancelamentos() {
     setMsg(null);
     try {
       const r = await api<{ tipo?: string }>(`/api/solicitacoes/${s.id}`, 'POST', { decisao });
-      setMsg({ tipo: 'ok', texto: decisao === 'recusar' ? `Solicitação do pedido #${s.numero} recusada.` : `${r.tipo === 'estornado' ? 'Estorno' : 'Cancelamento'} do pedido #${s.numero} autorizado. Devolva ${reais(s.totalCentavos)} no ${NOME_FORMA[s.formaPagamento as FormaPagamento]}.` });
+      setMsg({ tipo: 'ok', texto: decisao === 'recusar' ? `Solicitação do pedido #${s.numero} recusada.` : `${r.tipo === 'estornado' ? 'Estorno' : 'Cancelamento'} do pedido #${s.numero} autorizado. Devolva ${reais(s.totalCentavos)} no ${nomeForma(s.formaPagamento)}.` });
     } catch (e) {
       setMsg({ tipo: 'erro', texto: (e as Error).message });
     } finally {
@@ -57,7 +58,7 @@ export default function Cancelamentos() {
             <div key={s.id} className="fila entre" style={{ padding: '12px 0', borderBottom: '1px solid var(--borda)' }}>
               <div>
                 <b>
-                  Pedido #{s.numero} · {nomeLocal(s.mesa)} · {reais(s.totalCentavos)} ({NOME_FORMA[s.formaPagamento as FormaPagamento]})
+                  Pedido #{s.numero} · {nomeLocal(s.mesa)} · {reais(s.totalCentavos)} ({nomeForma(s.formaPagamento)})
                 </b>
                 <div className="mudo">
                   {s.solicitante} em {dataHora(s.criadoEm)}: “{s.motivo}”

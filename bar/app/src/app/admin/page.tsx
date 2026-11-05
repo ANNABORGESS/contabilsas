@@ -1,4 +1,5 @@
 'use client';
+import { nomeForma } from '@/domain/pagamento';
 import { useState } from 'react';
 import { useDados } from '@/cliente/api';
 import { hora, reais } from '@/cliente/formato';
@@ -77,7 +78,7 @@ export default function VisaoGeral() {
               <div className="barras-h">
                 {r.porForma.map((f) => (
                   <div key={f.chave} className="item" style={{ gridTemplateColumns: '70px 1fr auto' }}>
-                    <span>{NOME_FORMA[f.chave as FormaPagamento] || f.chave}</span>
+                    <span>{nomeForma(f.chave)}</span>
                     <div className="barra">
                       <i style={{ width: `${(f.valorCentavos / maxForma) * 100}%` }} />
                     </div>
@@ -120,7 +121,7 @@ export default function VisaoGeral() {
                         {p.cliente && <div className="fraco">{p.cliente}</div>}
                       </td>
                       <td>{p.garcom}</td>
-                      <td>{NOME_FORMA[p.formaPagamento as FormaPagamento]}</td>
+                      <td>{nomeForma(p.formaPagamento)}</td>
                       <td className="direita num">{reais(p.liquidoCentavos)}</td>
                       <td>{p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}</td>
                     </tr>

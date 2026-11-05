@@ -202,3 +202,27 @@ export const estoqueMovimentos = pgTable(
   },
   (t) => [index('estoque_mov_produto_idx').on(t.produtoId), index('estoque_mov_data_idx').on(t.criadoEm)],
 )
+
+/** Como o pedido foi pago. Uma linha por pagamento; conta dividida tem várias (ex.: metade Pix, metade crédito). */
+export const pedidoPagamentos = pgTable(
+  'pedido_pagamentos',
+  {
+    id: id(),
+    pedidoId: uuid('pedido_id').notNull().references(() => pedidos.id, { onDelete: 'cascade' }),
+    forma: text('forma').notNull(), // credito | debito | pix | dinheiro
+    valorCentavos: integer('valor_centavos').notNull(),
+    pessoa: text('pessoa'), // quem pagou essa parte (opcional)
+  },
+  (t) => [index('pedido_pagamentos_pedido_idx').on(t.pedidoId)],
+);
+
+/** Fechamento de caixa do turno: o que o sistema registrou × o que foi contado e o que a maquininha mostra. */
+export const caixaFechamentos = pgTable('caixa_fechamentos', {
+  data: text('data').primaryKey(), // AAAA-MM-DD do turno
+  trocoInicialCentavos: integer('troco_inicial_centavos').notNull().default(0),
+  sistema: jsonb('sistema').notNull(), // por forma, no momento do fechamento
+  conferido: jsonb('conferido').notNull(), // por forma: dinheiro contado, relatório da maquininha
+  observacao: text('observacao'),
+  fechadoPorId: uuid('fechado_por_id').notNull().references(() => usuarios.id),
+  fechadoEm: criadoEm(),
+});

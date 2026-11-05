@@ -2,6 +2,8 @@
 // Celular do garçom. O pedido só é gravado quando o garçom toca em "Pagamento confirmado",
 // depois de a maquininha aprovar. Até lá ele fica só neste aparelho (rascunho). A chave do
 // envio fica guardada: se a rede cair e o garçom tentar de novo, o pedido não é duplicado.
+import { dividirIgual, nomeForma } from '@/domain/pagamento';
+import { paraCentavos } from '@/domain/dinheiro';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { api, bipar, liberarSom, novaChave, useDados } from '@/cliente/api';
 import { decorrido, hora, reais } from '@/cliente/formato';
@@ -58,6 +60,14 @@ interface Tentativa {
   forma: FormaPagamento | null;
   observacao: string;
   cliente?: string;
+  /** conta dividida: cada parte com valor em centavos, forma e (opcional) quem pagou */
+  partes?: Parte[];
+}
+interface Parte {
+  valor: number;
+  texto: string; // o que o garçom digitou no valor
+  forma: FormaPagamento | null;
+  pessoa: string;
 }
 
 type Carrinhos = Record<string, Record<string, number>>;
@@ -241,7 +251,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
               <h1>Pedido #{p.numero} registrado</h1>
               <p className="mudo">
                 {nomeLocal(p.mesa)}
-                {p.cliente && ` · ${p.cliente}`} · {reais(p.totalCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]}
+                {p.cliente && ` · ${p.cliente}`} · {reais(p.totalCentavos)} · {nomeForma(p.formaPagamento)}
               </p>
               {tela.duplicado && <Aviso tipo="info">Este pagamento já estava registrado. Nenhum pedido novo foi criado.</Aviso>}
               <div className="fila" style={{ justifyContent: 'center' }}>
@@ -614,8 +624,19 @@ function MontarBalde({ numero, produtos, disponivel, inicial, fechar, salvar }: 
 
 // ---------- pagamento na maquininha ----------
 
+const emReais = (c: number) => (c / 100).toFixed(2).replace('.', ',');
+
 function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: Tentativa; atualizar: (t: Tentativa) => void; voltar: () => void; enviado: (p: DetalhePedido, dup: boolean) => void }) {
   const { previa, forma } = tentativa;
+  const partes = tentativa.partes;
+  const dividindo = !!partes && partes.length > 0;
+  const somaPartes = (partes || []).reduce((a, x) => a + x.valor, 0);
+  const faltaPartes = previa.totalCentavos - somaPartes;
+  const partesOk = dividindo && faltaPartes === 0 && partes!.every((x) => x.forma && x.valor > 0);
+  const pagamentoOk = dividindo ? partesOk : !!forma;
+  const dividirEm = (n: number) =>
+    atualizar({ ...tentativa, partes: dividirIgual(previa.totalCentavos, n).map((valor, i) => ({ valor, texto: emReais(valor), forma: partes?.[i]?.forma ?? null, pessoa: partes?.[i]?.pessoa ?? '' })) });
+  const mudarParte = (i: number, d: Partial<Parte>) => atualizar({ ...tentativa, partes: partes!.map((x, k) => (k === i ? { ...x, ...d } : x)) });
   const noBalcao = ehBalcao(previa.mesa.numero);
   const nomeOk = !!tentativa.cliente?.trim();
   const [confirmar, setConfirmar] = useState(false);
@@ -625,7 +646,7 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
   const travado = useRef(false);
 
   async function enviar() {
-    if (travado.current || !forma) return; // impede toque duplo
+    if (travado.current || !pagamentoOk) return; // impede toque duplo
     travado.current = true;
     setEnviando(true);
     setErro('');
@@ -634,7 +655,8 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
         chave: tentativa.chave,
         mesaId: tentativa.mesaId,
         itens: previa.linhas.map((l) => ({ produtoId: l.produtoId, quantidade: l.quantidade, balde: l.balde })),
-        formaPagamento: forma,
+        formaPagamento: dividindo ? null : forma,
+        pagamentos: dividindo ? partes!.map((x) => ({ forma: x.forma, valorCentavos: x.valor, pessoa: x.pessoa })) : undefined,
         totalCobradoCentavos: previa.totalCentavos,
         precosCobrados: previa.linhas.map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos })),
         observacao: tentativa.observacao,
@@ -695,18 +717,77 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
             </div>
           ))}
         </div>
-        <div>
-          <div className="mudo" style={{ fontWeight: 700, marginBottom: 8 }}>
-            Forma de pagamento informada
-          </div>
-          <div className="formas">
-            {FORMAS_PAGAMENTO.map((f) => (
-              <button key={f} className={forma === f ? 'ativo' : ''} onClick={() => atualizar({ ...tentativa, forma: f })} disabled={enviando}>
-                {NOME_FORMA[f]}
+        {!dividindo ? (
+          <div>
+            <div className="fila entre" style={{ marginBottom: 8 }}>
+              <span className="mudo" style={{ fontWeight: 700 }}>
+                Forma de pagamento informada
+              </span>
+              <button className="btn pequeno" onClick={() => dividirEm(2)} disabled={enviando}>
+                ➗ Dividir conta
               </button>
-            ))}
+            </div>
+            <div className="formas">
+              {FORMAS_PAGAMENTO.map((f) => (
+                <button key={f} className={forma === f ? 'ativo' : ''} onClick={() => atualizar({ ...tentativa, forma: f })} disabled={enviando}>
+                  {NOME_FORMA[f]}
+                </button>
+              ))}
+            </div>
           </div>
-        </div>
+        ) : (
+          <div className="cartao divisao">
+            <div className="fila entre">
+              <b>➗ Conta dividida</b>
+              <button className="btn fantasma pequeno" onClick={() => atualizar({ ...tentativa, partes: undefined })} disabled={enviando}>
+                Não dividir
+              </button>
+            </div>
+            <div className="fila" style={{ flexWrap: 'wrap', gap: 6 }}>
+              <span className="fraco">Dividir igual em</span>
+              {[2, 3, 4, 5, 6].map((n) => (
+                <button key={n} className={`btn pequeno ${partes!.length === n ? 'primario' : ''}`} onClick={() => dividirEm(n)} disabled={enviando}>
+                  {n}
+                </button>
+              ))}
+            </div>
+            {partes!.map((x, i) => (
+              <div key={i} className="parte">
+                <div className="fila entre">
+                  <input className="parte-pessoa" value={x.pessoa} placeholder={`Pessoa ${i + 1} (opcional)`} maxLength={40} onChange={(e) => mudarParte(i, { pessoa: e.target.value })} disabled={enviando} />
+                  <input
+                    className="parte-valor num"
+                    inputMode="decimal"
+                    value={x.texto}
+                    onChange={(e) => mudarParte(i, { texto: e.target.value, valor: paraCentavos(e.target.value) ?? 0 })}
+                    disabled={enviando}
+                    aria-label={`Valor da parte ${i + 1}`}
+                  />
+                  {partes!.length > 1 && (
+                    <button className="btn fantasma pequeno" onClick={() => atualizar({ ...tentativa, partes: partes!.filter((_, k) => k !== i) })} aria-label={`Tirar parte ${i + 1}`} disabled={enviando}>
+                      ✕
+                    </button>
+                  )}
+                </div>
+                <div className="formas pequenas">
+                  {FORMAS_PAGAMENTO.map((f) => (
+                    <button key={f} className={x.forma === f ? 'ativo' : ''} onClick={() => mudarParte(i, { forma: f })} disabled={enviando}>
+                      {NOME_FORMA[f]}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ))}
+            <div className="fila entre">
+              <button className="btn pequeno" onClick={() => atualizar({ ...tentativa, partes: [...partes!, { valor: Math.max(0, faltaPartes), texto: emReais(Math.max(0, faltaPartes)), forma: null, pessoa: '' }] })} disabled={enviando || partes!.length >= 20}>
+                + Parte
+              </button>
+              <b className="num" style={{ color: faltaPartes === 0 ? 'var(--verde)' : 'var(--vermelho)' }}>
+                {faltaPartes === 0 ? '✓ Fecha o total' : faltaPartes > 0 ? `Falta ${reais(faltaPartes)}` : `Passou ${reais(-faltaPartes)}`}
+              </b>
+            </div>
+          </div>
+        )}
         <label className="campo">
           Observação para o preparo (opcional)
           <input value={tentativa.observacao} maxLength={300} placeholder="ex.: sem cebola, copo com gelo" onChange={(e) => atualizar({ ...tentativa, observacao: e.target.value })} disabled={enviando} />
@@ -721,15 +802,37 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
       </main>
       <div className="barra-acao">
         <div>
-          <button className="btn sucesso grande bloco" disabled={!forma || enviando || (noBalcao && !nomeOk)} onClick={() => setConfirmar(true)}>
-            {enviando ? 'Registrando…' : falhouRede ? 'Tentar de novo' : noBalcao && !nomeOk ? 'Escreva o nome do cliente' : 'Pagamento confirmado'}
+          <button className="btn sucesso grande bloco" disabled={!pagamentoOk || enviando || (noBalcao && !nomeOk)} onClick={() => setConfirmar(true)}>
+            {enviando
+              ? 'Registrando…'
+              : falhouRede
+                ? 'Tentar de novo'
+                : noBalcao && !nomeOk
+                  ? 'Escreva o nome do cliente'
+                  : dividindo && !partesOk
+                    ? faltaPartes !== 0
+                      ? 'As partes precisam fechar o total'
+                      : 'Escolha a forma de cada parte'
+                    : 'Pagamento confirmado'}
           </button>
         </div>
       </div>
-      {confirmar && forma && (
-        <Modal titulo="A maquininha aprovou?" aoFechar={() => !enviando && setConfirmar(false)}>
+      {confirmar && pagamentoOk && (
+        <Modal titulo={dividindo ? 'Todas as partes foram pagas?' : 'A maquininha aprovou?'} aoFechar={() => !enviando && setConfirmar(false)}>
+          {dividindo && (
+            <div className="resumo-itens" style={{ marginBottom: 10 }}>
+              {partes!.map((x, i) => (
+                <div key={i}>
+                  <span>
+                    {x.pessoa.trim() || `Parte ${i + 1}`} · <b>{NOME_FORMA[x.forma!]}</b>
+                  </span>
+                  <span className="num">{reais(x.valor)}</span>
+                </div>
+              ))}
+            </div>
+          )}
           <p style={{ fontSize: 17 }}>
-            Confirme que o pagamento de <b>{reais(previa.totalCentavos)}</b> no <b>{NOME_FORMA[forma]}</b> foi aprovado para <b>{nomeLocal(previa.mesa.numero).toLowerCase()}</b>
+            Confirme que o pagamento de <b>{reais(previa.totalCentavos)}</b> {dividindo ? <>em <b>{partes!.length} partes</b></> : <>no <b>{NOME_FORMA[forma!]}</b></>} foi aprovado para <b>{nomeLocal(previa.mesa.numero).toLowerCase()}</b>
             {tentativa.cliente?.trim() && (
               <>
                 {' '}
@@ -778,7 +881,7 @@ function ListaPedidos({ usuarioId, abrir }: { usuarioId: string; abrir: (id: str
             {p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}
           </div>
           <div className="fraco">
-            {hora(p.pagoEm)} ({decorrido(p.pagoEm, agora)}) · {reais(p.totalCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]}
+            {hora(p.pagoEm)} ({decorrido(p.pagoEm, agora)}) · {reais(p.totalCentavos)} · {nomeForma(p.formaPagamento)}
             {p.garcomId !== usuarioId && ` · ${p.garcom}`}
           </div>
           <div className="fila">
@@ -861,7 +964,7 @@ function HistoricoMesa({ mesaId, fechar, abrir }: { mesaId: string; fechar: () =
           </div>
           <div className="fraco">{p.itens.map(textoItem).join(', ')}</div>
           <div className="fraco">
-            {reais(p.liquidoCentavos)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]} · {p.garcom}
+            {reais(p.liquidoCentavos)} · {nomeForma(p.formaPagamento)} · {p.garcom}
           </div>
         </button>
       ))}
@@ -909,7 +1012,7 @@ function DetalhePedidoModal({ id, fechar, usuarioId }: { id: string; fechar: () 
           <div className="fila entre">
             <span className="mudo">
               {p.cliente && <b style={{ color: 'var(--texto)' }}>👤 {p.cliente} · </b>}
-              {hora(p.pagoEm)} · {NOME_FORMA[p.formaPagamento as FormaPagamento]} · {p.garcom}
+              {hora(p.pagoEm)} · {nomeForma(p.formaPagamento)} · {p.garcom}
               {p.garcomId === usuarioId && ' (você)'}
             </span>
             {p.status === 'pago' ? <ChipSituacao s={p.situacao} /> : <ChipPedido status={p.status} />}
