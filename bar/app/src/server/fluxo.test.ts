@@ -11,6 +11,7 @@ import { relatorio, mesasDoTurno } from './relatorios';
 import { versaoAtual } from './eventos';
 import { custosELucro, excluirDespesa, lancarDespesa } from './financeiro';
 import { contaDaTela } from './acessoTela';
+import { alterarEstoque } from './estoque';
 
 let db: Db;
 let admin: Usuario;
@@ -293,6 +294,30 @@ describe('fluxo do pedido pago', () => {
     const depois = (await listarPedidos(db, {})).find((x) => x.id === p.id)!;
     expect(depois.preparos.every((x) => x.status === 'entregue')).toBe(true);
     expect(await finalizarPedido(db, admin, p.id)).toEqual({ finalizados: 0 }); // toque repetido
+  });
+
+  it('estoque: venda baixa, prévia barra quando falta, cancelamento devolve e estorno não', async () => {
+    const lata = (await listarProdutos(db)).find((p) => p.nome === 'Cerveja lata 350 ml')!;
+    await expect(alterarEstoque(db, garcom, lata.id, 'ajustar', 10)).rejects.toThrow(/administrador/);
+    expect(await alterarEstoque(db, admin, lata.id, 'ajustar', 10)).toEqual({ estoque: 10 });
+    const est = async () => (await listarProdutos(db, true)).find((p) => p.id === lata.id)!.estoque;
+    await expect(previa(db, { mesaId: mesa, itens: [{ produtoId: lata.id, quantidade: 11 }] })).rejects.toThrow(/restam 10/);
+    const { pedido } = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, formaPagamento: 'pix', itens: [{ produtoId: lata.id, quantidade: 6, balde: 1 }, { produtoId: lata.id, quantidade: 1 }] });
+    expect(await est()).toBe(3);
+    // cancelar 2 antes de preparar: voltam para o estoque
+    const item = pedido!.itens.find((i) => i.balde === 1)!;
+    await cancelarItem(db, admin, pedido!.id, item.id, 2, 'cliente desistiu');
+    expect(await est()).toBe(5);
+    // já em preparo: estorno não devolve
+    const prep = pedido!.preparos.find((x) => x.setor === 'bar')!;
+    await mudarStatus(db, bar, prep.id, 'preparando');
+    await cancelarItem(db, admin, pedido!.id, item.id, 1, 'derrubou no chão');
+    expect(await est()).toBe(5);
+    expect(await alterarEstoque(db, admin, lata.id, 'entrada', 24)).toEqual({ estoque: 29 });
+    await alterarEstoque(db, admin, lata.id, 'desligar', null);
+    expect(await est()).toBeNull();
+    // sem controle, vende à vontade
+    expect((await previa(db, { mesaId: mesa, itens: [{ produtoId: lata.id, quantidade: 50 }] })).totalCentavos).toBe(50 * lata.precoCentavos);
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

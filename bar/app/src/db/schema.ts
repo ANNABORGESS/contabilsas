@@ -54,6 +54,8 @@ export const produtos = pgTable('produtos', {
   custoCentavos: integer('custo_centavos'),
   // cerveja pequena que pode ir no balde (até 10 por balde)
   balde: boolean('balde').notNull().default(false),
+  // unidades em estoque; vazio = não controla estoque deste produto
+  estoque: integer('estoque'),
   ativo: boolean('ativo').notNull().default(true),
   // excluído do cardápio depois de já ter sido vendido: some das listas, mas o histórico continua
   excluido: boolean('excluido').notNull().default(false),

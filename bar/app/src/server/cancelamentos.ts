@@ -8,6 +8,7 @@ import type { StatusPreparo } from '@/domain/preparo';
 import type { Usuario } from './auth';
 import { ErroRegra } from './erros';
 import { registrar } from './eventos';
+import { devolverEstoque } from './estoque';
 
 const regra = <T>(f: () => T): T => {
   try {
@@ -53,6 +54,11 @@ export async function encerrar(db: Db, u: Usuario, pedidoId: string, motivoBruto
       .where(and(eq(schema.pedidos.id, p.id), eq(schema.pedidos.status, 'pago')))
       .returning({ id: schema.pedidos.id });
     if (!r.length) throw new ErroRegra('Este pedido já foi cancelado ou estornado.', 409);
+    // cancelamento (nada preparado): o que ainda valia volta para o estoque
+    if (tipo === 'cancelado') {
+      const itens = await tx.select().from(schema.pedidoItens).where(eq(schema.pedidoItens.pedidoId, p.id));
+      await devolverEstoque(tx as unknown as Db, itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade - i.quantidadeCancelada })));
+    }
     // tira dos painéis o que ainda não foi entregue
     await tx
       .update(schema.preparos)
@@ -99,6 +105,7 @@ export async function cancelarItem(db: Db, u: Usuario, pedidoId: string, itemId:
       .where(and(eq(schema.pedidoItens.id, item.id), eq(schema.pedidoItens.quantidadeCancelada, item.quantidadeCancelada)))
       .returning({ id: schema.pedidoItens.id });
     if (!r.length) throw new ErroRegra('Este item acabou de ser alterado. Atualize a tela e tente de novo.', 409);
+    if (tipoItem === 'cancelado') await devolverEstoque(tx as unknown as Db, [{ produtoId: item.produtoId, quantidade: q }]);
     await tx
       .update(schema.pedidos)
       .set({ itensCanceladosCentavos: sql`${schema.pedidos.itensCanceladosCentavos} + ${valor}` })

@@ -2411,3 +2411,28 @@ html {
     grid-template-columns: repeat(2, 1fr);
   }
 }
+
+/* estoque */
+.chip.estoque-esgotado {
+  background: var(--vermelho-suave);
+  color: var(--vermelho);
+  border-color: transparent;
+}
+.chip.estoque-baixo {
+  background: var(--amarelo-suave);
+  color: var(--amarelo);
+  border-color: transparent;
+}
+.chip.estoque-ok {
+  background: var(--verde-suave);
+  color: var(--verde);
+  border-color: transparent;
+}
+.produto.esgotado {
+  opacity: 0.5;
+}
+.produto .restam {
+  color: var(--vermelho);
+  font-weight: 600;
+  font-size: 13px;
+}

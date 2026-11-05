@@ -12,6 +12,8 @@ import { dataOperacional } from '@/domain/turno';
 import { FUSO, VIRADA } from './config';
 import { ErroRegra } from './erros';
 import { registrar } from './eventos';
+import { baixarEstoque } from './estoque';
+import { faltaNoEstoque } from '@/domain/estoque';
 import type { Usuario } from './auth';
 
 /** Nome do cliente: opcional, uma linha, até 60 letras. */
@@ -47,7 +49,11 @@ function montar(itens: ItemSolicitado[], produtos: Awaited<ReturnType<typeof car
 export async function previa(db: Db, entrada: { mesaId: unknown; itens: ItemSolicitado[] }) {
   const mesa = await mesaAtiva(db, entrada.mesaId);
   const itens = Array.isArray(entrada.itens) ? entrada.itens : [];
-  const m = montar(itens, await cardapio(db, itens.map((i) => i?.produtoId)));
+  const produtos = await cardapio(db, itens.map((i) => i?.produtoId));
+  const m = montar(itens, produtos);
+  // confere o estoque antes de cobrar (depois do pagamento aprovado o pedido nunca é recusado)
+  const falta = faltaNoEstoque(m.linhas, new Map(produtos.map((p) => [p.id, p.estoque])));
+  if (falta) throw new ErroRegra(falta, 409);
   return { mesa: { id: mesa.id, numero: mesa.numero }, ...m };
 }
 
@@ -102,6 +108,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
       .returning();
     if (!p) return null; // outro envio com a mesma chave chegou primeiro
     await tx.insert(schema.pedidoItens).values(final.linhas.map((l) => ({ pedidoId: p.id, ...l })));
+    await baixarEstoque(tx as unknown as Db, final.linhas, p.id, p.numero, u.id);
     await tx.insert(schema.preparos).values(final.setores.map((setor) => ({ pedidoId: p.id, setor, criadoEm: agora })));
     const tx2 = tx as unknown as Db;
     await registrar(tx2, {

@@ -10,6 +10,7 @@ const ITENS = [
   ['/admin/vendas', 'Vendas'],
   ['/admin/cancelamentos', 'Cancelamentos'],
   ['/admin/cardapio', 'Cardápio'],
+  ['/admin/estoque', 'Estoque'],
   ['/admin/equipe', 'Funcionários'],
   ['/admin/relatorios', 'Relatórios'],
   ['/admin/financeiro', 'Custos e lucro'],
