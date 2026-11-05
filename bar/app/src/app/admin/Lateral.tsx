@@ -34,7 +34,7 @@ export default function Lateral({ nome, papel, children }: { nome: string; papel
   useEffect(() => setAberto(false), [caminho]);
   const logo = (
     <div className="logo">
-      <img src="/logo.jpg" alt="" className="logo-mini" /> Vikings · Admin
+      <img src="/logo.png" alt="" className="logo-mini" /> Porão Vikings · Admin
     </div>
   );
   return (

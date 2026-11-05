@@ -13,7 +13,7 @@ export interface DadosSite {
 }
 
 export const SITE_PADRAO: DadosSite = {
-  nome: 'Vikings Restaurante',
+  nome: 'Porão Vikings',
   slogan: 'Petiscos, chopp gelado e drinks. Peça na mesa e pague na hora, sem comanda.',
   sobre: 'Um lugar para chegar com os amigos, pedir sem fila e curtir. Cada pedido vai direto do celular do garçom para a cozinha e o bar.',
   endereco: '',

@@ -4,7 +4,7 @@ import { pode } from '@/domain/papeis';
 import { usuarioAtual } from '@/server/auth';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Bar · Vikings' };
+export const metadata = { title: 'Bar · Porão Vikings' };
 
 /** Não usa senha: sem ninguém do bar (ou administrador) entrado, entra direto. */
 export default async function Bar() {

@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Vikings Restaurante · Pedidos na mesa',
+  title: 'Porão Vikings · Pedidos na mesa',
   description: 'Pedidos pagos na mesa, cozinha e bar em tempo real.',
-  appleWebApp: { capable: true, title: 'Vikings', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'Porão Vikings', statusBarStyle: 'black-translucent' },
 };
 
 export const viewport: Viewport = { width: 'device-width', initialScale: 1, maximumScale: 1, themeColor: '#f6f2ea' };

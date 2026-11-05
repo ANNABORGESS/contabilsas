@@ -2,7 +2,7 @@ import { paginaPara } from '@/server/pagina';
 import AppGarcom from './AppGarcom';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Garçom · Vikings' };
+export const metadata = { title: 'Garçom · Porão Vikings' };
 
 export default async function Garcom() {
   const u = await paginaPara('garcom');

@@ -17,7 +17,7 @@ const CORES = ['#f2b705', '#6b3e1e', '#141210', '#c98a12', '#a0601f'];
 export async function generateMetadata() {
   const site = await lerSite(await getDb()).catch(() => null);
   return {
-    title: site ? `${site.nome} · Cardápio, horário e contato` : 'Vikings Restaurante',
+    title: site ? `${site.nome} · Cardápio, horário e contato` : 'Porão Vikings',
     description: site?.slogan || 'Petiscos, chopp e drinks. Peça na mesa e pague na hora.',
   };
 }
@@ -42,7 +42,7 @@ export default async function Site() {
       <header className="site-nav">
         <div className="site-largura site-nav-in">
           <a href="#inicio" className="site-marca">
-            <img src="/logo.jpg" alt="" />
+            <img src="/logo.png" alt="" />
             <span>
               {marca}
               {resto && <small>{resto}</small>}
@@ -69,7 +69,7 @@ export default async function Site() {
           </h1>
           {site.slogan && <p className="site-hero-sub">{site.slogan}</p>}
           <div className="site-disco">
-            <img src="/logo.jpg" alt={`Logo do ${site.nome}`} />
+            <img src="/logo.png" alt={`Logo do ${site.nome}`} />
             <span className="site-orbita o1" aria-hidden>
               🍺
             </span>

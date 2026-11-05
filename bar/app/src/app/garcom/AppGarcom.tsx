@@ -49,15 +49,11 @@ interface Pronto {
   cliente: string | null;
   garcomId: string;
 }
-/** Marca do bar no topo do garçom: escudo viking + VIKINGS · BAR. */
+/** Logo do Porão Vikings no topo do garçom. */
 function MarcaVikings() {
   return (
-    <div className="marca-vikings" aria-label="Vikings Bar">
-      <img src="/escudo.png" alt="" />
-      <div>
-        <b>VIKINGS</b>
-        <span>BAR</span>
-      </div>
+    <div className="marca-vikings" aria-label="Porão Vikings">
+      <img src="/logo.png" alt="" />
     </div>
   );
 }

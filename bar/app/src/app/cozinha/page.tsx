@@ -4,7 +4,7 @@ import { pode } from '@/domain/papeis';
 import { usuarioAtual } from '@/server/auth';
 
 export const dynamic = 'force-dynamic';
-export const metadata = { title: 'Cozinha · Vikings' };
+export const metadata = { title: 'Cozinha · Porão Vikings' };
 
 /** Não usa senha: sem ninguém da cozinha (ou administrador) entrado, entra direto. */
 export default async function Cozinha() {

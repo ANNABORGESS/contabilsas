@@ -10,7 +10,7 @@ export default async function PrimeiroAcesso() {
   return (
     <main className="acesso tema-escuro">
       <div className="cartao formulario">
-        <img src="/logo.jpg" alt="Vikings Restaurante" className="logo-grande" />
+        <img src="/logo.png" alt="Porão Vikings" className="logo-grande" />
         <h2>Configurar o sistema</h2>
         <p className="mudo">Crie o usuário do administrador. Depois você cadastra garçons, cozinha e bar em Funcionários.</p>
         <FormPrimeiroAcesso />

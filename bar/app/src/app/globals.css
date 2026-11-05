@@ -1260,7 +1260,7 @@ table.tabela {
   font-size: 16px;
 }
 
-/* logo do Vikings Restaurante (fundo branco: fica num cartão claro também no tema escuro) */
+/* logo do Porão Vikings (fundo branco: fica num cartão claro também no tema escuro) */
 .logo-grande,
 .logo-media,
 .logo-mini {
@@ -2934,4 +2934,27 @@ html {
 .garcom-viking .aviso.alerta {
   background: rgba(245, 184, 46, 0.16);
   color: #ffe3a3;
+}
+/* logo redonda do Porão Vikings no topo do garçom */
+.marca-vikings img,
+.garcom-viking .marca-vikings img {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(255, 200, 100, 0.35), 0 4px 14px rgba(0, 0, 0, 0.6), 0 0 18px rgba(245, 160, 30, 0.25);
+}
+@media (max-width: 420px) {
+  .garcom-viking .marca-vikings img {
+    width: 46px;
+    height: 46px;
+  }
+}
+/* logo nova é redonda e transparente: sem cartão branco */
+.logo-grande,
+.logo-media,
+.logo-mini {
+  background: transparent;
+  padding: 0;
+  border-radius: 50%;
+  box-shadow: 0 6px 20px rgba(40, 24, 10, 0.25);
 }
