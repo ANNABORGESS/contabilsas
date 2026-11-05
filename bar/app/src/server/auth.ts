@@ -6,7 +6,7 @@ import { and, eq, gt, sql } from 'drizzle-orm';
 import { cookies } from 'next/headers';
 import { cache } from 'react';
 import { getDb, schema, type Db } from '@/db';
-import { NOME_PAPEL, ehPapel, pode, type Papel } from '@/domain/papeis';
+import { NOME_PAPEL, ehPapel, entraPor, liberado, type Papel, type Permissao } from '@/domain/papeis';
 import { registrar } from './eventos';
 
 const scrypt = promisify(crypto.scrypt) as (s: string, salt: Buffer, len: number) => Promise<Buffer>;
@@ -46,7 +46,7 @@ export async function entrar(login: string, senha: string, perfil?: Papel): Prom
     return { erro: 'Usuário ou senha incorretos.' };
   }
   if (u.pendente) return { erro: 'Sua conta ainda está aguardando a aprovação do administrador.' };
-  if (perfil && !pode(u.papel, perfil)) return { erro: `Este usuário é de ${NOME_PAPEL[u.papel]}, não de ${NOME_PAPEL[perfil]}. Volte e escolha o perfil certo.` };
+  if (perfil && !entraPor(u.papel, perfil)) return { erro: `Este usuário é de ${NOME_PAPEL[u.papel]}, não de ${NOME_PAPEL[perfil]}. Volte e escolha o perfil certo.` };
   await abrirSessao(db, u, HORAS_SESSAO, `${u.nome} entrou`);
   return { id: u.id, nome: u.nome, usuario: u.usuario, papel: u.papel };
 }
@@ -86,10 +86,10 @@ export class ErroAcesso extends Error {
   }
 }
 
-export async function exigir(...papeis: Papel[]): Promise<Usuario> {
+export async function exigir(...acesso: (Papel | Permissao)[]): Promise<Usuario> {
   const u = await usuarioAtual();
   if (!u) throw new ErroAcesso('Entre de novo para continuar.', 401);
-  if (papeis.length && !pode(u.papel, ...papeis)) throw new ErroAcesso('Seu perfil não tem acesso a esta função.', 403);
+  if (!liberado(u.papel, acesso)) throw new ErroAcesso('Seu perfil não tem acesso a esta função.', 403);
   return u;
 }
 

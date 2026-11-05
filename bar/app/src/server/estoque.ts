@@ -1,5 +1,6 @@
 // Estoque dos produtos: baixa na venda, devolve no cancelamento e entrada, saída ou ajuste pelo
 // administrador. Cada movimento fica registrado com o saldo depois dele (histórico do estoque).
+import { tem } from '@/domain/papeis';
 import { and, desc, eq, isNotNull, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
@@ -71,7 +72,7 @@ const textoMotivo = (m: unknown) => (typeof m === 'string' ? m.replace(/\s+/g, '
  * Comida começa sem travar a venda (pode não ter estoque inicial); bebida começa travando.
  */
 export async function alterarEstoque(db: Db, u: Usuario, id: string, acao: unknown, quantidade: unknown, motivoBruto?: unknown) {
-  if (u.papel !== 'admin') throw new ErroRegra('Só o administrador mexe no estoque.', 403);
+  if (!tem(u.papel, 'estoque')) throw new ErroRegra('Seu perfil não mexe no estoque.', 403);
   const p = await produto(db, id);
   const motivo = textoMotivo(motivoBruto);
   const comecando = p.estoque === null;

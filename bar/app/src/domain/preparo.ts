@@ -1,6 +1,7 @@
 // Fluxo de preparo de cada setor: novo → preparando → pronto → entregue.
 // Cozinha e bar avançam até "pronto"; o garçom marca "entregue". Cancelado é só por autorização.
 
+import { pode } from './papeis';
 import type { Setor } from './pedido';
 
 export const STATUS_PREPARO = ['novo', 'preparando', 'pronto', 'entregue', 'cancelado'] as const;
@@ -30,10 +31,10 @@ export function proximoStatus(s: StatusPreparo): StatusPreparo | null {
  */
 export function podeMudarStatus(de: StatusPreparo, para: StatusPreparo, papel: string, setor: Setor): boolean {
   if (de === para || de === 'cancelado' || de === 'entregue' || para === 'cancelado') return false;
-  const doSetor = papel === 'admin' || papel === setor;
+  const doSetor = pode(papel, setor);
   const avanco = SEGUINTE[de] === para;
   const volta = SEGUINTE[para] === de;
-  if (para === 'entregue') return avanco && (papel === 'garcom' || papel === 'admin');
+  if (para === 'entregue') return avanco && pode(papel, 'garcom');
   return doSetor && (avanco || volta);
 }
 

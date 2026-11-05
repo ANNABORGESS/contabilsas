@@ -4,7 +4,7 @@ import { nomeForma } from '@/domain/pagamento';
 import { nomeLocal } from '@/domain/mesas';
 import { useState } from 'react';
 import { api, useDados } from '@/cliente/api';
-import { dataHora, hora, reais } from '@/cliente/formato';
+import { dataBr, dataHora, hora, reais } from '@/cliente/formato';
 import { Aviso, ChipPedido, ChipPreparo, ChipSituacao, Modal } from '@/cliente/ui';
 import { NOME_FORMA, type FormaPagamento } from '@/domain/pedido';
 import type { DetalhePedido } from '@/server/pedidos';
@@ -311,5 +311,59 @@ function CancelarItem({ pedidoId, item, fechar, aoCancelar }: { pedidoId: string
         {ocupado ? 'Cancelando…' : `Cancelar ${qtd}× ${item.nome}`}
       </button>
     </Modal>
+  );
+}
+
+export interface EstornoPendente {
+  id: string;
+  numero: number;
+  data: string;
+  totalCentavos: number;
+  itensCanceladosCentavos: number;
+  formaPagamento: string;
+  motivo: string | null;
+  encerradoEm: string | null;
+  autorizadoPor: string | null;
+}
+
+/** Estornos autorizados que ainda precisam da confirmação de que a devolução foi feita. */
+export function EstornosPendentes({ lista, aviso }: { lista: EstornoPendente[]; aviso: (m: { tipo: 'ok' | 'erro'; texto: string }) => void }) {
+  async function conferir(e: EstornoPendente) {
+    const onde = e.formaPagamento === 'dinheiro' ? 'devolvido em dinheiro' : 'feito na maquininha';
+    if (!confirm(`Confirmar que o estorno do pedido #${e.numero} foi ${onde}?`)) return;
+    try {
+      await api(`/api/pedidos/${e.id}/estorno-conferido`, 'POST', {});
+      aviso({ tipo: 'ok', texto: `Estorno do pedido #${e.numero} conferido.` });
+    } catch (x) {
+      aviso({ tipo: 'erro', texto: (x as Error).message });
+    }
+  }
+  return (
+    <div className="cartao" style={{ marginBottom: 14, borderColor: 'var(--vermelho)' }}>
+      <header>
+        <h2>⚠️ Estornos a confirmar ({lista.length})</h2>
+        <span className="fraco">Autorizados no sistema; falta confirmar que o dinheiro voltou para o cliente</span>
+      </header>
+      <table className="tabela">
+        <tbody>
+          {lista.map((e) => (
+            <tr key={e.id}>
+              <td>
+                <b>#{e.numero}</b> <span className="fraco">· {dataBr(e.data)}</span>
+                <div className="fraco">{e.motivo}</div>
+              </td>
+              <td className="direita num">{reais(e.totalCentavos - e.itensCanceladosCentavos)}</td>
+              <td>{nomeForma(e.formaPagamento)}</td>
+              <td className="fraco">autorizado por {e.autorizadoPor || '—'}</td>
+              <td>
+                <button className="btn pequeno sucesso" onClick={() => conferir(e)}>
+                  {e.formaPagamento === 'dinheiro' ? '✓ Devolvido em dinheiro' : '✓ Estorno feito na maquininha'}
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }

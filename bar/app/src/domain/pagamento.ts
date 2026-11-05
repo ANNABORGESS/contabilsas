@@ -79,3 +79,12 @@ export function conferirCaixa(sistema: Record<FormaPagamento, number>, conferido
   const comConferencia = linhas.filter((l) => l.diferenca !== null);
   return { linhas, diferencaTotal: comConferencia.reduce((a, l) => a + (l.diferenca as number), 0), conferidas: comConferencia.length };
 }
+
+export const TIPOS_CAIXA = ['abertura', 'suprimento', 'sangria'] as const;
+export type TipoCaixa = (typeof TIPOS_CAIXA)[number];
+export const NOME_TIPO_CAIXA: Record<TipoCaixa, string> = { abertura: 'Abertura (troco)', suprimento: 'Suprimento', sangria: 'Sangria' };
+
+/** Dinheiro que não é venda na gaveta: troco da abertura + suprimentos − sangrias. */
+export function fundoDoCaixa(movs: { tipo: string; valorCentavos: number }[]) {
+  return movs.reduce((a, m) => a + (m.tipo === 'sangria' ? -m.valorCentavos : m.valorCentavos), 0);
+}

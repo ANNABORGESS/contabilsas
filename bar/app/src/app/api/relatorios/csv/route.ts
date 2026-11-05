@@ -10,7 +10,7 @@ import { listarPedidos } from '@/server/pedidos';
 
 const STATUS: Record<string, string> = { pago: 'Pago', cancelado: 'Cancelado', estornado: 'Estornado' };
 
-export const GET = rota(['admin'], async ({ db, req }) => {
+export const GET = rota(['relatorios'], async ({ db, req }) => {
   const q = req.nextUrl.searchParams;
   const de = dataValida(q.get('de')) ? q.get('de')! : hoje();
   const ate = dataValida(q.get('ate')) && q.get('ate')! >= de ? q.get('ate')! : de;

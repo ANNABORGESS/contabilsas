@@ -10,5 +10,5 @@ export async function POST(req: NextRequest) {
   const escolhido = ehPapel(perfil) ? perfil : undefined;
   const r = await entrar(String(usuario), String(senha), escolhido);
   if ('erro' in r) return erro(r.erro, 400); // não é 401: na tela de entrada mostra a mensagem em vez de redirecionar
-  return NextResponse.json({ usuario: r, destino: INICIO[escolhido ?? r.papel] });
+  return NextResponse.json({ usuario: r, destino: INICIO[escolhido && escolhido !== 'admin' ? escolhido : r.papel] });
 }

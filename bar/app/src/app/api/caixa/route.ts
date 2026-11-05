@@ -4,7 +4,7 @@ import { hoje } from '@/server/config';
 import { rota } from '@/server/http';
 
 /** Resumo do caixa do turno (por forma) e os últimos fechamentos. */
-export const GET = rota(['admin'], async ({ db, req }) => {
+export const GET = rota(['fechamento'], async ({ db, req }) => {
   const d = req.nextUrl.searchParams.get('data');
   const data = dataValida(d) ? d! : hoje();
   const [resumo, historico] = await Promise.all([resumoCaixa(db, data), listarFechamentos(db)]);
@@ -12,4 +12,4 @@ export const GET = rota(['admin'], async ({ db, req }) => {
 });
 
 /** Fecha (ou refaz) o caixa do turno. */
-export const POST = rota(['admin'], async ({ db, u, corpo }) => fecharCaixa(db, u, dataValida(corpo.data) ? String(corpo.data) : hoje(), corpo));
+export const POST = rota(['fechamento'], async ({ db, u, corpo }) => fecharCaixa(db, u, dataValida(corpo.data) ? String(corpo.data) : hoje(), corpo));

@@ -3,7 +3,7 @@ import { hoje } from '@/server/config';
 import { custosELucro } from '@/server/financeiro';
 import { rota } from '@/server/http';
 
-export const GET = rota(['admin'], async ({ db, req }) => {
+export const GET = rota(['financeiro'], async ({ db, req }) => {
   const q = req.nextUrl.searchParams;
   const h = hoje();
   const de = dataValida(q.get('de')) ? q.get('de')! : `${h.slice(0, 8)}01`;

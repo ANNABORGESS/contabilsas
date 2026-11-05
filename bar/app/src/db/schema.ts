@@ -83,6 +83,8 @@ export const pedidos = pgTable(
     pagoEm: momento('pago_em').notNull(),
     dataOperacional: text('data_operacional').notNull(), // AAAA-MM-DD do turno
     status: text('status').notNull().default('pago'), // pago | cancelado | estornado
+    estornoConferidoEm: momento('estorno_conferido_em'), // devolução feita na maquininha (ou em dinheiro) e conferida
+    estornoConferidoPorId: uuid('estorno_conferido_por_id'),
     divergenciaPreco: boolean('divergencia_preco').notNull().default(false),
     observacao: text('observacao'),
     cliente: text('cliente'), // nome do cliente informado pelo garçom (opcional)
@@ -114,6 +116,8 @@ export const pedidoItens = pgTable(
     subtotalCentavos: integer('subtotal_centavos').notNull(),
     balde: integer('balde'), // número do balde dentro do pedido (1, 2...); vazio quando não vai em balde
     quantidadeCancelada: integer('quantidade_cancelada').notNull().default(0), // cancelados um a um pelo administrador
+    unidades: integer('unidades').notNull().default(1), // unidades do produto por item (combo da promoção: 2)
+    promocaoId: uuid('promocao_id'), // promoção que deu o preço deste item
   },
   (t) => [index('pedido_itens_pedido_idx').on(t.pedidoId)],
 );
@@ -226,3 +230,33 @@ export const caixaFechamentos = pgTable('caixa_fechamentos', {
   fechadoPorId: uuid('fechado_por_id').notNull().references(() => usuarios.id),
   fechadoEm: criadoEm(),
 });
+
+/** Promoções programadas: combo de N unidades de um produto por um preço, nos dias e horário marcados. */
+export const promocoes = pgTable('promocoes', {
+  id: id(),
+  nome: text('nome').notNull(),
+  produtoId: uuid('produto_id').notNull().references(() => produtos.id),
+  quantidadeCombo: integer('quantidade_combo').notNull(),
+  precoComboCentavos: integer('preco_combo_centavos').notNull(),
+  dias: jsonb('dias').$type<number[]>().notNull(), // 0 = domingo ... 6 = sábado
+  inicio: text('inicio').notNull(), // HH:MM no horário de Manaus
+  fim: text('fim').notNull(),
+  ativa: boolean('ativa').notNull().default(true),
+  destaque: text('destaque'), // aviso no cardápio, ex.: "Original em dobro até as 20h"
+  criadoEm: criadoEm(),
+});
+
+/** Abertura (troco), suprimentos e sangrias do caixa no turno. */
+export const caixaMovimentos = pgTable(
+  'caixa_movimentos',
+  {
+    id: id(),
+    data: text('data').notNull(), // AAAA-MM-DD do turno
+    tipo: text('tipo').notNull(), // abertura | suprimento | sangria
+    valorCentavos: integer('valor_centavos').notNull(),
+    motivo: text('motivo'),
+    usuarioId: uuid('usuario_id').notNull().references(() => usuarios.id),
+    criadoEm: criadoEm(),
+  },
+  (t) => [index('caixa_mov_data_idx').on(t.data)],
+);

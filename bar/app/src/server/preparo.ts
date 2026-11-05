@@ -1,4 +1,5 @@
 // Painéis da cozinha e do bar e o aviso de "pronto" para o garçom.
+import { tem } from '@/domain/papeis';
 import { nomeLocal } from '@/domain/mesas';
 import { and, asc, eq, inArray, ne, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
@@ -121,7 +122,7 @@ export async function prontosParaEntrega(db: Db) {
  * (novo, em preparo ou pronto) passa para entregue e sai dos painéis e do celular do garçom.
  */
 export async function finalizarPedido(db: Db, u: Usuario, pedidoId: string) {
-  if (u.papel !== 'admin') throw new ErroRegra('Só o administrador finaliza o pedido inteiro.', 403);
+  if (!tem(u.papel, 'mesas')) throw new ErroRegra('Seu perfil não finaliza o pedido inteiro.', 403);
   if (!/^[0-9a-f-]{36}$/i.test(pedidoId)) throw new ErroRegra('Pedido não encontrado.', 404);
   const [p] = await db
     .select({ id: schema.pedidos.id, numero: schema.pedidos.numero, status: schema.pedidos.status, mesa: schema.mesas.numero })
@@ -154,7 +155,7 @@ export async function finalizarPedido(db: Db, u: Usuario, pedidoId: string) {
 
 /** Finaliza de uma vez todos os pedidos do turno ainda abertos na mesa (ou no balcão). */
 export async function finalizarMesa(db: Db, u: Usuario, mesaId: string, data: string) {
-  if (u.papel !== 'admin') throw new ErroRegra('Só o administrador finaliza a mesa.', 403);
+  if (!tem(u.papel, 'mesas')) throw new ErroRegra('Seu perfil não finaliza a mesa.', 403);
   if (!/^[0-9a-f-]{36}$/i.test(mesaId)) throw new ErroRegra('Mesa não encontrada.', 404);
   const abertos = await db
     .selectDistinct({ id: schema.pedidos.id })

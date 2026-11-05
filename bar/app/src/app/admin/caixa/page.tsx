@@ -4,11 +4,11 @@
 import { useEffect, useState } from 'react';
 import { api, useDados } from '@/cliente/api';
 import { dataBr, dataHora, reais } from '@/cliente/formato';
-import { Aviso } from '@/cliente/ui';
+import { Aviso, Modal } from '@/cliente/ui';
 import { paraCentavos } from '@/domain/dinheiro';
-import { conferirCaixa } from '@/domain/pagamento';
+import { NOME_TIPO_CAIXA, conferirCaixa, type TipoCaixa } from '@/domain/pagamento';
 import { FORMAS_PAGAMENTO, NOME_FORMA, type FormaPagamento } from '@/domain/pedido';
-import { Cabecalho } from '../comum';
+import { Cabecalho, EstornosPendentes } from '../comum';
 
 interface Fechamento {
   data: string;
@@ -19,8 +19,20 @@ interface Fechamento {
   fechadoEm: string;
   fechadoPor: string | null;
 }
+interface Movimento {
+  id: string;
+  tipo: TipoCaixa;
+  valorCentavos: number;
+  motivo: string | null;
+  criadoEm: string;
+  usuario: string | null;
+}
 interface Dados {
   data: string;
+  movimentos: Movimento[];
+  aberto: boolean;
+  fundoCentavos: number;
+  estornosPendentes: import('../comum').EstornoPendente[];
   pedidos: number;
   encerrados: number;
   divididos: number;
@@ -59,7 +71,9 @@ export default function Caixa() {
   const conferido = Object.fromEntries(
     FORMAS_PAGAMENTO.filter((f) => (conf[f] ?? '').trim() !== '').map((f) => [f, paraCentavos(conf[f]) ?? 0]),
   ) as Partial<Record<FormaPagamento, number>>;
-  const trocoC = paraCentavos(troco) ?? 0;
+  const [lancando, setLancando] = useState<TipoCaixa | null>(null);
+  // com abertura/sangria/suprimento lançados, o fundo da gaveta vem deles
+  const trocoC = dados?.movimentos.length ? dados.fundoCentavos : (paraCentavos(troco) ?? 0);
   const r = dados ? conferirCaixa(dados.sistema, conferido, trocoC) : null;
 
   async function fechar() {
@@ -77,7 +91,7 @@ export default function Caixa() {
 
   return (
     <>
-      <Cabecalho titulo="Fechamento de caixa" sub={dados ? `Turno de ${dataBr(dados.data)} · ${dados.pedidos} pedido(s) pago(s)${dados.divididos ? ` · ${dados.divididos} com conta dividida` : ''}` : ''}>
+      <Cabecalho titulo="Caixa do turno" sub={dados ? `Turno de ${dataBr(dados.data)} · ${dados.pedidos} pedido(s) pago(s)${dados.divididos ? ` · ${dados.divididos} com conta dividida` : ''}` : ''}>
         <input type="date" value={data || dados?.data || ''} onChange={(e) => setData(e.target.value)} style={{ width: 170 }} />
         <button className="btn" onClick={() => window.print()}>
           Imprimir
@@ -89,14 +103,59 @@ export default function Caixa() {
           Fechado em {dataHora(dados.fechamento.fechadoEm)} por {dados.fechamento.fechadoPor}. Você pode corrigir e gravar de novo.
         </Aviso>
       )}
+      {dados && (
+        <div className="cartao" style={{ marginBottom: 14 }}>
+          <header>
+            <h2>💵 Gaveta do turno</h2>
+            <span className={`chip ${dados.aberto ? 'ped-pago' : ''}`}>{dados.aberto ? `Aberto · fundo ${reais(dados.fundoCentavos)}` : 'Caixa não aberto'}</span>
+          </header>
+          <div className="fila nao-imprimir" style={{ flexWrap: 'wrap', marginBottom: 10 }}>
+            {!dados.aberto && (
+              <button className="btn primario" onClick={() => setLancando('abertura')}>
+                Abrir caixa (troco inicial)
+              </button>
+            )}
+            <button className="btn" disabled={!dados.aberto} onClick={() => setLancando('suprimento')}>
+              + Suprimento
+            </button>
+            <button className="btn perigo" disabled={!dados.aberto} onClick={() => setLancando('sangria')}>
+              − Sangria
+            </button>
+          </div>
+          {dados.movimentos.length > 0 ? (
+            <table className="tabela">
+              <tbody>
+                {dados.movimentos.map((m) => (
+                  <tr key={m.id}>
+                    <td>{dataHora(m.criadoEm)}</td>
+                    <td>
+                      <b>{NOME_TIPO_CAIXA[m.tipo]}</b>
+                      {m.motivo && <div className="fraco">{m.motivo}</div>}
+                    </td>
+                    <td className="direita num" style={{ color: m.tipo === 'sangria' ? 'var(--vermelho)' : undefined, fontWeight: 600 }}>
+                      {m.tipo === 'sangria' ? `−${reais(m.valorCentavos)}` : reais(m.valorCentavos)}
+                    </td>
+                    <td className="fraco">{m.usuario}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <p className="fraco">Abra o caixa com o troco que está na gaveta. Sangria (retirada) e suprimento (dinheiro que entra) ficam registrados com quem fez e entram na conta do dinheiro esperado.</p>
+          )}
+        </div>
+      )}
+      {dados && dados.estornosPendentes.length > 0 && <EstornosPendentes lista={dados.estornosPendentes} aviso={setMsg} />}
       {dados && r && (
         <div className="cartao">
-          <div className="linha-campos nao-imprimir" style={{ marginBottom: 12 }}>
-            <label className="campo">
-              💵 Troco inicial na gaveta (R$)
-              <input inputMode="decimal" placeholder="0,00" value={troco} onChange={(e) => setTroco(e.target.value)} />
-            </label>
-          </div>
+          {!dados.movimentos.length && (
+            <div className="linha-campos nao-imprimir" style={{ marginBottom: 12 }}>
+              <label className="campo">
+                💵 Troco inicial na gaveta (R$)
+                <input inputMode="decimal" placeholder="0,00" value={troco} onChange={(e) => setTroco(e.target.value)} />
+              </label>
+            </div>
+          )}
           <div className="tabela-rolagem">
             <table className="tabela caixa">
               <thead>
@@ -118,7 +177,7 @@ export default function Caixa() {
                     <td className="direita num">{reais(l.sistema)}</td>
                     <td className="direita num">
                       {reais(l.esperado)}
-                      {l.forma === 'dinheiro' && trocoC > 0 && <div className="fraco">com troco</div>}
+                      {l.forma === 'dinheiro' && trocoC !== 0 && <div className="fraco">{dados.movimentos.length ? 'com troco, suprimentos e sangrias' : 'com troco'}</div>}
                     </td>
                     <td>
                       <input inputMode="decimal" placeholder="0,00" value={conf[l.forma] ?? ''} onChange={(e) => setConf({ ...conf, [l.forma]: e.target.value })} style={{ width: 120 }} />
@@ -154,10 +213,21 @@ export default function Caixa() {
             {salvando ? 'Gravando…' : dados.fechamento ? 'Gravar correção do fechamento' : '✓ Fechar o caixa'}
           </button>
           <p className="fraco" style={{ marginTop: 8 }}>
-            O sistema já desconta cancelamentos, estornos e itens cancelados. Conta dividida entra em cada forma pelo valor de cada parte. As formas são as informadas pelos garçons:
-            confira com o relatório da maquininha.
+            O sistema já desconta cancelamentos, estornos e itens cancelados. Conta dividida entra em cada forma pelo valor de cada parte. Até fechar, os valores são os{' '}
+            <b>informados pelos garçons</b>; depois de fechado, o turno fica como <b>conferido no fechamento</b>, com o que foi contado e o relatório da maquininha.
           </p>
         </div>
+      )}
+      {lancando && dados && (
+        <LancarCaixa
+          tipo={lancando}
+          data={dados.data}
+          fechar={() => setLancando(null)}
+          feito={(t) => {
+            setLancando(null);
+            setMsg({ tipo: 'ok', texto: t });
+          }}
+        />
       )}
       {dados && dados.historico.length > 0 && (
         <div className="cartao nao-imprimir" style={{ marginTop: 14 }}>
@@ -199,3 +269,42 @@ export default function Caixa() {
     </>
   );
 }
+
+function LancarCaixa({ tipo, data, fechar, feito }: { tipo: TipoCaixa; data: string; fechar: () => void; feito: (t: string) => void }) {
+  const [valor, setValor] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [erro, setErro] = useState('');
+  const [indo, setIndo] = useState(false);
+  const c = paraCentavos(valor);
+  async function enviar() {
+    setIndo(true);
+    setErro('');
+    try {
+      await api('/api/caixa/movimento', 'POST', { data, tipo, valorCentavos: c, motivo });
+      feito(`${NOME_TIPO_CAIXA[tipo]} de ${reais(c ?? 0)} registrada.`);
+    } catch (e) {
+      setErro((e as Error).message);
+      setIndo(false);
+    }
+  }
+  return (
+    <Modal titulo={NOME_TIPO_CAIXA[tipo]} aoFechar={fechar}>
+      <label className="campo">
+        {tipo === 'abertura' ? 'Troco que está na gaveta (R$)' : tipo === 'sangria' ? 'Quanto foi retirado (R$)' : 'Quanto entrou na gaveta (R$)'}
+        <input inputMode="decimal" autoFocus placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} />
+      </label>
+      <label className="campo">
+        {tipo === 'sangria' ? 'Motivo (obrigatório)' : 'Observação (opcional)'}
+        <input value={motivo} maxLength={200} onChange={(e) => setMotivo(e.target.value)} placeholder={tipo === 'sangria' ? 'ex.: depósito no banco, pagamento do gelo' : 'ex.: troco trazido do cofre'} />
+      </label>
+      {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      <button className={`btn grande bloco ${tipo === 'sangria' ? 'perigo' : 'primario'}`} disabled={indo || c === null || (tipo !== 'abertura' && !c) || (tipo === 'sangria' && motivo.trim().length < 3)} onClick={enviar}>
+        Registrar {c ? reais(c) : ''}
+      </button>
+      <p className="fraco" style={{ marginTop: 8 }}>
+        Fica no caixa do turno e na Auditoria, com seu nome e a hora.
+      </p>
+    </Modal>
+  );
+}
+

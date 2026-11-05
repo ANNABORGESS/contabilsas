@@ -6,7 +6,7 @@ import { api, useDados } from '@/cliente/api';
 import { dataHora, reais } from '@/cliente/formato';
 import { Aviso } from '@/cliente/ui';
 import { NOME_FORMA, type FormaPagamento } from '@/domain/pedido';
-import { Cabecalho, DetalhePedidoAdmin } from '../comum';
+import { Cabecalho, DetalhePedidoAdmin, EstornosPendentes, type EstornoPendente } from '../comum';
 
 interface Solicitacao {
   id: string;
@@ -24,6 +24,7 @@ interface Solicitacao {
 
 export default function Cancelamentos() {
   const { dados, erro } = useDados<{ solicitacoes: Solicitacao[] }>('/api/solicitacoes');
+  const estornos = useDados<{ estornos: EstornoPendente[] }>('/api/estornos');
   const [aberto, setAberto] = useState<string | null>(null);
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
   const [ocupado, setOcupado] = useState<string | null>(null);
@@ -46,10 +47,11 @@ export default function Cancelamentos() {
 
   return (
     <>
-      <Cabecalho titulo="Cancelamentos e estornos" sub="Garçons solicitam; só o administrador autoriza. Tudo fica registrado com motivo, data e responsável." />
+      <Cabecalho titulo="Cancelamentos e estornos" sub="Garçons solicitam; administrador ou gerente autoriza. Estorno só termina quando alguém confirma que devolveu na maquininha. Tudo fica registrado com motivo, data e responsável." />
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
       <div className="pilha">
         {msg && <Aviso tipo={msg.tipo}>{msg.texto}</Aviso>}
+        {(estornos.dados?.estornos.length || 0) > 0 && <EstornosPendentes lista={estornos.dados!.estornos} aviso={setMsg} />}
         <div className="cartao">
           <header>
             <h2>Aguardando decisão ({pendentes.length})</h2>

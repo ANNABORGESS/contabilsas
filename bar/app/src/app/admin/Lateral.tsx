@@ -3,27 +3,33 @@ import { usePathname } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { useDados } from '@/cliente/api';
 import { BotaoSair, Conexao } from '@/cliente/ui';
+import { INICIO, NOME_PAPEL, pode, tem, type Papel, type Permissao } from '@/domain/papeis';
 
-const ITENS = [
-  ['/admin', 'Visão geral'],
-  ['/admin/mesas', 'Mesas'],
-  ['/admin/vendas', 'Vendas'],
-  ['/admin/cancelamentos', 'Cancelamentos'],
-  ['/admin/cardapio', 'Cardápio'],
-  ['/admin/estoque', 'Estoque'],
-  ['/admin/equipe', 'Funcionários'],
-  ['/admin/relatorios', 'Relatórios'],
-  ['/admin/caixa', 'Fechamento de caixa'],
-  ['/admin/financeiro', 'Custos e lucro'],
-  ['/admin/auditoria', 'Auditoria'],
-] as const;
+const ITENS: [string, string, Permissao][] = [
+  ['/admin', 'Visão geral', 'visao'],
+  ['/admin/mesas', 'Mesas', 'mesas'],
+  ['/admin/vendas', 'Vendas', 'vendas'],
+  ['/admin/cancelamentos', 'Cancelamentos e estornos', 'autorizar'],
+  ['/admin/cardapio', 'Cardápio', 'cardapio'],
+  ['/admin/promocoes', 'Promoções', 'cardapio'],
+  ['/admin/estoque', 'Estoque', 'estoque'],
+  ['/admin/equipe', 'Funcionários', 'equipe'],
+  ['/admin/relatorios', 'Relatórios', 'relatorios'],
+  ['/admin/caixa', 'Caixa do turno', 'fechamento'],
+  ['/admin/financeiro', 'Custos e lucro', 'financeiro'],
+  ['/admin/auditoria', 'Auditoria', 'auditoria'],
+];
 
-export default function Lateral({ nome, children }: { nome: string; children: React.ReactNode }) {
+export default function Lateral({ nome, papel, children }: { nome: string; papel: Papel; children: React.ReactNode }) {
   const caminho = usePathname();
   const [aberto, setAberto] = useState(false);
-  const { dados } = useDados<{ solicitacoes: unknown[] }>('/api/solicitacoes?status=pendente');
+  const itens = ITENS.filter(([, , p]) => tem(papel, p));
+  // cada função só vê as próprias áreas; o servidor também recusa as outras
+  const area = ITENS.find(([href]) => href === caminho);
+  const permitido = !area || tem(papel, area[2]);
+  const { dados } = useDados<{ solicitacoes: unknown[] }>(tem(papel, 'autorizar') ? '/api/solicitacoes?status=pendente' : null);
   const pendentes = dados?.solicitacoes.length || 0;
-  const { dados: equipe } = useDados<{ equipe: { pendente: boolean }[] }>('/api/equipe');
+  const { dados: equipe } = useDados<{ equipe: { pendente: boolean }[] }>(tem(papel, 'equipe') ? '/api/equipe' : null);
   const contas = equipe?.equipe.filter((f) => f.pendente).length || 0;
   useEffect(() => setAberto(false), [caminho]);
   const logo = (
@@ -42,34 +48,50 @@ export default function Lateral({ nome, children }: { nome: string; children: Re
       <nav className="lateral" onClick={(e) => e.target === e.currentTarget && setAberto(false)}>
         {logo}
         {/* o administrador também lança e cobra pedidos (mesa ou balcão), como um caixa */}
-        <a href="/garcom" className="lancar-pedido">
-          🧾 Lançar pedido
-        </a>
-        {ITENS.map(([href, rotulo]) => (
+        {pode(papel, 'garcom') && (
+          <a href="/garcom" className="lancar-pedido">
+            🧾 Lançar pedido
+          </a>
+        )}
+        {itens.map(([href, rotulo]) => (
           <a key={href} href={href} className={caminho === href ? 'ativo' : ''}>
             {rotulo}
             {href === '/admin/cancelamentos' && pendentes > 0 && <span className="selo">{pendentes}</span>}
             {href === '/admin/equipe' && contas > 0 && <span className="selo">{contas}</span>}
           </a>
         ))}
-        <div className="sep">Telas de operação</div>
-        <a href="/admin/equipe#links">Links de acesso</a>
-        <a href="/garcom" target="_blank" rel="noreferrer">
-          Celular do garçom ↗
-        </a>
-        <a href="/cozinha" target="_blank" rel="noreferrer">
-          Painel da cozinha ↗
-        </a>
-        <a href="/bar" target="_blank" rel="noreferrer">
-          Painel do bar ↗
-        </a>
+        {pode(papel, 'cozinha') && (
+          <>
+            <div className="sep">Telas de operação</div>
+            {tem(papel, 'equipe') && <a href="/admin/equipe#links">Links de acesso</a>}
+            <a href="/garcom" target="_blank" rel="noreferrer">
+              Celular do garçom ↗
+            </a>
+            <a href="/cozinha" target="_blank" rel="noreferrer">
+              Painel da cozinha ↗
+            </a>
+            <a href="/bar" target="_blank" rel="noreferrer">
+              Painel do bar ↗
+            </a>
+          </>
+        )}
         <div className="rodape">
           <Conexao />
-          <span>{nome}</span>
+          <span>
+            {nome} <span className="fraco">· {NOME_PAPEL[papel]}</span>
+          </span>
           <BotaoSair />
         </div>
       </nav>
-      <main className="conteudo">{children}</main>
+      <main className="conteudo">
+        {permitido ? (
+          children
+        ) : (
+          <div className="cartao vazio">
+            Esta área não faz parte da função de {NOME_PAPEL[papel].toLowerCase()}. <a href={INICIO[papel]}>Voltar ao início</a>
+          </div>
+        )}
+      </main>
     </div>
   );
 }

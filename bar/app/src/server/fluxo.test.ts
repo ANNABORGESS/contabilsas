@@ -12,7 +12,8 @@ import { versaoAtual } from './eventos';
 import { custosELucro, excluirDespesa, lancarDespesa } from './financeiro';
 import { contaDaTela } from './acessoTela';
 import { alterarEstoque, listarMovimentos } from './estoque';
-import { fecharCaixa, resumoCaixa } from './caixa';
+import { conferirEstorno, estornosPendentes, fecharCaixa, movimentarCaixa, resumoCaixa } from './caixa';
+import { listarPromocoes, promocoesAgora, salvarPromocao } from './promocoes';
 
 let db: Db;
 let admin: Usuario;
@@ -292,7 +293,7 @@ describe('fluxo do pedido pago', () => {
   it('administrador finaliza o pedido inteiro: tudo vira entregue e sai dos painéis', async () => {
     const { pedido } = await confirmarPagamento(db, garcom, pedidoBase());
     const p = pedido!;
-    await expect(finalizarPedido(db, garcom, p.id)).rejects.toThrow(/administrador/);
+    await expect(finalizarPedido(db, garcom, p.id)).rejects.toThrow(/Seu perfil/);
     expect(await finalizarPedido(db, admin, p.id)).toEqual({ finalizados: 2 });
     expect((await painelSetor(db, 'cozinha')).preparos.some((x) => x.pedidoId === p.id)).toBe(false);
     expect((await painelSetor(db, 'bar')).preparos.some((x) => x.pedidoId === p.id)).toBe(false);
@@ -303,7 +304,7 @@ describe('fluxo do pedido pago', () => {
 
   it('estoque: venda baixa, prévia barra quando falta, cancelamento devolve e estorno não', async () => {
     const lata = (await listarProdutos(db)).find((p) => p.nome === 'Cerveja lata 350 ml')!;
-    await expect(alterarEstoque(db, garcom, lata.id, 'ajustar', 10)).rejects.toThrow(/administrador/);
+    await expect(alterarEstoque(db, garcom, lata.id, 'ajustar', 10)).rejects.toThrow(/Seu perfil/);
     expect(await alterarEstoque(db, admin, lata.id, 'ajustar', 10)).toEqual({ estoque: 10, trava: true });
     const est = async () => (await listarProdutos(db, true)).find((p) => p.id === lata.id)!.estoque;
     await expect(previa(db, { mesaId: mesa, itens: [{ produtoId: lata.id, quantidade: 11 }] })).rejects.toThrow(/restam 10/);
@@ -323,6 +324,47 @@ describe('fluxo do pedido pago', () => {
     expect(await est()).toBeNull();
     // sem controle, vende à vontade
     expect((await previa(db, { mesaId: mesa, itens: [{ produtoId: lata.id, quantidade: 50 }] })).totalCentavos).toBe(50 * lata.precoCentavos);
+  });
+
+  it('promoção em dobro: 2 por 1 até as 20h de Manaus, baixa 2 do estoque, preserva o preço cobrado antes do fim', async () => {
+    const lata = (await listarProdutos(db)).find((p) => p.nome === 'Cerveja lata 350 ml')!;
+    await alterarEstoque(db, admin, lata.id, 'ajustar', 20);
+    const est = async () => (await listarProdutos(db, true)).find((p) => p.id === lata.id)!.estoque;
+    await expect(salvarPromocao(db, garcom, null, {})).rejects.toThrow(/perfil/);
+    const { promocao } = await salvarPromocao(db, admin, null, { nome: 'Lata em dobro', produtoId: lata.id, quantidadeCombo: 2, precoComboCentavos: lata.precoCentavos, dias: [0, 1, 2, 3, 4, 5, 6], inicio: '10:00', fim: '20:00', destaque: 'Lata em dobro até as 20h' });
+    const as1930 = new Date('2026-11-06T19:30:00-04:00');
+    expect((await promocoesAgora(db, as1930)).map((p) => p.id)).toEqual([promocao.id]);
+    expect(await promocoesAgora(db, new Date('2026-11-06T20:00:00-04:00'))).toEqual([]);
+    const conf = (agora: Date, cobrado?: boolean) =>
+      confirmarPagamento(
+        db,
+        garcom,
+        {
+          chave: randomUUID(),
+          mesaId: mesa,
+          formaPagamento: 'pix',
+          itens: [{ produtoId: lata.id, quantidade: 2 }],
+          ...(cobrado ? { totalCobradoCentavos: lata.precoCentavos, precosCobrados: [{ produtoId: lata.id, precoCentavos: lata.precoCentavos, promocaoId: promocao.id }] } : {}),
+        },
+        agora,
+      );
+    const a = await conf(as1930);
+    expect(a.pedido!.totalCentavos).toBe(lata.precoCentavos); // 2 pelo preço de 1
+    expect(await est()).toBe(18); // baixa as 2 latas
+    // cobrou às 19:58 e confirmou às 20:05: mantém o preço da promoção
+    const b = await conf(new Date('2026-11-06T20:05:00-04:00'), true);
+    expect(b.pedido!.totalCentavos).toBe(lata.precoCentavos);
+    // pedido novo depois das 20h: preço normal
+    const c = await conf(new Date('2026-11-06T20:30:00-04:00'));
+    expect(c.pedido!.totalCentavos).toBe(2 * lata.precoCentavos);
+    expect(await est()).toBe(14);
+    // cancelar o combo antes de preparar devolve as 2 unidades
+    await encerrar(db, admin, a.pedido!.id, 'Cliente desistiu');
+    expect(await est()).toBe(16);
+    const r = (await listarPromocoes(db, '2026-11-06', '2026-11-06')).promocoes.find((p) => p.id === promocao.id)!;
+    expect(r.resultado).toMatchObject({ combos: 1, unidades: 2, faturadoCentavos: lata.precoCentavos, descontoCentavos: lata.precoCentavos });
+    await salvarPromocao(db, admin, promocao.id, { nome: 'Lata em dobro', produtoId: lata.id, quantidadeCombo: 2, precoComboCentavos: lata.precoCentavos, dias: [0], inicio: '10:00', fim: '20:00', ativa: false });
+    await alterarEstoque(db, admin, lata.id, 'desligar', null);
   });
 
   it('cadeiras do balcão: o administrador define quantas; sem cadeiras volta o balcão geral', async () => {
@@ -409,11 +451,43 @@ describe('fluxo do pedido pago', () => {
     expect(antes.sistema.dinheiro - depois.sistema.dinheiro).toBe(batata.precoCentavos / 2);
     expect(depois.divididos).toBeGreaterThanOrEqual(1);
     // fechamento: dinheiro contado com R$ 5,00 a menos
-    await expect(fecharCaixa(db, garcom, data, { conferido: { dinheiro: 1 } })).rejects.toThrow(/administrador/);
+    await expect(fecharCaixa(db, garcom, data, { conferido: { dinheiro: 1 } })).rejects.toThrow(/Seu perfil/);
     const f = await fecharCaixa(db, admin, data, { trocoInicialCentavos: 10000, conferido: { dinheiro: 10000 + depois.sistema.dinheiro - 500, pix: depois.sistema.pix } });
     expect(f.linhas.find((l) => l.forma === 'dinheiro')!.diferenca).toBe(-500);
     expect(f.linhas.find((l) => l.forma === 'pix')!.diferenca).toBe(0);
     expect((await resumoCaixa(db, data)).fechamento).toMatchObject({ trocoInicialCentavos: 10000, fechadoPor: 'Dona' });
+  });
+
+  it('caixa do turno: abertura, suprimento e sangria entram no dinheiro esperado; caixa e estoquista com permissões próprias', async () => {
+    const data = '2031-01-10';
+    const caixa = { id: admin.id, nome: 'Caixa', usuario: 'cx', papel: 'caixa' } as Usuario;
+    const estoquista = { ...caixa, papel: 'estoquista' } as Usuario;
+    await expect(movimentarCaixa(db, estoquista, data, { tipo: 'abertura', valorCentavos: 10000 })).rejects.toThrow(/perfil/);
+    await expect(movimentarCaixa(db, caixa, data, { tipo: 'sangria', valorCentavos: 100, motivo: 'banco' })).rejects.toThrow(/Abra o caixa/);
+    await movimentarCaixa(db, caixa, data, { tipo: 'abertura', valorCentavos: 10000 });
+    await expect(movimentarCaixa(db, caixa, data, { tipo: 'abertura', valorCentavos: 5000 })).rejects.toThrow(/já foi aberto/);
+    await movimentarCaixa(db, caixa, data, { tipo: 'suprimento', valorCentavos: 5000 });
+    await expect(movimentarCaixa(db, caixa, data, { tipo: 'sangria', valorCentavos: 3000 })).rejects.toThrow(/motivo/);
+    await expect(movimentarCaixa(db, caixa, data, { tipo: 'sangria', valorCentavos: 999999, motivo: 'banco' })).rejects.toThrow(/maior/);
+    await movimentarCaixa(db, caixa, data, { tipo: 'sangria', valorCentavos: 3000, motivo: 'depósito' });
+    const r = await resumoCaixa(db, data);
+    expect(r).toMatchObject({ aberto: true, fundoCentavos: 12000 });
+    const f = await fecharCaixa(db, caixa, data, { trocoInicialCentavos: 1, conferido: { dinheiro: 12000 } });
+    expect(f.linhas.find((l) => l.forma === 'dinheiro')).toMatchObject({ esperado: 12000, diferenca: 0 });
+    await expect(alterarEstoque(db, caixa, randomUUID(), 'entrada', 1)).rejects.toThrow(/perfil/);
+  });
+
+  it('estorno: fica pendente até alguém confirmar que devolveu na maquininha', async () => {
+    const lata = (await listarProdutos(db)).find((p) => p.nome === 'Cerveja lata 350 ml')!;
+    const { pedido } = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, formaPagamento: 'credito', itens: [{ produtoId: lata.id, quantidade: 1 }] });
+    await mudarStatus(db, bar, pedido!.preparos.find((x) => x.setor === 'bar')!.id, 'preparando');
+    const gerente = { ...admin, papel: 'gerente' } as Usuario;
+    expect((await encerrar(db, gerente, pedido!.id, 'Cobrado errado')).tipo).toBe('estornado');
+    expect((await estornosPendentes(db)).some((e) => e.id === pedido!.id)).toBe(true);
+    await expect(conferirEstorno(db, garcom, pedido!.id)).rejects.toThrow(/perfil/);
+    expect(await conferirEstorno(db, gerente, pedido!.id)).toEqual({ ok: true, jaConferido: false });
+    expect((await estornosPendentes(db)).some((e) => e.id === pedido!.id)).toBe(false);
+    expect(await conferirEstorno(db, gerente, pedido!.id)).toEqual({ ok: true, jaConferido: true });
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

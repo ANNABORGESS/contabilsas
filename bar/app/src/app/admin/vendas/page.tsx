@@ -6,6 +6,7 @@ import { dataBr, hora, reais } from '@/cliente/formato';
 import { Aviso, ChipPedido, ChipSituacao } from '@/cliente/ui';
 import { NOME_FORMA, textoItem, type FormaPagamento } from '@/domain/pedido';
 import type { PedidoLista } from '@/server/pedidos';
+import { pode } from '@/domain/papeis';
 import { AvisoConfirmacaoManual, Cabecalho, DetalhePedidoAdmin, Periodo } from '../comum';
 
 export default function Vendas() {
@@ -53,7 +54,7 @@ export default function Vendas() {
               <select value={garcom} onChange={(e) => setGarcom(e.target.value)}>
                 <option value="">Todos</option>
                 {equipe?.equipe
-                  .filter((u) => u.papel === 'garcom' || u.papel === 'admin')
+                  .filter((u) => pode(u.papel, 'garcom'))
                   .map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.nome}

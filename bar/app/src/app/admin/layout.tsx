@@ -6,5 +6,9 @@ export const metadata = { title: 'Administração · Vikings' };
 
 export default async function AdminLayout({ children }: { children: React.ReactNode }) {
   const u = await paginaPara('admin');
-  return <Lateral nome={u.nome}>{children}</Lateral>;
+  return (
+    <Lateral nome={u.nome} papel={u.papel}>
+      {children}
+    </Lateral>
+  );
 }

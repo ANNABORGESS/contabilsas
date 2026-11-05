@@ -2,6 +2,7 @@
 // Cancelamento: nada foi preparado ainda. Estorno: já houve preparo ou entrega.
 // Nos dois casos o valor deve ser devolvido na maquininha pelo procedimento da adquirente.
 
+import { tem } from './papeis';
 import type { StatusPreparo } from './preparo';
 
 export type TipoEncerramento = 'cancelado' | 'estornado';
@@ -25,7 +26,7 @@ export function validarMotivo(motivo: unknown): string {
 
 /** Só o administrador encerra; o pedido precisa estar pago (não encerrado antes). */
 export function conferirEncerramento(papel: string, statusPedido: string) {
-  if (papel !== 'admin') throw new ErroCancelamento('Cancelamentos e estornos precisam de autorização do administrador.');
+  if (!tem(papel, 'autorizar')) throw new ErroCancelamento('Cancelamentos e estornos precisam de autorização do administrador ou do gerente.');
   if (statusPedido !== 'pago') throw new ErroCancelamento('Este pedido já foi cancelado ou estornado.');
 }
 

@@ -1,7 +1,7 @@
 // Data operacional: o turno de um bar passa da meia-noite. Uma venda às 2h da manhã de
 // sábado pertence à noite de sexta. A virada do dia é configurável (padrão 6h).
 
-export const FUSO_PADRAO = 'America/Sao_Paulo';
+export const FUSO_PADRAO = 'America/Manaus'; // o bar fica em Manaus (UTC-4)
 export const VIRADA_PADRAO = 6;
 
 function partesLocais(d: Date, fuso: string) {

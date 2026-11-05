@@ -15,8 +15,11 @@ interface Funcionario {
 }
 
 const DESCRICAO: Record<Papel, string> = {
-  admin: 'Tudo: administração, relatórios, cancelamentos e estornos.',
+  admin: 'Tudo: funcionários, custos e lucro, relatórios, cancelamentos e estornos.',
+  gerente: 'Operação inteira: mesas, vendas, autoriza cancelamentos e estornos, caixa, estoque, cardápio, relatórios e auditoria. Não mexe em funcionários nem em custos.',
+  caixa: 'Lança e cobra pedidos, finaliza mesas, abre e fecha o caixa, sangria e suprimento. Não autoriza estornos.',
   garcom: 'Celular: mesas, pedidos, confirmação de pagamento e entregas.',
+  estoquista: 'Só o estoque: entradas, saídas com motivo e contagem.',
   cozinha: 'Painel da cozinha (petiscos).',
   bar: 'Painel do bar (bebidas).',
 };

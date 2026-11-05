@@ -16,6 +16,12 @@ import { baixarEstoque } from './estoque';
 import { faltaNoEstoque } from '@/domain/estoque';
 import { ErroPagamento, formaDoPedido, nomeForma, validarPartes, valendoPorForma } from '@/domain/pagamento';
 import type { Usuario } from './auth';
+import { promocoesParaPedido } from './promocoes';
+import type { PromocaoVigente } from '@/domain/pedido';
+
+/** Unidades que saem do estoque: no combo da promoção cada item leva várias (2 Original). */
+export const unidadesDoEstoque = <L extends { produtoId: string; nome: string; quantidade: number; unidades?: number }>(linhas: L[]) =>
+  linhas.map((l) => ({ produtoId: l.produtoId, nome: l.nome, quantidade: l.quantidade * (l.unidades ?? 1) }));
 
 /** Nome do cliente: opcional, uma linha, até 60 letras. */
 export function nomeCliente(v: unknown): string | null {
@@ -37,9 +43,9 @@ async function mesaAtiva(db: Db, mesaId: unknown) {
   return m;
 }
 
-function montar(itens: ItemSolicitado[], produtos: Awaited<ReturnType<typeof cardapio>>) {
+function montar(itens: ItemSolicitado[], produtos: Awaited<ReturnType<typeof cardapio>>, promocoes: PromocaoVigente[] = []) {
   try {
-    return montarPedido(itens, produtos);
+    return montarPedido(itens, produtos, promocoes);
   } catch (e) {
     if (e instanceof ErroPedido) throw new ErroRegra(e.message);
     throw e;
@@ -51,10 +57,10 @@ export async function previa(db: Db, entrada: { mesaId: unknown; itens: ItemSoli
   const mesa = await mesaAtiva(db, entrada.mesaId);
   const itens = Array.isArray(entrada.itens) ? entrada.itens : [];
   const produtos = await cardapio(db, itens.map((i) => i?.produtoId));
-  const m = montar(itens, produtos);
+  const m = montar(itens, produtos, await promocoesParaPedido(db, new Date()));
   // confere o estoque antes de cobrar (depois do pagamento aprovado o pedido nunca é recusado)
   // só trava os produtos com a trava ligada (comida sem estoque inicial vende e só registra)
-  const falta = faltaNoEstoque(m.linhas, new Map(produtos.map((p) => [p.id, p.estoqueTrava ? p.estoque : null])));
+  const falta = faltaNoEstoque(unidadesDoEstoque(m.linhas), new Map(produtos.map((p) => [p.id, p.estoqueTrava ? p.estoque : null])));
   if (falta) throw new ErroRegra(falta, 409);
   return { mesa: { id: mesa.id, numero: mesa.numero }, ...m };
 }
@@ -67,7 +73,7 @@ export interface Confirmacao {
   /** conta dividida: várias partes, cada uma com forma e valor (soma = total) */
   pagamentos?: unknown;
   totalCobradoCentavos?: number;
-  precosCobrados?: { produtoId: string; precoCentavos: number }[];
+  precosCobrados?: { produtoId: string; precoCentavos: number; promocaoId?: string | null }[];
   observacao?: unknown;
   cliente?: unknown;
 }
@@ -83,7 +89,8 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
   const mesa = await mesaAtiva(db, c.mesaId);
   const itens = Array.isArray(c.itens) ? c.itens : [];
   const produtosPedido = await cardapio(db, itens.map((i) => i?.produtoId));
-  const montado = montar(itens, produtosPedido);
+  const cobradasCom = (Array.isArray(c.precosCobrados) ? c.precosCobrados : []).map((x) => x?.promocaoId).filter((x): x is string => typeof x === 'string');
+  const montado = montar(itens, produtosPedido, await promocoesParaPedido(db, agora, cobradasCom));
   const diretos = new Set(produtosPedido.filter((x) => x.servirDireto).map((x) => x.id));
   let final;
   try {
@@ -123,7 +130,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
     if (!p) return null; // outro envio com a mesma chave chegou primeiro
     await tx.insert(schema.pedidoItens).values(final.linhas.map((l) => ({ pedidoId: p.id, ...l })));
     await tx.insert(schema.pedidoPagamentos).values(partes.map((x) => ({ pedidoId: p.id, ...x })));
-    await baixarEstoque(tx as unknown as Db, final.linhas, p.id, p.numero, u.id);
+    await baixarEstoque(tx as unknown as Db, unidadesDoEstoque(final.linhas), p.id, p.numero, u.id);
     // setor só com itens que saem direto (cerveja, refrigerante...): já nasce entregue e não entra no painel
     const soDireto = (s: string) => final.linhas.filter((l) => l.setor === s).every((l) => diretos.has(l.produtoId));
     await tx.insert(schema.preparos).values(

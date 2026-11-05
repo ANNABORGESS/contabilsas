@@ -1,3 +1,4 @@
+import { tem } from '@/domain/papeis';
 import { dataValida } from '@/domain/turno';
 import { hoje } from '@/server/config';
 import { rota } from '@/server/http';
@@ -6,7 +7,7 @@ import { confirmarPagamento, listarPedidos } from '@/server/pedidos';
 /** Histórico. O garçom vê o turno atual; o administrador escolhe o período. */
 export const GET = rota(['garcom'], async ({ db, u, req }) => {
   const q = req.nextUrl.searchParams;
-  const admin = u.papel === 'admin';
+  const admin = tem(u.papel, 'vendas');
   const de = admin && dataValida(q.get('de')) ? q.get('de')! : hoje();
   const ate = admin && dataValida(q.get('ate')) ? q.get('ate')! : de;
   const uuid = (s: string | null) => (s && /^[0-9a-f-]{36}$/i.test(s) ? s : undefined);

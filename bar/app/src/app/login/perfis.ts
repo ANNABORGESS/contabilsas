@@ -5,5 +5,5 @@ export const PERFIS: { papel: Papel; titulo: string; icone: string; texto: strin
   { papel: 'garcom', titulo: 'Garçom', icone: '📱', texto: 'Celular: mesas, pedidos e pagamento' },
   { papel: 'cozinha', titulo: 'Cozinha', icone: '🍟', texto: 'Painel dos petiscos' },
   { papel: 'bar', titulo: 'Bar', icone: '🍺', texto: 'Painel das bebidas' },
-  { papel: 'admin', titulo: 'Administrador', icone: '💼', texto: 'Computador: vendas, cardápio e relatórios' },
+  { papel: 'admin', titulo: 'Gestão', icone: '💼', texto: 'Administrador, gerente, caixa e estoque' },
 ];

@@ -1,3 +1,4 @@
+import { aplicarPromocoes } from './promocao';
 // Montagem do pedido pago. O celular manda produtos e quantidades; o total é sempre
 // recalculado com o cardápio. Petiscos vão para a cozinha e bebidas para o bar.
 
@@ -15,6 +16,9 @@ export const NOME_FORMA: Record<FormaPagamento, string> = {
 };
 
 export const MAX_QUANTIDADE = 99;
+
+/** Promoção valendo agora para um produto (combo de N unidades por um preço). */
+export type PromocaoVigente = { id: string; nome: string; produtoId: string; quantidadeCombo: number; precoComboCentavos: number };
 /** Cervejas pequenas por balde. */
 export const MAX_BALDE = 10;
 
@@ -42,6 +46,9 @@ export interface LinhaPedido {
   precoCentavos: number;
   subtotalCentavos: number;
   balde: number | null;
+  /** unidades do produto em cada item: 1, ou o tamanho do combo da promoção */
+  unidades: number;
+  promocaoId: string | null;
 }
 
 export interface PedidoMontado {
@@ -65,7 +72,7 @@ export function ehFormaPagamento(f: unknown): f is FormaPagamento {
  * podem ir em balde: cada balde leva de 1 a MAX_BALDE cervejas (pode misturar marcas) e cada cerveja
  * é cobrada pelo preço dela.
  */
-export function montarPedido(itens: ItemSolicitado[], cardapio: ProdutoCardapio[]): PedidoMontado {
+export function montarPedido(itens: ItemSolicitado[], cardapio: ProdutoCardapio[], promocoes: PromocaoVigente[] = []): PedidoMontado {
   if (!Array.isArray(itens) || itens.length === 0) throw new ErroPedido('Adicione pelo menos um produto.');
   const porId = new Map(cardapio.map((p) => [p.id, p]));
   const qtd = new Map<string, { produtoId: string; balde: number | null; quantidade: number }>();
@@ -82,7 +89,7 @@ export function montarPedido(itens: ItemSolicitado[], cardapio: ProdutoCardapio[
     if (balde !== null) porBalde.set(balde, (porBalde.get(balde) || 0) + it.quantidade);
   }
   for (const [n, total] of porBalde) if (total > MAX_BALDE) throw new ErroPedido(`O balde ${n} tem ${total} cervejas: o máximo é ${MAX_BALDE}.`);
-  const linhas: LinhaPedido[] = [];
+  let linhas: LinhaPedido[] = [];
   for (const { produtoId, balde, quantidade } of qtd.values()) {
     const p = porId.get(produtoId);
     if (!p) throw new ErroPedido('Um dos produtos não existe mais no cardápio.');
@@ -90,8 +97,9 @@ export function montarPedido(itens: ItemSolicitado[], cardapio: ProdutoCardapio[
     if (!ehSetor(p.setor)) throw new ErroPedido(`${p.nome} está sem setor de preparo.`);
     if (quantidade > MAX_QUANTIDADE) throw new ErroPedido(`Quantidade de ${p.nome} acima de ${MAX_QUANTIDADE}.`);
     if (balde !== null && !p.balde) throw new ErroPedido(`${p.nome} não vai no balde.`);
-    linhas.push({ produtoId, nome: p.nome, setor: p.setor, quantidade, precoCentavos: p.precoCentavos, subtotalCentavos: p.precoCentavos * quantidade, balde });
+    linhas.push({ produtoId, nome: p.nome, setor: p.setor, quantidade, precoCentavos: p.precoCentavos, subtotalCentavos: p.precoCentavos * quantidade, balde, unidades: 1, promocaoId: null });
   }
+  linhas = aplicarPromocoes(linhas, promocoes);
   const totalCentavos = linhas.reduce((a, l) => a + l.subtotalCentavos, 0);
   if (totalCentavos <= 0) throw new ErroPedido('O total do pedido deve ser maior que zero.');
   const setores = SETORES.filter((s) => linhas.some((l) => l.setor === s));
@@ -103,11 +111,12 @@ export function montarPedido(itens: ItemSolicitado[], cardapio: ProdutoCardapio[
  * confirmação, o pedido é registrado com os preços cobrados (o dinheiro já entrou) e marcado
  * com divergência para o administrador conferir. Nunca se recusa um pagamento já recebido.
  */
-export function aplicarPrecosCobrados(montado: PedidoMontado, cobrado: { produtoId: string; precoCentavos: number }[] | undefined, totalCobrado: number | undefined) {
+export function aplicarPrecosCobrados(montado: PedidoMontado, cobrado: { produtoId: string; precoCentavos: number; promocaoId?: string | null }[] | undefined, totalCobrado: number | undefined) {
   if (!cobrado || totalCobrado === undefined) return { ...montado, divergencia: false };
-  const preco = new Map(cobrado.map((c) => [c.produtoId, c.precoCentavos]));
+  const chave = (c: { produtoId: string; promocaoId?: string | null }) => `${c.produtoId}|${c.promocaoId || ''}`;
+  const preco = new Map(cobrado.map((c) => [chave(c), c.precoCentavos]));
   const linhas = montado.linhas.map((l) => {
-    const p = preco.get(l.produtoId);
+    const p = preco.get(chave(l));
     const precoCentavos = Number.isInteger(p) && p! >= 0 ? p! : l.precoCentavos;
     return { ...l, precoCentavos, subtotalCentavos: precoCentavos * l.quantidade };
   });

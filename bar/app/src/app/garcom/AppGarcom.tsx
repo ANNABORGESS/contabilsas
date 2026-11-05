@@ -13,6 +13,8 @@ import type { DetalhePedido, PedidoLista } from '@/server/pedidos';
 import { BuscaMesa } from '@/cliente/BuscaMesa';
 import { BALCAO, ehBalcao, filtrarMesas, nomeLocal, type FiltroMesa } from '@/domain/mesas';
 import { ESTOQUE_BAIXO } from '@/domain/estoque';
+import { textoRestante } from '@/domain/promocao';
+import { INICIO, ehGestao, type Papel } from '@/domain/papeis';
 
 interface Produto {
   id: string;
@@ -47,9 +49,39 @@ interface Pronto {
   cliente: string | null;
   garcomId: string;
 }
+interface PromoAgora {
+  id: string;
+  nome: string;
+  produtoId: string;
+  quantidadeCombo: number;
+  precoComboCentavos: number;
+  destaque: string | null;
+  fim: string;
+  terminaEm: string;
+}
+
+/** Preço de q unidades com a promoção valendo: cada combo pelo preço dele, o resto no normal. */
+const precoComPromo = (preco: number, q: number, promo?: PromoAgora) => (promo ? Math.floor(q / promo.quantidadeCombo) * promo.precoComboCentavos + (q % promo.quantidadeCombo) * preco : preco * q);
+
+/** Faixa no topo: "🔥 Original em dobro até as 20h · termina em 1h 23min". Some sozinha no fim. */
+function FaixaPromocoes({ promocoes }: { promocoes: PromoAgora[] }) {
+  const agora = useAgora(15000);
+  const valendo = promocoes.filter((p) => Date.parse(p.terminaEm) > agora);
+  if (!valendo.length) return null;
+  return (
+    <div className="faixa-promo">
+      {valendo.map((p) => (
+        <div key={p.id}>
+          🔥 <b>{p.destaque || `${p.nome} até as ${p.fim}`}</b> · {reais(p.precoComboCentavos)} por {p.quantidadeCombo} · termina em <b className="num">{textoRestante(Date.parse(p.terminaEm) - agora)}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 interface Previa {
   mesa: { id: string; numero: number };
-  linhas: { produtoId: string; nome: string; setor: Setor; quantidade: number; precoCentavos: number; subtotalCentavos: number; balde: number | null }[];
+  linhas: { produtoId: string; nome: string; setor: Setor; quantidade: number; precoCentavos: number; subtotalCentavos: number; balde: number | null; unidades?: number; promocaoId?: string | null }[];
   totalCentavos: number;
   setores: Setor[];
 }
@@ -128,6 +160,15 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   const cardapio = useDados<{ produtos: Produto[] }>('/api/cardapio');
   const mesas = useDados<{ data: string; mesas: MesaTurno[] }>('/api/mesas/turno');
   const prontos = useDados<{ prontos: Pronto[] }>('/api/prontos');
+  const promos = useDados<{ promocoes: PromoAgora[] }>('/api/promocoes/agora');
+  // no horário de encerramento a lista é pedida de novo: a promoção some e o preço volta ao normal
+  const relogio = useAgora(15000);
+  const promocoes = useMemo(() => (promos.dados?.promocoes || []).filter((p) => Date.parse(p.terminaEm) > relogio), [promos.dados, relogio]);
+  const recarregarPromos = promos.recarregar;
+  const vencidas = (promos.dados?.promocoes || []).length - promocoes.length;
+  useEffect(() => {
+    if (vencidas > 0) void recarregarPromos();
+  }, [vencidas, recarregarPromos]);
 
   // aviso quando um pedido do garçom fica pronto
   const vistos = useRef<Set<string> | null>(null);
@@ -220,6 +261,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
           mesaInfo={mesa}
           produtos={cardapio.dados?.produtos || []}
           carregando={cardapio.carregando}
+          promocoes={promocoes}
           carrinho={carrinhos[tela.mesaId] || {}}
           definir={(p, q) => definirQtd(tela.mesaId, p, q)}
           baldes={baldes[tela.mesaId] || []}
@@ -292,8 +334,8 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
           </div>
           <div className="fila">
             <Conexao />
-            {usuario.papel === 'admin' && (
-              <a className="btn fantasma pequeno" href="/admin">
+            {ehGestao(usuario.papel) && (
+              <a className="btn fantasma pequeno" href={INICIO[usuario.papel as Papel]}>
                 Admin
               </a>
             )}
@@ -301,6 +343,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
           </div>
         </header>
         <main className="corpo-garcom">
+          <FaixaPromocoes promocoes={promocoes} />
           {aba === 'mesas' && (
             <>
               {mesas.erro && <Aviso tipo="erro">{mesas.erro}</Aviso>}
@@ -378,6 +421,7 @@ function TelaProdutos(props: {
   mesaInfo?: MesaTurno;
   produtos: Produto[];
   carregando: boolean;
+  promocoes: PromoAgora[];
   carrinho: Record<string, number>;
   definir: (produtoId: string, qtd: number) => void;
   baldes: Balde[];
@@ -408,9 +452,11 @@ function TelaProdutos(props: {
   });
   const porId = new Map(produtos.map((p) => [p.id, p]));
   const itens = Object.entries(carrinho).filter(([id]) => porId.has(id));
-  const somaBalde = (b: Balde) => Object.entries(b).reduce((a, [id, q]) => a + (porId.get(id)?.precoCentavos || 0) * q, 0);
+  const promoDe = new Map(props.promocoes.map((x) => [x.produtoId, x]));
+  const somaBalde = (b: Balde) => Object.entries(b).reduce((a, [id, q]) => a + precoComPromo(porId.get(id)?.precoCentavos || 0, q, promoDe.get(id)), 0);
   const qtdTotal = itens.reduce((a, [, q]) => a + q, 0) + baldes.length;
-  const total = itens.reduce((a, [id, q]) => a + porId.get(id)!.precoCentavos * q, 0) + baldes.reduce((a, b) => a + somaBalde(b), 0);
+  // estimativa na tela; o valor que vale é o da prévia, calculado no servidor com o horário de lá
+  const total = itens.reduce((a, [id, q]) => a + precoComPromo(porId.get(id)!.precoCentavos, q, promoDe.get(id)), 0) + baldes.reduce((a, b) => a + somaBalde(b), 0);
 
   async function cobrar() {
     setIndo(true);
@@ -449,6 +495,7 @@ function TelaProdutos(props: {
         </div>
       </header>
       <main className="corpo-garcom">
+        <FaixaPromocoes promocoes={props.promocoes} />
         <input type="search" placeholder="Buscar produto…" value={busca} onChange={(e) => setBusca(e.target.value)} />
         <div className="filtros-rolagem">
           {[
@@ -501,15 +548,25 @@ function TelaProdutos(props: {
         )}
         {visiveis.map((p) => {
           const q = carrinho[p.id] || 0;
+          const promo = promoDe.get(p.id);
+          // na promoção cada toque soma o combo (2 Original): o cliente pede 1 e leva 2
+          const passo = promo && sobra(p) >= promo.quantidadeCombo ? promo.quantidadeCombo : 1;
           const podeMais = sobra(p) > 0;
           const esgotado = travado(p) && p.estoque! <= 0;
           return (
-            <div key={p.id} className={`produto ${q ? 'escolhido' : ''} ${esgotado ? 'esgotado' : ''}`}>
-              <div className="info" onClick={() => podeMais && definir(p.id, q + 1)}>
+            <div key={p.id} className={`produto ${q ? 'escolhido' : ''} ${esgotado ? 'esgotado' : ''} ${promo ? 'em-promo' : ''}`}>
+              <div className="info" onClick={() => podeMais && definir(p.id, q + passo)}>
                 <div className="nome">{p.nome}</div>
+                {promo && (
+                  <div className="selo-promo">
+                    🔥 {promo.quantidadeCombo} por {reais(promo.precoComboCentavos)} até {promo.fim}
+                  </div>
+                )}
                 <div className="preco">
                   {reais(p.precoCentavos)} · {p.setor === 'cozinha' ? 'Cozinha' : 'Bar'}
+                  {promo && q > 0 && <> · {reais(precoComPromo(p.precoCentavos, q, promo))} por {q}</>}
                 </div>
+                {promo && q % promo.quantidadeCombo !== 0 && <div className="restam">Quantidade ímpar: 1 sai no preço normal</div>}
                 {esgotado ? (
                   <div className="restam">Esgotado</div>
                 ) : (
@@ -520,14 +577,14 @@ function TelaProdutos(props: {
               <div className="qtd">
                 {q > 0 && (
                   <>
-                    <button onClick={() => definir(p.id, q - 1)} aria-label={`Tirar um ${p.nome}`}>
+                    <button onClick={() => definir(p.id, Math.max(0, q - (promo && q >= promo.quantidadeCombo && q % promo.quantidadeCombo === 0 ? promo.quantidadeCombo : 1)))} aria-label={`Tirar um ${p.nome}`}>
                       −
                     </button>
                     <span>{q}</span>
                   </>
                 )}
-                <button className="mais" disabled={!podeMais} onClick={() => definir(p.id, q + 1)} aria-label={`Adicionar ${p.nome}`}>
-                  +
+                <button className="mais" disabled={!podeMais} onClick={() => definir(p.id, q + passo)} aria-label={`Adicionar ${p.nome}`}>
+                  {passo > 1 ? `+${passo}` : '+'}
                 </button>
               </div>
             </div>
@@ -654,11 +711,12 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
       const r = await api<{ pedido: DetalhePedido; duplicado: boolean }>('/api/pedidos', 'POST', {
         chave: tentativa.chave,
         mesaId: tentativa.mesaId,
-        itens: previa.linhas.map((l) => ({ produtoId: l.produtoId, quantidade: l.quantidade, balde: l.balde })),
+        // unidades de verdade: no combo da promoção cada linha leva várias (o servidor remonta o combo)
+        itens: previa.linhas.map((l) => ({ produtoId: l.produtoId, quantidade: l.quantidade * (l.unidades ?? 1), balde: l.balde })),
         formaPagamento: dividindo ? null : forma,
         pagamentos: dividindo ? partes!.map((x) => ({ forma: x.forma, valorCentavos: x.valor, pessoa: x.pessoa })) : undefined,
         totalCobradoCentavos: previa.totalCentavos,
-        precosCobrados: previa.linhas.map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos })),
+        precosCobrados: previa.linhas.map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos, promocaoId: l.promocaoId ?? null })),
         observacao: tentativa.observacao,
         cliente: tentativa.cliente ?? '',
       });

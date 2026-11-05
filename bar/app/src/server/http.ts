@@ -3,7 +3,7 @@
 import 'server-only';
 import { NextResponse, type NextRequest } from 'next/server';
 import { getDb, type Db } from '@/db';
-import type { Papel } from '@/domain/papeis';
+import type { Papel, Permissao } from '@/domain/papeis';
 import { ErroAcesso, exigir, type Usuario } from './auth';
 import { ErroRegra } from './erros';
 import { avisar } from './eventos';
@@ -14,8 +14,8 @@ export function erro(msg: string, status = 400) {
 
 type Ctx = { db: Db; u: Usuario; req: NextRequest; corpo: Record<string, unknown> };
 
-/** Rota protegida por papel. Escritas avisam as telas abertas para atualizarem. */
-export function rota(papeis: Papel[], fn: (c: Ctx) => Promise<unknown>) {
+/** Rota protegida por papel de operação e/ou área da gestão (basta um). Escritas avisam as telas abertas para atualizarem. */
+export function rota(papeis: (Papel | Permissao)[], fn: (c: Ctx) => Promise<unknown>) {
   return async (req: NextRequest) => {
     let u: Usuario | null = null;
     try {

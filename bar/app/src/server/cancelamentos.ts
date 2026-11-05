@@ -1,4 +1,5 @@
 // Cancelamento e estorno: o garçom só pode pedir; quem decide é o administrador.
+import { tem } from '@/domain/papeis';
 import { and, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
@@ -57,7 +58,7 @@ export async function encerrar(db: Db, u: Usuario, pedidoId: string, motivoBruto
     // cancelamento (nada preparado): o que ainda valia volta para o estoque
     if (tipo === 'cancelado') {
       const itens = await tx.select().from(schema.pedidoItens).where(eq(schema.pedidoItens.pedidoId, p.id));
-      await devolverEstoque(tx as unknown as Db, itens.map((i) => ({ produtoId: i.produtoId, quantidade: i.quantidade - i.quantidadeCancelada })), p.id, p.numero, u.id);
+      await devolverEstoque(tx as unknown as Db, itens.map((i) => ({ produtoId: i.produtoId, quantidade: (i.quantidade - i.quantidadeCancelada) * i.unidades })), p.id, p.numero, u.id);
     }
     // tira dos painéis o que ainda não foi entregue
     await tx
@@ -105,7 +106,7 @@ export async function cancelarItem(db: Db, u: Usuario, pedidoId: string, itemId:
       .where(and(eq(schema.pedidoItens.id, item.id), eq(schema.pedidoItens.quantidadeCancelada, item.quantidadeCancelada)))
       .returning({ id: schema.pedidoItens.id });
     if (!r.length) throw new ErroRegra('Este item acabou de ser alterado. Atualize a tela e tente de novo.', 409);
-    if (tipoItem === 'cancelado') await devolverEstoque(tx as unknown as Db, [{ produtoId: item.produtoId, quantidade: q }], p.id, p.numero, u.id);
+    if (tipoItem === 'cancelado') await devolverEstoque(tx as unknown as Db, [{ produtoId: item.produtoId, quantidade: q * item.unidades }], p.id, p.numero, u.id);
     await tx
       .update(schema.pedidos)
       .set({ itensCanceladosCentavos: sql`${schema.pedidos.itensCanceladosCentavos} + ${valor}` })
@@ -139,7 +140,7 @@ export async function cancelarItem(db: Db, u: Usuario, pedidoId: string, itemId:
 }
 
 export async function recusar(db: Db, u: Usuario, solicitacaoId: string) {
-  if (u.papel !== 'admin') throw new ErroRegra('Só o administrador decide cancelamentos.', 403);
+  if (!tem(u.papel, 'autorizar')) throw new ErroRegra('Só administrador ou gerente decide cancelamentos.', 403);
   if (!/^[0-9a-f-]{36}$/i.test(solicitacaoId)) throw new ErroRegra('Solicitação não encontrada.', 404);
   await db.transaction(async (tx) => {
     const [s] = await tx

@@ -1,6 +1,6 @@
 import { notFound, redirect } from 'next/navigation';
 import { getDb } from '@/db';
-import { INICIO, ehPapel, pode } from '@/domain/papeis';
+import { INICIO, ehPapel, entraPor } from '@/domain/papeis';
 import { semUsuarios, usuarioAtual } from '@/server/auth';
 import FormLogin from '../FormLogin';
 import { PERFIS } from '../perfis';
@@ -13,7 +13,7 @@ export default async function LoginPerfil({ params }: { params: Promise<{ perfil
   if (!ehPapel(perfil)) notFound();
   if (await semUsuarios(await getDb())) redirect('/primeiro-acesso');
   const u = await usuarioAtual();
-  if (u && pode(u.papel, perfil)) redirect(INICIO[perfil]); // já entrou com um usuário deste perfil
+  if (u && entraPor(u.papel, perfil)) redirect(perfil === 'admin' ? INICIO[u.papel] : INICIO[perfil]); // já entrou com um usuário deste perfil
   const p = PERFIS.find((x) => x.papel === perfil)!;
   return (
     <main className="acesso tema-escuro">

@@ -1,4 +1,5 @@
 // Mesas, cardápio e equipe (administração) e o primeiro acesso.
+import { tem } from '@/domain/papeis';
 import { BALCAO, INICIO_LUGARES_BALCAO, MAX_LUGARES_BALCAO, nomeLocal, ordemLocal } from '@/domain/mesas';
 import { and, asc, eq, gt, lte, ne, notLike, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
@@ -26,7 +27,7 @@ export async function listarMesas(db: Db, todas = false) {
  * cima. As cadeiras desativadas guardam o histórico. Com cadeiras, o balcão geral sai da tela.
  */
 export async function definirLugaresBalcao(db: Db, u: Usuario, quantidade: unknown) {
-  if (u.papel !== 'admin') throw new ErroRegra('Só o administrador muda as cadeiras do balcão.', 403);
+  if (!tem(u.papel, 'mesas')) throw new ErroRegra('Seu perfil não muda as cadeiras do balcão.', 403);
   const n = Number(quantidade);
   if (!Number.isInteger(n) || n < 0 || n > MAX_LUGARES_BALCAO) throw new ErroRegra(`Informe de 0 a ${MAX_LUGARES_BALCAO} cadeiras.`);
   const numeros = Array.from({ length: n }, (_, i) => INICIO_LUGARES_BALCAO + i + 1);
@@ -152,6 +153,7 @@ export async function excluirProduto(db: Db, u: Usuario, id: string) {
   const vendido = Number(vendas.n) > 0;
   if (vendido) await db.update(schema.produtos).set({ excluido: true, ativo: false, atualizadoEm: new Date() }).where(eq(schema.produtos.id, id));
   else {
+    await db.delete(schema.promocoes).where(eq(schema.promocoes.produtoId, id));
     await db.delete(schema.estoqueMovimentos).where(eq(schema.estoqueMovimentos.produtoId, id));
     await db.delete(schema.produtos).where(eq(schema.produtos.id, id));
   }

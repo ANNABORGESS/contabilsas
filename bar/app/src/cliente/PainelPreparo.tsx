@@ -1,6 +1,7 @@
 'use client';
 // Painel da cozinha ou do bar: só pedidos pagos, do mais antigo para o mais novo.
 // Feito para tablet ou TV: letras grandes, um toque para avançar o status.
+import { ehGestao } from '@/domain/papeis';
 import { nomeLocal } from '@/domain/mesas';
 import { useEffect, useRef, useState } from 'react';
 import { agruparBaldes, type Setor } from '@/domain/pedido';
@@ -93,7 +94,7 @@ export default function PainelPreparo({ setor, usuario }: { setor: Setor; usuari
           <Conexao />
           <span className="relogio">{hora(new Date(agora))}</span>
           <span className="fraco">{usuario.nome}</span>
-          {usuario.papel === 'admin' && (
+          {ehGestao(usuario.papel) && (
             <a className="btn fantasma pequeno" href="/admin">
               Admin
             </a>
