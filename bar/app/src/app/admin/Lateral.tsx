@@ -15,7 +15,6 @@ const ITENS = [
   ['/admin/relatorios', 'Relatórios'],
   ['/admin/financeiro', 'Custos e lucro'],
   ['/admin/auditoria', 'Auditoria'],
-  ['/admin/site', 'Site do restaurante'],
 ] as const;
 
 export default function Lateral({ nome, children }: { nome: string; children: React.ReactNode }) {
