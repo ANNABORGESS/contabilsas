@@ -33,6 +33,14 @@ describe('promoção programada (horário de Manaus)', () => {
     ]);
     expect(m.linhas.reduce((a, l) => a + l.quantidade * l.unidades, 0)).toBe(3);
   });
+  it('compre 2 e ganhe 2: 4 Original por R$ 28; 6 = 1 combo + 2 no normal; estoque baixa todas', () => {
+    const p4 = { ...promo, quantidadeCombo: 4, precoComboCentavos: 2800 };
+    const o14 = { ...original, precoCentavos: 1400 };
+    expect(montarPedido([{ produtoId: o14.id, quantidade: 4 }], [o14], [p4]).totalCentavos).toBe(2800);
+    const m = montarPedido([{ produtoId: o14.id, quantidade: 6 }], [o14], [p4]);
+    expect(m.totalCentavos).toBe(2800 + 2 * 1400);
+    expect(m.linhas.reduce((a, l) => a + l.quantidade * l.unidades, 0)).toBe(6);
+  });
   it('sem promoção valendo (depois das 20h), preço normal', () => {
     expect(montarPedido([{ produtoId: original.id, quantidade: 2 }], [original], []).totalCentavos).toBe(2400);
   });

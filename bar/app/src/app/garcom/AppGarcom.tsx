@@ -621,7 +621,11 @@ function TelaProdutos(props: {
                   {reais(p.precoCentavos)} · {p.setor === 'cozinha' ? 'Cozinha' : 'Bar'}
                   {promo && q > 0 && <> · {reais(precoComPromo(p.precoCentavos, q, promo))} por {q}</>}
                 </div>
-                {promo && q % promo.quantidadeCombo !== 0 && <div className="restam">Quantidade ímpar: 1 sai no preço normal</div>}
+                {promo && q % promo.quantidadeCombo !== 0 && (
+                  <div className="restam">
+                    {q % promo.quantidadeCombo} fora do combo de {promo.quantidadeCombo}: {q % promo.quantidadeCombo === 1 ? 'sai' : 'saem'} no preço normal
+                  </div>
+                )}
                 {esgotado ? (
                   <div className="restam">Esgotado</div>
                 ) : (
