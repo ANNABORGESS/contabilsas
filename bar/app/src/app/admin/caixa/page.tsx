@@ -90,10 +90,18 @@ export default function Caixa() {
   const r = dados ? conferirCaixa(dados.sistema, conferido, trocoC) : null;
 
   async function fechar() {
+    // nada digitado: pergunta se fecha considerando que confere com o que o sistema registrou
+    let conf = conferido;
+    let observacao = obs;
+    if (r && r.conferidas === 0) {
+      if (!confirm(`Você não digitou o dinheiro contado nem o relatório da maquininha.\n\nFechar o caixa de ${dataBr(dados!.data)} considerando que confere com o sistema (${reais(dados!.totalCentavos)})?`)) return;
+      conf = Object.fromEntries(FORMAS_PAGAMENTO.map((f) => [f, dados!.sistema[f] + (f === 'dinheiro' ? trocoC : 0)])) as Partial<Record<FormaPagamento, number>>;
+      observacao = [obs.trim(), 'Fechado sem contagem: conferido igual ao sistema.'].filter(Boolean).join(' ');
+    }
     setSalvando(true);
     setMsg(null);
     try {
-      await api('/api/caixa', 'POST', { data: dados!.data, trocoInicialCentavos: trocoC, conferido, observacao: obs });
+      await api('/api/caixa', 'POST', { data: dados!.data, trocoInicialCentavos: trocoC, conferido: conf, observacao });
       setMsg({ tipo: 'ok', texto: `Caixa do turno ${dataBr(dados!.data)} fechado e guardado.` });
     } catch (e) {
       setMsg({ tipo: 'erro', texto: (e as Error).message });
@@ -232,7 +240,7 @@ export default function Caixa() {
             Observação (opcional)
             <input value={obs} maxLength={500} onChange={(e) => setObs(e.target.value)} placeholder="ex.: faltou R$ 5 de troco, sangria de R$ 200 às 22h" />
           </label>
-          <button className="btn primario grande bloco nao-imprimir" style={{ marginTop: 12 }} disabled={salvando || r.conferidas === 0} onClick={fechar}>
+          <button className="btn primario grande bloco nao-imprimir" style={{ marginTop: 12 }} disabled={salvando} onClick={fechar}>
             {salvando ? 'Gravando…' : dados.fechamento ? 'Gravar correção do fechamento' : '✓ Fechar o caixa'}
           </button>
           <p className="fraco" style={{ marginTop: 8 }}>
