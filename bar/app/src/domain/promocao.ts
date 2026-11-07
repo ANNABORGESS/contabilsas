@@ -20,6 +20,8 @@ export interface Promocao {
   fim: string; // HH:MM
   ativa: boolean;
   destaque?: string | null;
+  /** só nestas mesas (números; Balcão 10 = 1010). Vazio = todas */
+  mesas?: number[] | null;
 }
 
 export class ErroPromocao extends Error {}
@@ -63,7 +65,8 @@ export function validarPromocao(e: Record<string, unknown>): Omit<Promocao, 'id'
   if (!HORA.test(inicio) || !HORA.test(fim)) throw new ErroPromocao('Horário inválido (use 00:00).');
   if (minutos(inicio) >= minutos(fim)) throw new ErroPromocao('O início precisa ser antes do encerramento, no mesmo dia.');
   const destaque = typeof e.destaque === 'string' && e.destaque.trim() ? e.destaque.trim().slice(0, 80) : null;
-  return { nome, produtoId: e.produtoId, quantidadeCombo: q, precoComboCentavos: preco, dias, inicio, fim, ativa: e.ativa !== false, destaque };
+  const mesas = Array.isArray(e.mesas) ? [...new Set(e.mesas.map(Number))].filter((n) => Number.isInteger(n) && n >= 0 && n <= 9999).sort((a, b) => a - b) : [];
+  return { nome, produtoId: e.produtoId, quantidadeCombo: q, precoComboCentavos: preco, dias, inicio, fim, ativa: e.ativa !== false, destaque, mesas: mesas.length ? mesas : null };
 }
 
 export interface LinhaComPromo {
@@ -134,4 +137,18 @@ export function resultadoPromocao(itens: { quantidade: number; quantidadeCancela
   }
   const normal = unidades * precoNormalUnitario;
   return { combos, unidades, faturadoCentavos: faturado, custoCentavos: unidades * (custoUnitario ?? 0), precoNormalCentavos: normal, descontoCentavos: normal - faturado };
+}
+
+/** A promoção vale nesta mesa? Sem lista de mesas, vale em todas. */
+export const valeNaMesa = (p: { mesas?: number[] | null }, numero: number) => !p.mesas || !p.mesas.length || p.mesas.includes(numero);
+
+/** "Balcão 10, 5, 12" -> [1010, 5, 12] (Balcão N = 1000 + N; "balcão" sozinho = 0). */
+export function lerMesas(texto: string): number[] {
+  const out: number[] = [];
+  for (const t of texto.split(/[,;]+/).map((x) => x.trim().toLowerCase()).filter(Boolean)) {
+    const b = t.match(/^balc[aã]o\s*(\d+)?$/);
+    if (b) out.push(b[1] ? 1000 + Number(b[1]) : 0);
+    else if (/^(mesa\s*)?\d+$/.test(t)) out.push(Number(t.replace(/\D/g, '')));
+  }
+  return [...new Set(out)];
 }

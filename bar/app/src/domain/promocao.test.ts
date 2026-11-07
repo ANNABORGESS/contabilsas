@@ -77,3 +77,13 @@ describe('taxa de serviço', () => {
     expect(taxaServico([{ nome: 'Filé', subtotalCentavos: 5995 }])).toBe(600);
   });
 });
+
+import { lerMesas, valeNaMesa } from './promocao';
+describe('promoção só em algumas mesas', () => {
+  it('lê "Balcão 10, Mesa 5, 12" e confere a mesa', () => {
+    expect(lerMesas('Balcão 10, Mesa 5, 12')).toEqual([1010, 5, 12]);
+    expect(valeNaMesa({ mesas: [1010] }, 1010)).toBe(true);
+    expect(valeNaMesa({ mesas: [1010] }, 3)).toBe(false);
+    expect(valeNaMesa({ mesas: null }, 3)).toBe(true);
+  });
+});

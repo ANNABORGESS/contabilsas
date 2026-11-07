@@ -6,7 +6,8 @@ import { api, useDados } from '@/cliente/api';
 import { reais } from '@/cliente/formato';
 import { Aviso, Modal, useAgora } from '@/cliente/ui';
 import { paraCentavos } from '@/domain/dinheiro';
-import { DIAS_SEMANA, textoRestante, type ResultadoPromocao } from '@/domain/promocao';
+import { DIAS_SEMANA, lerMesas, textoRestante, type ResultadoPromocao } from '@/domain/promocao';
+import { nomeLocal } from '@/domain/mesas';
 import { Cabecalho, Periodo } from '../comum';
 
 interface Promo {
@@ -22,6 +23,7 @@ interface Promo {
   fim: string;
   ativa: boolean;
   destaque: string | null;
+  mesas: number[] | null;
   valendo: boolean;
   terminaEm: string | null;
   resultado: ResultadoPromocao;
@@ -88,6 +90,7 @@ export default function Promocoes() {
                 <div className="fraco">
                   {textoDias(p.dias)} · das {p.inicio} às {p.fim} · baixa {p.quantidadeCombo} un. do estoque por combo
                 </div>
+                <div className="fraco">{p.mesas?.length ? `Só em: ${p.mesas.map((n) => nomeLocal(n)).join(', ')}` : 'Em todas as mesas e no balcão'}</div>
                 {p.destaque && <div className="fraco">Aviso no cardápio: “{p.destaque}”</div>}
               </div>
               <div className="fila" style={{ marginTop: 10 }}>
@@ -194,6 +197,7 @@ function FormPromocao({ p, produtos, fechar, salvo }: { p: Promo | null; produto
       inicio: d.get('inicio'),
       fim: d.get('fim'),
       destaque: d.get('destaque'),
+      mesas: lerMesas(String(d.get('mesas') || '')),
       ativa: d.get('ativa') === 'on',
     };
     try {
@@ -257,6 +261,10 @@ function FormPromocao({ p, produtos, fechar, salvo }: { p: Promo | null; produto
             <input name="fim" type="time" defaultValue={p?.fim || '20:00'} required />
           </label>
         </div>
+        <label className="campo">
+          Só nestas mesas (opcional — vazio vale em todas)
+          <input name="mesas" defaultValue={(p?.mesas || []).map((n) => nomeLocal(n)).join(', ')} placeholder="ex.: Balcão 10  ou  Mesa 5, Mesa 12" />
+        </label>
         <label className="campo">
           Aviso no cardápio do garçom
           <input name="destaque" defaultValue={p?.destaque || ''} maxLength={80} placeholder="ex.: Original em dobro até as 20h" />

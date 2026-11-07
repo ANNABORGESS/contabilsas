@@ -58,7 +58,7 @@ export async function previa(db: Db, entrada: { mesaId: unknown; itens: ItemSoli
   const mesa = await mesaAtiva(db, entrada.mesaId);
   const itens = Array.isArray(entrada.itens) ? entrada.itens : [];
   const produtos = await cardapio(db, itens.map((i) => i?.produtoId));
-  const m = montar(itens, produtos, await promocoesParaPedido(db, new Date()));
+  const m = montar(itens, produtos, await promocoesParaPedido(db, new Date(), mesa.numero));
   // confere o estoque antes de cobrar (depois do pagamento aprovado o pedido nunca é recusado)
   // só trava os produtos com a trava ligada (comida sem estoque inicial vende e só registra)
   const falta = faltaNoEstoque(unidadesDoEstoque(m.linhas), new Map(produtos.map((p) => [p.id, p.estoqueTrava ? p.estoque : null])));
@@ -100,7 +100,7 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
   const itens = Array.isArray(c.itens) ? c.itens : [];
   const produtosPedido = await cardapio(db, itens.map((i) => i?.produtoId));
   const cobradasCom = (Array.isArray(c.precosCobrados) ? c.precosCobrados : []).map((x) => x?.promocaoId).filter((x): x is string => typeof x === 'string');
-  const montado = montar(itens, produtosPedido, await promocoesParaPedido(db, agora, cobradasCom));
+  const montado = montar(itens, produtosPedido, await promocoesParaPedido(db, agora, mesa.numero, cobradasCom));
   const diretos = new Set(produtosPedido.filter((x) => x.servirDireto).map((x) => x.id));
   let final;
   try {

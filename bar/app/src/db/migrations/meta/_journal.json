@@ -120,6 +120,13 @@
       "when": 1793907532549,
       "tag": "0016_taxa_servico",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1794009929486,
+      "tag": "0017_promocao_mesas",
+      "breakpoints": true
     }
   ]
 }

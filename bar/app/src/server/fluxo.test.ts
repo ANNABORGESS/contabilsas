@@ -361,6 +361,11 @@ describe('fluxo do pedido pago', () => {
     // cancelar o combo antes de preparar devolve as 2 unidades
     await encerrar(db, admin, a.pedido!.id, 'Cliente desistiu');
     expect(await est()).toBe(16);
+    // só no Balcão 10: na mesa comum volta ao preço normal
+    await salvarPromocao(db, admin, promocao.id, { nome: 'Lata em dobro', produtoId: lata.id, quantidadeCombo: 2, precoComboCentavos: lata.precoCentavos, dias: [0, 1, 2, 3, 4, 5, 6], inicio: '10:00', fim: '20:00', mesas: [1010] });
+    const d = await conf(as1930);
+    expect(d.pedido!.totalCentavos).toBe(2 * lata.precoCentavos);
+    await encerrar(db, admin, d.pedido!.id, 'teste de mesa');
     const r = (await listarPromocoes(db, '2026-11-06', '2026-11-06')).promocoes.find((p) => p.id === promocao.id)!;
     expect(r.resultado).toMatchObject({ combos: 1, unidades: 2, faturadoCentavos: lata.precoCentavos, descontoCentavos: lata.precoCentavos });
     await salvarPromocao(db, admin, promocao.id, { nome: 'Lata em dobro', produtoId: lata.id, quantidadeCombo: 2, precoComboCentavos: lata.precoCentavos, dias: [0], inicio: '10:00', fim: '20:00', ativa: false });

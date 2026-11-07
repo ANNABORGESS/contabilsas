@@ -5,7 +5,8 @@ import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
 import { tem } from '@/domain/papeis';
-import { DIAS_SEMANA, ErroPromocao, TOLERANCIA_MS, restanteDaPromocao, resultadoPromocao, validarPromocao, type Promocao } from '@/domain/promocao';
+import { DIAS_SEMANA, ErroPromocao, TOLERANCIA_MS, restanteDaPromocao, resultadoPromocao, validarPromocao, valeNaMesa, type Promocao } from '@/domain/promocao';
+import { nomeLocal } from '@/domain/mesas';
 import type { PromocaoVigente } from '@/domain/pedido';
 import { dataValida } from '@/domain/turno';
 import type { Usuario } from './auth';
@@ -20,15 +21,15 @@ export async function promocoesAgora(db: Db, agora = new Date()) {
   return lista
     .map((p) => ({ p, ms: restanteDaPromocao(p as Promocao, agora) }))
     .filter((x) => x.ms !== null)
-    .map(({ p, ms }) => ({ id: p.id, nome: p.nome, produtoId: p.produtoId, quantidadeCombo: p.quantidadeCombo, precoComboCentavos: p.precoComboCentavos, destaque: p.destaque, fim: p.fim, terminaEm: new Date(agora.getTime() + ms!).toISOString() }));
+    .map(({ p, ms }) => ({ id: p.id, nome: p.nome, produtoId: p.produtoId, quantidadeCombo: p.quantidadeCombo, precoComboCentavos: p.precoComboCentavos, destaque: p.destaque, fim: p.fim, mesas: p.mesas ?? null, terminaEm: new Date(agora.getTime() + ms!).toISOString() }));
 }
 
 /**
  * Preço do pedido: na prévia, só as que valem agora. Na confirmação, também a que acabou há pouco
  * se o garçom já cobrou com ela (cobrou antes das 20h e confirmou um pouco depois).
  */
-export async function promocoesParaPedido(db: Db, agora: Date, cobradasCom: string[] = []): Promise<PromocaoVigente[]> {
-  const lista = await todas(db);
+export async function promocoesParaPedido(db: Db, agora: Date, mesa: number, cobradasCom: string[] = []): Promise<PromocaoVigente[]> {
+  const lista = (await todas(db)).filter((p) => valeNaMesa(p, mesa));
   const antes = new Date(agora.getTime() - TOLERANCIA_MS);
   return lista.filter((p) => restanteDaPromocao(p as Promocao, agora) !== null || (cobradasCom.includes(p.id) && restanteDaPromocao(p as Promocao, antes) !== null));
 }
@@ -42,8 +43,8 @@ function regra<T>(f: () => T): T {
   }
 }
 
-const descrever = (p: { nome: string; quantidadeCombo: number; precoComboCentavos: number; dias: number[]; inicio: string; fim: string }) =>
-  `${p.nome}: ${p.quantidadeCombo} por ${reais(p.precoComboCentavos)}, ${p.dias.length === 7 ? 'todos os dias' : p.dias.map((d) => DIAS_SEMANA[d]).join(', ')}, ${p.inicio} às ${p.fim}`;
+const descrever = (p: { nome: string; quantidadeCombo: number; precoComboCentavos: number; dias: number[]; inicio: string; fim: string; mesas?: number[] | null }) =>
+  `${p.nome}: ${p.quantidadeCombo} por ${reais(p.precoComboCentavos)}, ${p.dias.length === 7 ? 'todos os dias' : p.dias.map((d) => DIAS_SEMANA[d]).join(', ')}, ${p.inicio} às ${p.fim}${p.mesas?.length ? `, só em ${p.mesas.map((n) => nomeLocal(n)).join(', ')}` : ''}`;
 
 export async function salvarPromocao(db: Db, u: Usuario, id: string | null, corpo: Record<string, unknown>) {
   if (!tem(u.papel, 'cardapio')) throw new ErroRegra('Seu perfil não cadastra promoções.', 403);

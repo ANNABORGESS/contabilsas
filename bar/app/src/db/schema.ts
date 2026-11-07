@@ -244,6 +244,7 @@ export const promocoes = pgTable('promocoes', {
   fim: text('fim').notNull(),
   ativa: boolean('ativa').notNull().default(true),
   destaque: text('destaque'), // aviso no cardápio, ex.: "Original em dobro até as 20h"
+  mesas: jsonb('mesas').$type<number[]>(), // só nestas mesas (Balcão 10 = 1010); vazio = todas
   criadoEm: criadoEm(),
 });
 

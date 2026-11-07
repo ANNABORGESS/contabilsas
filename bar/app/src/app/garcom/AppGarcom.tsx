@@ -104,6 +104,8 @@ interface PromoAgora {
   precoComboCentavos: number;
   destaque: string | null;
   fim: string;
+  /** só nestas mesas (Balcão 10 = 1010); null = todas */
+  mesas: number[] | null;
   terminaEm: string;
 }
 
@@ -127,7 +129,8 @@ function FaixaPromocoes({ promocoes }: { promocoes: PromoAgora[] }) {
     <div className="faixa-promo">
       {valendo.map((p) => (
         <div key={p.id}>
-          🔥 <b>{p.destaque || `${p.nome} até as ${p.fim}`}</b> · {reais(p.precoComboCentavos)} por {p.quantidadeCombo} · termina em <b className="num">{textoRestante(Date.parse(p.terminaEm) - agora)}</b>
+          🔥 <b>{p.destaque || `${p.nome} até as ${p.fim}`}</b>
+          {p.mesas?.length ? <> · só no {p.mesas.map((n) => nomeLocal(n)).join(', ')}</> : null} · {reais(p.precoComboCentavos)} por {p.quantidadeCombo} · termina em <b className="num">{textoRestante(Date.parse(p.terminaEm) - agora)}</b>
         </div>
       ))}
     </div>
@@ -320,7 +323,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
           mesaInfo={mesa}
           produtos={cardapio.dados?.produtos || []}
           carregando={cardapio.carregando}
-          promocoes={promocoes}
+          promocoes={promocoes.filter((x) => !x.mesas?.length || (mesa && x.mesas.includes(mesa.numero)))}
           carrinho={carrinhos[tela.mesaId] || {}}
           definir={(p, q) => definirQtd(tela.mesaId, p, q)}
           baldes={baldes[tela.mesaId] || []}
