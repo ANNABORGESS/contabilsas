@@ -139,3 +139,12 @@ dist-artifact
 !.claude/skills/video-lens/
 !.claude/skills/video-lens-gallery/
 !.claude/skills/video-lens-recs/
+
+# UI UX Pro Max (nextlevelbuilder/ui-ux-pro-max-skill, MIT)
+!.claude/skills/ui-ux-pro-max/
+!.claude/skills/design/
+!.claude/skills/design-system/
+!.claude/skills/ui-styling/
+!.claude/skills/brand/
+!.claude/skills/banner-design/
+!.claude/skills/slides/
