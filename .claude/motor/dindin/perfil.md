@@ -39,6 +39,8 @@ Preenchido a partir das conversas de novembro de 2026. `[confirmar]` = suposiç�
 - Fontes: Bricolage Grotesque 800/400 (títulos e texto), Anton (palavra repetida),
   Instrument Serif (versão elegante)
 - Logo: `../assets/logos/dindin-logo.png`
+- Estilo premium (aprovado em 08/11): cor sólida do sabor, produto recortado com sombra,
+  Instrument Serif + Inter espaçada, muito respiro, movimento lento
 - Estilos que já funcionaram: fundo da cor do sabor com o nome correndo, foto em
   cartão branco inclinado, etiquetas coloridas, confeitos caindo
 
