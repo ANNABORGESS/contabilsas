@@ -127,3 +127,7 @@ dist-artifact
 !.claude/skills/instagram-carousel-skill/
 !.claude/skills/tiktok-slideshow-skill/
 !.claude/skills/video-editing-skill/
+
+# Skills de produtividade (mattpocock/skills, MIT)
+!.claude/skills/grill-me/
+!.claude/skills/grilling/
