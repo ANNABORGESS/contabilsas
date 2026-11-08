@@ -3085,3 +3085,263 @@ label.campo {
     font-size: 15px;
   }
 }
+
+/* ===================== Tema Porão Vikings na administração (mesmo visual do site e do garçom) ===================== */
+.tema-vikings {
+  --fundo: #120b06;
+  --superficie: rgba(255, 232, 196, 0.05);
+  --superficie-2: rgba(255, 232, 196, 0.035);
+  --borda: rgba(255, 214, 150, 0.18);
+  --linha: rgba(255, 214, 150, 0.12);
+  --texto: #f7ecdc;
+  --texto-2: rgba(247, 236, 220, 0.74);
+  --texto-3: rgba(247, 236, 220, 0.5);
+  --marca: #f5b82e;
+  --marca-forte: #f5b82e;
+  --marca-suave: rgba(245, 184, 46, 0.18);
+  --tinta: #f5b82e;
+  --verde: #3fd47f;
+  --verde-suave: rgba(63, 212, 127, 0.14);
+  --vermelho: #ff6b5e;
+  --vermelho-suave: rgba(255, 107, 94, 0.14);
+  --amarelo: #ffd166;
+  --amarelo-suave: rgba(245, 184, 46, 0.16);
+  --azul: #e0a45a;
+  --azul-suave: rgba(224, 164, 90, 0.14);
+  --roxo: #d9a066;
+  --roxo-suave: rgba(217, 160, 102, 0.14);
+  --laranja: #e08a00;
+  --sombra: 0 1px 0 rgba(255, 230, 190, 0.06) inset, 0 12px 32px rgba(0, 0, 0, 0.35);
+  --desfoque: blur(16px) saturate(140%);
+  color-scheme: dark;
+  color: var(--texto);
+  min-height: 100vh;
+  background:
+    radial-gradient(80vw 60vh at 90% -10%, rgba(170, 100, 30, 0.3), transparent 70%),
+    radial-gradient(60vw 60vh at 0% 70%, rgba(120, 65, 20, 0.22), transparent 70%),
+    linear-gradient(180deg, #1a100a, #120b06 45%, #0d0805);
+  background-attachment: fixed;
+}
+.tema-vikings a {
+  color: var(--marca);
+}
+.tema-vikings .fraco,
+.tema-vikings .mudo {
+  color: var(--texto-3);
+}
+/* títulos com a letra do cardápio */
+.tema-vikings h1,
+.tema-vikings .cabecalho h1,
+.tema-vikings h2,
+.tema-vikings .kpi .valor {
+  font-family: 'Cinzel', var(--fonte-titulo);
+  letter-spacing: 0.01em;
+}
+.tema-vikings h1 {
+  font-weight: 800;
+  background: linear-gradient(180deg, #ffe9b0, #f5b82e 55%, #b9771a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.tema-vikings h2 {
+  font-weight: 700;
+  color: #fff1d6;
+}
+.tema-vikings .kpi .valor {
+  font-weight: 800;
+  color: #ffd77a;
+}
+
+/* menu lateral em madeira escura */
+.tema-vikings .lateral,
+.tema-vikings .menu-movel {
+  background: linear-gradient(180deg, rgba(40, 25, 12, 0.92), rgba(18, 11, 6, 0.95));
+  border-color: var(--borda);
+  color: var(--texto);
+}
+.tema-vikings .lateral .logo,
+.tema-vikings .menu-movel .logo {
+  font-family: 'Cinzel', var(--fonte-titulo);
+  font-weight: 800;
+  color: #ffd77a;
+}
+.tema-vikings .logo-mini {
+  box-shadow: 0 0 0 1px rgba(255, 200, 100, 0.35), 0 0 14px rgba(245, 160, 30, 0.3);
+}
+.tema-vikings .lateral a {
+  color: var(--texto-2);
+}
+.tema-vikings .lateral a:hover {
+  background: rgba(255, 232, 196, 0.07);
+  color: var(--texto);
+}
+.tema-vikings .lateral a.ativo {
+  background: linear-gradient(180deg, rgba(245, 184, 46, 0.26), rgba(160, 100, 20, 0.2));
+  color: #ffd77a;
+  box-shadow: 0 0 0 1px rgba(245, 184, 46, 0.45);
+}
+.tema-vikings .lateral .sep {
+  color: var(--texto-3);
+}
+.tema-vikings .lateral .rodape .btn {
+  color: var(--texto-2);
+}
+.tema-vikings .lancar-pedido {
+  background: linear-gradient(180deg, #ffd166, #f5b82e 50%, #d38f14) !important;
+  color: #1a1008 !important;
+  font-weight: 800;
+  box-shadow: 0 6px 20px rgba(245, 184, 46, 0.3);
+}
+
+/* cartões, tabelas, campos e botões no escuro */
+.tema-vikings .cartao,
+.tema-vikings .mesa,
+.tema-vikings .produto,
+.tema-vikings .pedido-cartao,
+.tema-vikings .formas button {
+  background: linear-gradient(165deg, rgba(70, 45, 22, 0.45), rgba(25, 15, 7, 0.65));
+  border-color: var(--borda);
+  color: var(--texto);
+}
+.tema-vikings .cartao > header h2,
+.tema-vikings .cartao h3 {
+  color: #fff1d6;
+}
+.tema-vikings .tabela th {
+  color: var(--texto-3);
+  border-color: var(--linha);
+}
+.tema-vikings .tabela td {
+  border-color: var(--linha);
+}
+.tema-vikings .tabela tr.clicavel:hover td {
+  background: rgba(255, 232, 196, 0.06);
+}
+.tema-vikings input,
+.tema-vikings select,
+.tema-vikings textarea {
+  background: rgba(255, 232, 196, 0.06);
+  border-color: rgba(255, 214, 150, 0.24);
+  color: var(--texto);
+}
+.tema-vikings select option {
+  background: #1c120a;
+  color: var(--texto);
+}
+.tema-vikings input::placeholder,
+.tema-vikings textarea::placeholder {
+  color: var(--texto-3);
+}
+.tema-vikings .btn {
+  background: rgba(255, 232, 196, 0.07);
+  border-color: rgba(255, 214, 150, 0.28);
+  color: var(--texto);
+}
+.tema-vikings .btn:hover:not(:disabled) {
+  background: rgba(255, 232, 196, 0.14);
+}
+.tema-vikings .btn.primario {
+  background: linear-gradient(180deg, #ffd166, #f5b82e 50%, #d38f14);
+  border-color: #ffd166;
+  color: #1a1008;
+  font-weight: 700;
+  box-shadow: 0 6px 20px rgba(245, 184, 46, 0.28);
+}
+.tema-vikings .btn.primario:hover:not(:disabled) {
+  background: linear-gradient(180deg, #ffdc85, #f7c24a 50%, #dc9a20);
+}
+.tema-vikings .btn.fantasma {
+  background: transparent;
+  border-color: transparent;
+  color: var(--texto-2);
+}
+.tema-vikings .btn.sucesso {
+  background: #2f9e6a;
+  border-color: #2f9e6a;
+  color: #fff;
+}
+.tema-vikings .btn.perigo {
+  background: #d9483e;
+  border-color: #d9483e;
+  color: #fff;
+}
+.tema-vikings .btn:disabled {
+  opacity: 0.5;
+}
+.tema-vikings .filtros-rolagem button {
+  background: rgba(255, 232, 196, 0.05);
+  border-color: rgba(255, 214, 150, 0.3);
+  color: var(--texto);
+}
+.tema-vikings .filtros-rolagem button.ativo {
+  background: linear-gradient(180deg, #ffd166, #f5b82e 50%, #d38f14);
+  border-color: #ffd166;
+  color: #1a1008;
+}
+.tema-vikings .chip {
+  background: rgba(255, 232, 196, 0.08);
+  border-color: rgba(255, 214, 150, 0.2);
+  color: var(--texto);
+}
+.tema-vikings .aviso {
+  background: rgba(255, 232, 196, 0.07);
+  border-color: rgba(255, 214, 150, 0.22);
+  color: var(--texto-2);
+}
+.tema-vikings .aviso.erro {
+  background: rgba(255, 107, 94, 0.14);
+  color: #ffc9c4;
+}
+.tema-vikings .aviso.ok {
+  background: rgba(63, 212, 127, 0.14);
+  color: #bdf0d4;
+}
+.tema-vikings .aviso.alerta {
+  background: rgba(245, 184, 46, 0.14);
+  color: #ffe3a3;
+}
+.tema-vikings .modal-fundo {
+  background: rgba(5, 3, 1, 0.65);
+}
+.tema-vikings .modal {
+  background: linear-gradient(170deg, rgba(48, 32, 18, 0.98), rgba(22, 14, 8, 0.98));
+  border-color: rgba(255, 214, 150, 0.22);
+  color: var(--texto);
+}
+.tema-vikings .barra {
+  background: rgba(255, 232, 196, 0.08);
+}
+.tema-vikings .mesa.ocupada {
+  border-color: #f5b82e;
+  background: linear-gradient(160deg, rgba(245, 184, 46, 0.25), rgba(70, 45, 22, 0.5));
+}
+.tema-vikings .mesa.balcao {
+  background: linear-gradient(120deg, #3a2210 0%, #6e4214 55%, #a8661a 100%);
+  border-color: rgba(255, 200, 90, 0.7);
+}
+.tema-vikings .vazio {
+  color: var(--texto-3);
+}
+
+/* garçom: títulos e total com a letra do cardápio, como no site */
+.garcom-viking .titulo-topo .t,
+.garcom-viking .total-grande,
+.garcom-viking .sucesso-envio h1,
+.garcom-viking .modal > header h2,
+.garcom-viking .faixa-promo b {
+  font-family: 'Cinzel', var(--fonte-titulo);
+  letter-spacing: 0.01em;
+}
+.garcom-viking .titulo-topo .t,
+.garcom-viking .total-grande {
+  font-weight: 800;
+  background: linear-gradient(180deg, #ffe9b0, #f5b82e 55%, #b9771a);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.garcom-viking .mesa .n {
+  font-family: 'Cinzel', var(--fonte-titulo);
+  font-weight: 700;
+}

@@ -38,7 +38,7 @@ export default function Lateral({ nome, papel, children }: { nome: string; papel
     </div>
   );
   return (
-    <div className={`admin ${aberto ? 'menu-aberto' : ''}`}>
+    <div className={`admin tema-vikings ${aberto ? 'menu-aberto' : ''}`}>
       <div className="menu-movel">
         {logo}
         <button className="btn pequeno" onClick={() => setAberto((a) => !a)}>
