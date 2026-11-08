@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "content-strategy": {
+      "source": "coreyhaines31/marketingskills",
+      "sourceType": "github",
+      "skillPath": "skills/content-strategy/SKILL.md",
+      "computedHash": "fb03699eee4099f1f3eaeefaf8c5d7679fa237417624f278a30d23204d6ab1b6"
+    },
     "grill-me": {
       "source": "mattpocock/skills",
       "sourceType": "github",

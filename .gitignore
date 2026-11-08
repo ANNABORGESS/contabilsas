@@ -131,3 +131,6 @@ dist-artifact
 # Skills de produtividade (mattpocock/skills, MIT)
 !.claude/skills/grill-me/
 !.claude/skills/grilling/
+
+# Skills de marketing (coreyhaines31/marketingskills, MIT)
+!.claude/skills/content-strategy/
