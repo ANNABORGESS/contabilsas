@@ -8,6 +8,7 @@ Preenchido a partir das conversas de novembro de 2026. `[confirmar]` = suposiç�
 - WhatsApp: (92) 98181-7295 · link: https://wa.me/5592981817295
 - Almoço: seg a sex, 11h às 14h
 - Noite: happy hour, futebol no telão e música ao vivo
+- Atração fixa de quinta: Coração Sertanejo VIP (Jhonas Monteiro, Kedson Camargo, Bill Star [confirmar elenco fixo]); convidados entram como "atração especial" (ex.: Berg Guerra em 12/11)
 - Shows: quinta (Coração Sertanejo VIP, 18h) e sexta (forró/xote, 17h) `[confirmar dias fixos]`
 - Ambiente climatizado, palco com banda completa
 - Cerveja: só long neck 330 ml: Original, Heineken e Corona (preços [confirmar])
