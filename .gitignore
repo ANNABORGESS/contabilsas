@@ -148,3 +148,14 @@ dist-artifact
 !.claude/skills/brand/
 !.claude/skills/banner-design/
 !.claude/skills/slides/
+
+# Agent Skills da Vercel (vercel-labs/agent-skills, MIT)
+!.claude/skills/composition-patterns/
+!.claude/skills/deploy-to-vercel/
+!.claude/skills/react-best-practices/
+!.claude/skills/react-native-skills/
+!.claude/skills/react-view-transitions/
+!.claude/skills/vercel-cli-with-tokens/
+!.claude/skills/vercel-optimize/
+!.claude/skills/web-design-guidelines/
+!.claude/skills/writing-guidelines/
