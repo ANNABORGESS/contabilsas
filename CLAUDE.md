@@ -16,3 +16,9 @@ Internal management system for AKORA, split by journey (Teen, Ciclo, 40+) with A
 
 - `.claude/skills/` also holds 110 social media skills (MIT, from social-media-skills): brand and voice, hooks, captions, carousels, Reels, TikTok, LinkedIn, calendars, plus scripted ones (`instagram-carousel-skill`, `tiktok-slideshow-skill`, `video-editing-skill`, `video-to-shorts-skill`). Their tool guides live in `.claude/social-media/tools/`.
 - Never publish or schedule a post (WoopSocial or any other tool) without the founder's explicit go. Teen-journey content follows the Teen protection rules in `.claude/skills/roast-room/references/akora.md`.
+
+## Motor de conteúdo
+
+- Seven skills run content end to end: `motor-construtor` (interview → `perfil.md`), `motor-pautas`, `motor-roteiro`, `motor-carrossel`, `motor-edicao`, `motor-agendamento`, `motor-painel`. See `.claude/motor/README.md`.
+- Each brand has its folder in `.claude/motor/<marca>/` (`vikings`, `dindin`). Read its `perfil.md` before writing anything for that brand; `[confirmar]` fields are guesses to ask about, never to publish.
+- Nothing is posted or scheduled without the founder's explicit OK for that post. Metrics come only from what she sends; never estimate them.

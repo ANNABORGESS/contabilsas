@@ -243,3 +243,12 @@ dist-artifact
 !.claude/skills/ig-repurpose/
 !.claude/skills/ig-story/
 !.claude/skills/ig-viral/
+
+# Motor de conteúdo (feito para o Vikings e o Dindin)
+!.claude/skills/motor-construtor/
+!.claude/skills/motor-pautas/
+!.claude/skills/motor-roteiro/
+!.claude/skills/motor-carrossel/
+!.claude/skills/motor-edicao/
+!.claude/skills/motor-agendamento/
+!.claude/skills/motor-painel/
