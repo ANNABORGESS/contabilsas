@@ -105,3 +105,29 @@ export async function listarPromocoes(db: Db, de: string, ate: string, agora = n
     }),
   };
 }
+
+/** Promoções ligadas, para o site: produto, horário, dias, onde vale e se está valendo agora. */
+export async function promocoesDoSite(db: Db, agora = new Date()) {
+  const lista = (await todas(db)).filter((p) => p.ativa);
+  if (!lista.length) return [];
+  const produtos = await db.select().from(schema.produtos).where(inArray(schema.produtos.id, [...new Set(lista.map((p) => p.produtoId))]));
+  return lista
+    .map((p) => {
+      const prod = produtos.find((x) => x.id === p.produtoId);
+      return {
+        id: p.id,
+        nome: p.nome,
+        destaque: p.destaque,
+        produto: prod?.nome ?? '',
+        quantidadeCombo: p.quantidadeCombo,
+        precoComboCentavos: p.precoComboCentavos,
+        precoNormalCentavos: prod?.precoCentavos ?? 0,
+        inicio: p.inicio,
+        fim: p.fim,
+        dias: p.dias,
+        mesas: p.mesas ?? null,
+        valendo: restanteDaPromocao(p as Promocao, agora) !== null,
+      };
+    })
+    .filter((p) => p.produto);
+}
