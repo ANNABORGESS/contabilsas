@@ -33,6 +33,7 @@ Preenchido a partir das conversas de novembro de 2026. `[confirmar]` = suposiç�
 - Inventar sabor, preço ou avaliação de cliente
 
 ## Identidade visual
+- REGRA: toda peça usa só a paleta abaixo, mesmo quando a referência tiver outras cores
 - Paleta do logo: creme #F4E4CC, marrom #4E2C1A, rosa #EC5080, amarelo #FABE28
 - Por sabor: abacate #60802C, cupuaçu #703E1A, pudim #C47820, morango #C84056,
   maracujá #DEA018, coco #967050, kit kat #B0222A; menta #60C496, laranja #F58028

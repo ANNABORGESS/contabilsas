@@ -9,7 +9,8 @@ Preenchido a partir das conversas de novembro de 2026. `[confirmar]` = suposiç�
 - Almoço: seg a sex, 11h às 14h
 - Noite: happy hour, futebol no telão e música ao vivo
 - Shows: quinta (Coração Sertanejo VIP, 18h) e sexta (forró/xote, 17h) `[confirmar dias fixos]`
-- Ambiente climatizado, cerveja gelada, palco com banda completa
+- Ambiente climatizado, palco com banda completa
+- Cerveja: só long neck 330 ml: Original, Heineken e Corona (preços [confirmar])
 
 ## Público
 - Trabalhadores do Distrito Industrial no almoço e no happy hour `[confirmar]`
@@ -35,6 +36,7 @@ Preenchido a partir das conversas de novembro de 2026. `[confirmar]` = suposiç�
 - Usar o nome ou a foto de artista sem ser o artista certo (confirmar quem é quem)
 
 ## Identidade visual
+- REGRA: toda peça usa só a paleta abaixo, mesmo quando a referência tiver outras cores
 - Cores: laranja #F7941D, preto #0C0A09, creme #FAF8F4, branco
 - Fontes: Poppins ExtraBold/Bold (títulos e faixas), Anton (palavras repetidas)
 - Logo: `../assets/logos/vikings-apresenta.png`

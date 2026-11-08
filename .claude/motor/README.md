@@ -34,6 +34,9 @@ medem o resultado. Cada marca tem a sua pasta; os agentes leem e gravam nela.
 
 ## Regras que valem para todos
 
+- Toda peça usa a paleta da marca do `perfil.md`. Referências trazem layout e
+  ritmo, nunca as cores delas.
+
 - Nada é publicado ou agendado sem o OK explícito da dona da marca.
 - Todo texto passa pelas regras da `ig-human`: sem travessão, sem palavras de IA.
 - Posts de bebida alcoólica levam "Proibido para menores de 18 anos. Beba com
