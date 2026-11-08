@@ -134,3 +134,8 @@ dist-artifact
 
 # Skills de marketing (coreyhaines31/marketingskills, MIT)
 !.claude/skills/content-strategy/
+
+# video-lens (kar2phi/video-lens, MIT): resumo de vídeos do YouTube
+!.claude/skills/video-lens/
+!.claude/skills/video-lens-gallery/
+!.claude/skills/video-lens-recs/
