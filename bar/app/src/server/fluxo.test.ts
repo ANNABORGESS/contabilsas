@@ -471,6 +471,11 @@ describe('fluxo do pedido pago', () => {
     await expect(movimentarCaixa(db, caixa, data, { tipo: 'sangria', valorCentavos: 100, motivo: 'banco' })).rejects.toThrow(/Abra o caixa/);
     await movimentarCaixa(db, caixa, data, { tipo: 'abertura', valorCentavos: 10000 });
     await expect(movimentarCaixa(db, caixa, data, { tipo: 'abertura', valorCentavos: 5000 })).rejects.toThrow(/já foi aberto/);
+    // digitou errado: corrige a abertura (100 -> 90 -> volta 100)
+    await movimentarCaixa(db, caixa, data, { tipo: 'abertura', valorCentavos: 9000, corrigir: true });
+    expect((await resumoCaixa(db, data)).fundoCentavos).toBe(9000);
+    await movimentarCaixa(db, caixa, data, { tipo: 'abertura', valorCentavos: 10000, corrigir: true });
+    expect((await resumoCaixa(db, '2031-01-11')).ultimaAberturaCentavos).toBe(10000);
     await movimentarCaixa(db, caixa, data, { tipo: 'suprimento', valorCentavos: 5000 });
     await expect(movimentarCaixa(db, caixa, data, { tipo: 'sangria', valorCentavos: 3000 })).rejects.toThrow(/motivo/);
     await expect(movimentarCaixa(db, caixa, data, { tipo: 'sangria', valorCentavos: 999999, motivo: 'banco' })).rejects.toThrow(/maior/);

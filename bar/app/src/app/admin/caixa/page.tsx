@@ -3,7 +3,7 @@
 // gaveta e o relatório da maquininha. A diferença mostra se sobrou ou faltou. Fica guardado.
 import { useEffect, useState } from 'react';
 import { api, useDados } from '@/cliente/api';
-import { dataBr, dataHora, reais } from '@/cliente/formato';
+import { dataBr, dataHora, hora, reais } from '@/cliente/formato';
 import { Aviso, Modal } from '@/cliente/ui';
 import { paraCentavos } from '@/domain/dinheiro';
 import { NOME_TIPO_CAIXA, conferirCaixa, type TipoCaixa } from '@/domain/pagamento';
@@ -45,6 +45,7 @@ interface Dados {
   movimentos: Movimento[];
   aberto: boolean;
   fundoCentavos: number;
+  ultimaAberturaCentavos: number | null;
   estornosPendentes: import('../comum').EstornoPendente[];
   pedidos: number;
   encerrados: number;
@@ -85,6 +86,8 @@ export default function Caixa() {
     FORMAS_PAGAMENTO.filter((f) => (conf[f] ?? '').trim() !== '').map((f) => [f, paraCentavos(conf[f]) ?? 0]),
   ) as Partial<Record<FormaPagamento, number>>;
   const [lancando, setLancando] = useState<TipoCaixa | null>(null);
+  const [abrindo, setAbrindo] = useState<'abrir' | 'corrigir' | null>(null);
+  const abertura = dados?.movimentos.find((m) => m.tipo === 'abertura');
   // com abertura/sangria/suprimento lançados, o fundo da gaveta vem deles
   const trocoC = dados?.movimentos.length ? dados.fundoCentavos : (paraCentavos(troco) ?? 0);
   const r = dados ? conferirCaixa(dados.sistema, conferido, trocoC) : null;
@@ -135,51 +138,104 @@ export default function Caixa() {
         </Aviso>
       )}
       {dados && (
-        <div className="cartao" style={{ marginBottom: 14 }}>
-          <header>
-            <h2>💵 Gaveta do turno</h2>
-            <span className={`chip ${dados.aberto ? 'ped-pago' : ''}`}>{dados.aberto ? `Aberto · fundo ${reais(dados.fundoCentavos)}` : 'Caixa não aberto'}</span>
-          </header>
-          <div className="fila nao-imprimir" style={{ flexWrap: 'wrap', marginBottom: 10 }}>
-            {!dados.aberto && (
-              <button className="btn primario" onClick={() => setLancando('abertura')}>
-                Abrir caixa (troco inicial)
+        <>
+          {/* passo a passo do turno: abrir, movimentar, fechar */}
+          <ol className="caixa-passos">
+            <li className={dados.aberto ? 'feito' : 'atual'}>
+              <span>{dados.aberto ? '✓' : '1'}</span>
+              <div>
+                <b>Abrir o caixa</b>
+                <small>{dados.aberto ? `Troco ${reais(abertura?.valorCentavos ?? 0)}` : 'Conte o troco da gaveta'}</small>
+              </div>
+            </li>
+            <li className={dados.fechamento ? 'feito' : dados.aberto ? 'atual' : ''}>
+              <span>{dados.fechamento ? '✓' : '2'}</span>
+              <div>
+                <b>Durante o turno</b>
+                <small>Sangria e suprimento</small>
+              </div>
+            </li>
+            <li className={dados.fechamento ? 'feito' : ''}>
+              <span>{dados.fechamento ? '✓' : '3'}</span>
+              <div>
+                <b>Fechar o caixa</b>
+                <small>{dados.fechamento ? `Fechado por ${dados.fechamento.fechadoPor ?? '—'}` : 'Conferir e guardar'}</small>
+              </div>
+            </li>
+          </ol>
+
+          {!dados.aberto ? (
+            <div className="cartao caixa-abrir">
+              <div className="caixa-abrir-icone" aria-hidden>
+                💵
+              </div>
+              <div style={{ flex: 1 }}>
+                <h2>Abra o caixa para começar o turno</h2>
+                <p className="fraco">
+                  Diga quanto de troco tem na gaveta agora. É a base para conferir o dinheiro no fechamento.
+                  {dados.ultimaAberturaCentavos !== null && <> No último turno o troco foi {reais(dados.ultimaAberturaCentavos)}.</>}
+                </p>
+              </div>
+              <button className="btn primario grande nao-imprimir" onClick={() => setAbrindo('abrir')}>
+                Abrir o caixa
               </button>
-            )}
-            <button className="btn" disabled={!dados.aberto} onClick={() => setLancando('suprimento')}>
-              + Suprimento
-            </button>
-            <button className="btn perigo" disabled={!dados.aberto} onClick={() => setLancando('sangria')}>
-              − Sangria
-            </button>
-          </div>
-          {dados.movimentos.length > 0 ? (
-            <table className="tabela">
-              <tbody>
-                {dados.movimentos.map((m) => (
-                  <tr key={m.id}>
-                    <td>{dataHora(m.criadoEm)}</td>
-                    <td>
-                      <b>{NOME_TIPO_CAIXA[m.tipo]}</b>
-                      {m.motivo && <div className="fraco">{m.motivo}</div>}
-                    </td>
-                    <td className="direita num" style={{ color: m.tipo === 'sangria' ? 'var(--vermelho)' : undefined, fontWeight: 600 }}>
-                      {m.tipo === 'sangria' ? `−${reais(m.valorCentavos)}` : reais(m.valorCentavos)}
-                    </td>
-                    <td className="fraco">{m.usuario}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            </div>
           ) : (
-            <p className="fraco">Abra o caixa com o troco que está na gaveta. Sangria (retirada) e suprimento (dinheiro que entra) ficam registrados com quem fez e entram na conta do dinheiro esperado.</p>
+            <div className="cartao" style={{ marginBottom: 14 }}>
+              <header>
+                <h2>💵 Gaveta do turno</h2>
+                <span className="chip ped-pago">Aberto · fundo {reais(dados.fundoCentavos)}</span>
+              </header>
+              {abertura && (
+                <p className="fraco" style={{ marginTop: 0 }}>
+                  Aberto por <b>{abertura.usuario ?? '—'}</b> às {hora(abertura.criadoEm)} com {reais(abertura.valorCentavos)} de troco
+                  {abertura.motivo ? ` · ${abertura.motivo}` : ''}.{' '}
+                  {!dados.fechamento && (
+                    <button type="button" className="link-botao nao-imprimir" onClick={() => setAbrindo('corrigir')}>
+                      Corrigir valor
+                    </button>
+                  )}
+                </p>
+              )}
+              <div className="fila nao-imprimir" style={{ flexWrap: 'wrap', marginBottom: 10 }}>
+                <button className="btn" onClick={() => setLancando('suprimento')}>
+                  + Suprimento
+                </button>
+                <button className="btn perigo" onClick={() => setLancando('sangria')}>
+                  − Sangria
+                </button>
+              </div>
+              {dados.movimentos.filter((m) => m.tipo !== 'abertura').length > 0 ? (
+                <table className="tabela">
+                  <tbody>
+                    {dados.movimentos
+                      .filter((m) => m.tipo !== 'abertura')
+                      .map((m) => (
+                        <tr key={m.id}>
+                          <td>{dataHora(m.criadoEm)}</td>
+                          <td>
+                            <b>{NOME_TIPO_CAIXA[m.tipo]}</b>
+                            {m.motivo && <div className="fraco">{m.motivo}</div>}
+                          </td>
+                          <td className="direita num" style={{ color: m.tipo === 'sangria' ? 'var(--vermelho)' : undefined, fontWeight: 600 }}>
+                            {m.tipo === 'sangria' ? `−${reais(m.valorCentavos)}` : reais(m.valorCentavos)}
+                          </td>
+                          <td className="fraco">{m.usuario}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="fraco">Sangria (retirada) e suprimento (dinheiro que entra) ficam registrados com quem fez e entram na conta do dinheiro esperado.</p>
+              )}
+            </div>
           )}
-        </div>
+        </>
       )}
       {dados && dados.estornosPendentes.length > 0 && <EstornosPendentes lista={dados.estornosPendentes} aviso={setMsg} />}
       {dados && r && (
         <div className="cartao">
-          {!dados.movimentos.length && (
+          {!dados.movimentos.length && dados.data !== dados.hoje && (
             <div className="linha-campos nao-imprimir" style={{ marginBottom: 12 }}>
               <label className="campo">
                 💵 Troco inicial na gaveta (R$)
@@ -303,6 +359,19 @@ export default function Caixa() {
           </p>
         </div>
       )}
+      {abrindo && dados && (
+        <AbrirCaixa
+          data={dados.data}
+          corrigir={abrindo === 'corrigir'}
+          atual={abertura?.valorCentavos ?? null}
+          ultima={dados.ultimaAberturaCentavos}
+          fechar={() => setAbrindo(null)}
+          feito={(t) => {
+            setAbrindo(null);
+            setMsg({ tipo: 'ok', texto: t });
+          }}
+        />
+      )}
       {lancando && dados && (
         <LancarCaixa
           tipo={lancando}
@@ -393,3 +462,102 @@ function LancarCaixa({ tipo, data, fechar, feito }: { tipo: TipoCaixa; data: str
   );
 }
 
+
+const CEDULAS = [20000, 10000, 5000, 2000, 1000, 500, 200];
+
+/** Abrir (ou corrigir) o caixa: valor rápido, digitado ou contado por cédulas. */
+function AbrirCaixa({ data, corrigir, atual, ultima, fechar, feito }: { data: string; corrigir: boolean; atual: number | null; ultima: number | null; fechar: () => void; feito: (t: string) => void }) {
+  const [valor, setValor] = useState(corrigir && atual !== null ? (atual / 100).toFixed(2).replace('.', ',') : '');
+  const [contando, setContando] = useState(false);
+  const [notas, setNotas] = useState<Record<number, string>>({});
+  const [moedas, setMoedas] = useState('');
+  const [obs, setObs] = useState('');
+  const [erro, setErro] = useState('');
+  const [indo, setIndo] = useState(false);
+  const contado = CEDULAS.reduce((a, n) => a + n * (Number(notas[n]) || 0), 0) + (paraCentavos(moedas) ?? 0);
+  const total = contando ? contado : paraCentavos(valor);
+  const rapido = (c: number) => {
+    setContando(false);
+    setValor((c / 100).toFixed(2).replace('.', ','));
+  };
+  async function enviar() {
+    if (total === null) return;
+    setIndo(true);
+    setErro('');
+    try {
+      const detalhe = contando
+        ? CEDULAS.filter((n) => Number(notas[n]) > 0)
+            .map((n) => `${notas[n]}×${reais(n).replace(',00', '')}`)
+            .concat(paraCentavos(moedas) ? [`moedas ${reais(paraCentavos(moedas)!)}`] : [])
+            .join(', ')
+        : '';
+      await api('/api/caixa/movimento', 'POST', { data, tipo: 'abertura', valorCentavos: total, motivo: [obs.trim(), detalhe].filter(Boolean).join(' · '), corrigir });
+      feito(corrigir ? `Abertura corrigida para ${reais(total)}.` : `Caixa aberto com ${reais(total)} de troco.`);
+    } catch (e) {
+      setErro((e as Error).message);
+      setIndo(false);
+    }
+  }
+  return (
+    <Modal titulo={corrigir ? 'Corrigir a abertura do caixa' : 'Abrir o caixa'} aoFechar={fechar}>
+      <p className="fraco" style={{ marginTop: 0 }}>
+        {corrigir ? `Hoje foi aberto com ${reais(atual ?? 0)}. O valor antigo e o novo ficam na Auditoria.` : 'Quanto de troco tem na gaveta agora?'}
+      </p>
+      <div className="caixa-rapidos">
+        <button type="button" onClick={() => rapido(0)}>
+          Sem troco
+        </button>
+        {ultima !== null && ultima > 0 && (
+          <button type="button" onClick={() => rapido(ultima)}>
+            Mesmo do último turno · {reais(ultima)}
+          </button>
+        )}
+        {[5000, 10000, 20000].map((c) => (
+          <button key={c} type="button" onClick={() => rapido(c)}>
+            {reais(c)}
+          </button>
+        ))}
+      </div>
+      <div className="caixa-modo">
+        <button type="button" className={!contando ? 'ativo' : ''} onClick={() => setContando(false)}>
+          Digitar o total
+        </button>
+        <button type="button" className={contando ? 'ativo' : ''} onClick={() => setContando(true)}>
+          Contar por cédulas
+        </button>
+      </div>
+      {!contando ? (
+        <label className="campo">
+          Troco na gaveta (R$)
+          <input className="caixa-valor" inputMode="decimal" autoFocus placeholder="0,00" value={valor} onChange={(e) => setValor(e.target.value)} />
+        </label>
+      ) : (
+        <div className="caixa-cedulas">
+          {CEDULAS.map((n) => (
+            <label key={n}>
+              <span>{reais(n).replace(',00', '')}</span>
+              <input inputMode="numeric" placeholder="0" value={notas[n] ?? ''} onChange={(e) => setNotas({ ...notas, [n]: e.target.value.replace(/\D/g, '').slice(0, 4) })} />
+              <small className="fraco">{Number(notas[n]) ? reais(n * Number(notas[n])) : ''}</small>
+            </label>
+          ))}
+          <label>
+            <span>Moedas</span>
+            <input inputMode="decimal" placeholder="0,00" value={moedas} onChange={(e) => setMoedas(e.target.value)} />
+            <small />
+          </label>
+        </div>
+      )}
+      <label className="campo">
+        Observação (opcional)
+        <input value={obs} maxLength={120} onChange={(e) => setObs(e.target.value)} placeholder="ex.: troco trazido do cofre" />
+      </label>
+      {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      <button className="btn primario grande bloco" disabled={indo || total === null} onClick={enviar}>
+        {indo ? 'Gravando…' : corrigir ? `Corrigir para ${reais(total ?? 0)}` : `Abrir o caixa com ${reais(total ?? 0)}`}
+      </button>
+      <p className="fraco" style={{ marginTop: 8 }}>
+        Fica no caixa do turno e na Auditoria, com seu nome e a hora.
+      </p>
+    </Modal>
+  );
+}

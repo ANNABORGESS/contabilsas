@@ -4558,3 +4558,157 @@ button {
 .pv-promo-fogo {
   font-size: 32px;
 }
+
+/* ---------- abrir o caixa do turno ---------- */
+.caixa-passos {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  padding: 0;
+  margin: 0 0 14px;
+}
+.caixa-passos li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-radius: 16px;
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  opacity: 0.6;
+}
+.caixa-passos li.atual,
+.caixa-passos li.feito {
+  opacity: 1;
+}
+.caixa-passos li.atual {
+  border-color: var(--texto);
+  box-shadow: 0 0 0 1px var(--texto);
+}
+.caixa-passos span {
+  width: 30px;
+  height: 30px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-weight: 700;
+  background: var(--nude, #eadfcf);
+  color: var(--texto);
+}
+.caixa-passos li.atual span,
+.caixa-passos li.feito span {
+  background: linear-gradient(180deg, #5a3a24, #3d2618);
+  color: #fbf3e6;
+}
+.caixa-passos b {
+  display: block;
+  font-size: 14px;
+}
+.caixa-passos small {
+  color: var(--texto-3);
+  font-size: 12px;
+}
+.caixa-abrir {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  margin-bottom: 14px;
+  padding: 22px;
+  border: 1px dashed var(--texto-3) !important;
+}
+.caixa-abrir h2 {
+  margin: 0 0 4px;
+}
+.caixa-abrir p {
+  margin: 0;
+}
+.caixa-abrir-icone {
+  width: 56px;
+  height: 56px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  font-size: 26px;
+  background: var(--nude, #eadfcf);
+}
+.link-botao {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--texto);
+  text-decoration: underline;
+  cursor: pointer;
+}
+.caixa-rapidos,
+.caixa-modo {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.caixa-rapidos button,
+.caixa-modo button {
+  padding: 9px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--borda);
+  background: var(--superficie);
+  color: var(--texto);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+}
+.caixa-rapidos button:hover {
+  background: var(--nude, #eadfcf);
+}
+.caixa-modo button.ativo {
+  background: linear-gradient(180deg, #5a3a24, #3d2618);
+  border-color: #3d2618;
+  color: #fbf3e6;
+}
+.caixa-valor {
+  font-size: 28px !important;
+  font-weight: 700;
+  padding: 14px 16px !important;
+}
+.caixa-cedulas {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  margin-bottom: 12px;
+}
+.caixa-cedulas label {
+  display: grid;
+  grid-template-columns: 70px 1fr;
+  align-items: center;
+  gap: 4px 10px;
+}
+.caixa-cedulas span {
+  font-weight: 700;
+}
+.caixa-cedulas small {
+  grid-column: 2;
+  min-height: 14px;
+  font-size: 12px;
+}
+@media (max-width: 700px) {
+  .caixa-passos {
+    grid-template-columns: 1fr;
+  }
+  .caixa-abrir {
+    flex-direction: column;
+    text-align: center;
+  }
+  .caixa-cedulas {
+    grid-template-columns: 1fr;
+  }
+}
+.tema-vikings .btn.perigo,
+.garcom-viking .btn.perigo {
+  background: #b8473d !important;
+  border-color: #b8473d !important;
+  color: #fff !important;
+}

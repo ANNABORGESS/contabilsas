@@ -2,7 +2,7 @@
 // itens cancelados), compara com o dinheiro contado e com o relatório da maquininha e guarda.
 import { tem } from '@/domain/papeis';
 import { ordemLocal } from '@/domain/mesas';
-import { and, asc, desc, eq, isNull, sql } from 'drizzle-orm';
+import { and, asc, desc, eq, isNull, lt, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
@@ -38,6 +38,8 @@ export async function resumoCaixa(db: Db, data: string) {
     data,
     movimentos,
     aberto: movimentos.some((m) => m.tipo === 'abertura'),
+    /** troco da última abertura de outro turno (atalho "mesmo troco do último turno") */
+    ultimaAberturaCentavos: await ultimaAbertura(db, data),
     fundoCentavos: fundoDoCaixa(movimentos),
     estornosPendentes: await estornosPendentes(db, data),
     estornados: estornos.length,
@@ -96,7 +98,7 @@ async function movimentosDoCaixa(db: Db, data: string) {
 }
 
 /** Abertura do caixa (troco inicial), suprimento (dinheiro que entrou na gaveta) ou sangria (retirada). */
-export async function movimentarCaixa(db: Db, u: Usuario, data: string, corpo: { tipo?: unknown; valorCentavos?: unknown; motivo?: unknown }) {
+export async function movimentarCaixa(db: Db, u: Usuario, data: string, corpo: { tipo?: unknown; valorCentavos?: unknown; motivo?: unknown; corrigir?: unknown }) {
   if (!tem(u.papel, 'fechamento')) throw new ErroRegra('Seu perfil não mexe no caixa.', 403);
   if (!dataValida(data)) throw new ErroRegra('Data inválida.');
   const tipo = corpo.tipo as TipoCaixa;
@@ -106,6 +108,17 @@ export async function movimentarCaixa(db: Db, u: Usuario, data: string, corpo: {
   const motivo = typeof corpo.motivo === 'string' ? corpo.motivo.trim().slice(0, 200) : '';
   if (tipo === 'sangria' && motivo.length < 3) throw new ErroRegra('Diga o motivo da sangria (ex.: depósito, pagamento de fornecedor).');
   const movs = await movimentosDoCaixa(db, data);
+  // digitou o troco errado: corrige a abertura (fica na Auditoria com o valor antigo e o novo)
+  const abertura = movs.find((m) => m.tipo === 'abertura');
+  if (tipo === 'abertura' && corpo.corrigir === true && abertura) {
+    await db.update(schema.caixaMovimentos).set({ valorCentavos: valor, motivo: motivo || abertura.motivo }).where(eq(schema.caixaMovimentos.id, abertura.id));
+    await registrar(db, {
+      tipo: 'caixa_abertura_corrigida',
+      usuarioId: u.id,
+      descricao: `${u.nome} corrigiu a abertura do caixa do turno ${data.split('-').reverse().join('/')}: de ${reais(abertura.valorCentavos)} para ${reais(valor)}${motivo ? ` (${motivo})` : ''}`,
+    });
+    return { ok: true };
+  }
   if (tipo === 'abertura' && movs.some((m) => m.tipo === 'abertura')) throw new ErroRegra('O caixa deste turno já foi aberto. Para pôr mais dinheiro, use suprimento.');
   if (tipo !== 'abertura' && !movs.some((m) => m.tipo === 'abertura')) throw new ErroRegra('Abra o caixa primeiro (troco inicial).');
   if (tipo === 'sangria' && valor > fundoDoCaixa(movs) + (await resumoCaixa(db, data)).sistema.dinheiro) throw new ErroRegra('A sangria é maior que o dinheiro esperado na gaveta.');
@@ -179,4 +192,14 @@ export async function turnoSemFechamento(db: Db) {
     .leftJoin(schema.caixaFechamentos, eq(schema.caixaFechamentos.data, schema.pedidos.dataOperacional))
     .where(and(eq(schema.pedidos.status, 'pago'), isNull(schema.caixaFechamentos.data)));
   return r?.data ?? null;
+}
+
+async function ultimaAbertura(db: Db, data: string) {
+  const [m] = await db
+    .select({ v: schema.caixaMovimentos.valorCentavos })
+    .from(schema.caixaMovimentos)
+    .where(and(eq(schema.caixaMovimentos.tipo, 'abertura'), lt(schema.caixaMovimentos.data, data)))
+    .orderBy(desc(schema.caixaMovimentos.data))
+    .limit(1);
+  return m ? m.v : null;
 }
