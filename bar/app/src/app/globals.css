@@ -3648,3 +3648,584 @@ label.campo {
   border-color: #e0a21a;
   box-shadow: 0 0 0 3px rgba(224, 162, 26, 0.3), 0 8px 22px rgba(224, 162, 26, 0.3);
 }
+
+/* =====================================================================================
+   Visual "minimalista, futurista e chique" (padrão internacional) — admin, garçom e site.
+   Off-white, preto como cor principal, champanhe só nos detalhes. Títulos em serifa
+   editorial (Instrument Serif) e interface em Inter. Cartões brancos com borda fina.
+   ===================================================================================== */
+.tema-vikings,
+.garcom-viking,
+.pv {
+  --fundo: #f6f5f2;
+  --superficie: #ffffff;
+  --superficie-2: #fbfaf8;
+  --borda: rgba(17, 17, 17, 0.08);
+  --linha: rgba(17, 17, 17, 0.07);
+  --texto: #111111;
+  --texto-2: #5f5f5f;
+  --texto-3: #9a9a9a;
+  --marca: #b8954a;
+  --marca-forte: #111111;
+  --marca-suave: rgba(184, 149, 74, 0.12);
+  --tinta: #111111;
+  --verde: #1f8a5b;
+  --vermelho: #c9443a;
+  --sombra: 0 1px 2px rgba(17, 17, 17, 0.04), 0 8px 24px rgba(17, 17, 17, 0.04);
+  --raio: 18px;
+  --fonte: 'Inter', 'Onest', system-ui, sans-serif;
+  --lux-serifa: 'Instrument Serif', 'Cinzel', Georgia, serif;
+  font-family: var(--fonte);
+  color: var(--texto);
+  color-scheme: light;
+  background:
+    radial-gradient(60vw 40vh at 100% 0%, rgba(184, 149, 74, 0.08), transparent 70%),
+    linear-gradient(180deg, #f8f7f4, #f3f1ec);
+  background-attachment: fixed;
+  -webkit-font-smoothing: antialiased;
+}
+.tema-vikings a,
+.garcom-viking a {
+  color: var(--texto);
+}
+
+/* títulos editoriais */
+.tema-vikings h1,
+.garcom-viking .titulo-topo .t,
+.garcom-viking .total-grande,
+.garcom-viking .sucesso-envio h1 {
+  font-family: var(--lux-serifa);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #111;
+}
+.tema-vikings h1 {
+  font-size: 44px;
+}
+.tema-vikings h2,
+.tema-vikings .cartao > header h2,
+.tema-vikings .cartao h3,
+.garcom-viking .modal > header h2 {
+  font-family: var(--fonte);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: #111;
+}
+.tema-vikings .kpi .valor {
+  font-family: var(--lux-serifa);
+  font-weight: 400;
+  font-size: 40px;
+  letter-spacing: -0.02em;
+  color: #111;
+}
+.tema-vikings .kpi .rotulo,
+.tema-vikings .tabela th {
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--texto-3);
+}
+
+/* menu lateral minimalista */
+.tema-vikings .lateral,
+.tema-vikings .menu-movel {
+  background: rgba(255, 255, 255, 0.7);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-color: var(--borda);
+  box-shadow: none;
+}
+.tema-vikings .lateral .logo,
+.tema-vikings .menu-movel .logo {
+  font-family: var(--lux-serifa);
+  font-weight: 400;
+  font-size: 20px;
+  color: #111;
+}
+.tema-vikings .lateral a {
+  color: var(--texto-2);
+  font-weight: 500;
+  border-radius: 10px;
+}
+.tema-vikings .lateral a:hover {
+  background: rgba(17, 17, 17, 0.04);
+  color: #111;
+}
+.tema-vikings .lateral a.ativo {
+  background: #111;
+  color: #fff;
+  box-shadow: none;
+}
+.tema-vikings .lancar-pedido {
+  background: #111 !important;
+  color: #fff !important;
+  box-shadow: 0 8px 20px rgba(17, 17, 17, 0.18);
+  border-radius: 12px;
+}
+.tema-vikings .logo-mini,
+.marca-vikings img,
+.garcom-viking .marca-vikings img {
+  box-shadow: 0 0 0 1px rgba(17, 17, 17, 0.08);
+}
+
+/* cartões brancos com borda fina */
+.tema-vikings .cartao,
+.tema-vikings .mesa,
+.tema-vikings .produto,
+.tema-vikings .pedido-cartao,
+.tema-vikings .formas button,
+.garcom-viking .cartao,
+.garcom-viking .mesa,
+.garcom-viking .produto,
+.garcom-viking .pedido-cartao,
+.garcom-viking .formas button {
+  background: #fff;
+  border: 1px solid var(--borda);
+  color: #111;
+  box-shadow: var(--sombra);
+  border-radius: 18px;
+}
+.tema-vikings .mesa .n,
+.garcom-viking .mesa .n {
+  font-family: var(--fonte);
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  color: #111;
+}
+.tema-vikings .mesa .fraco,
+.garcom-viking .mesa .fraco {
+  color: var(--texto-3);
+}
+/* mesa aberta: borda preta fina e ponto champanhe */
+.tema-vikings .mesa.ocupada,
+.garcom-viking .mesa.ocupada {
+  background: #fff;
+  border-color: #111;
+  box-shadow: 0 0 0 1px #111, var(--sombra);
+}
+.tema-vikings .mesa.ocupada .n::after,
+.garcom-viking .mesa.ocupada .n::after {
+  content: '';
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-left: 8px;
+  border-radius: 50%;
+  background: var(--marca);
+  vertical-align: middle;
+}
+/* balcão: cartão grafite, sem enfeite */
+.tema-vikings .mesa.balcao,
+.garcom-viking .mesa.balcao {
+  background: linear-gradient(160deg, #1b1b1b, #0e0e0e);
+  border: 1px solid #1b1b1b;
+  box-shadow: 0 8px 24px rgba(17, 17, 17, 0.14);
+}
+.tema-vikings .mesa.balcao .n,
+.garcom-viking .mesa.balcao .n {
+  color: #fff;
+}
+.tema-vikings .mesa.balcao .n::before,
+.garcom-viking .mesa.balcao .n::before,
+.mesa.balcao .n::before {
+  content: none;
+}
+.tema-vikings .mesa.balcao .fraco,
+.tema-vikings .mesa.balcao .cliente-mesa,
+.garcom-viking .mesa.balcao .fraco,
+.garcom-viking .mesa.balcao .cliente-mesa {
+  color: rgba(255, 255, 255, 0.6);
+}
+.tema-vikings .mesa.balcao.ocupada,
+.garcom-viking .mesa.balcao.ocupada {
+  box-shadow: 0 0 0 2px var(--marca), 0 8px 24px rgba(17, 17, 17, 0.14);
+}
+.tema-vikings .cliente-mesa,
+.garcom-viking .cliente-mesa {
+  color: var(--marca);
+}
+.garcom-viking .produto.escolhido,
+.garcom-viking .produto.em-promo,
+.tema-vikings .produto.escolhido {
+  background: #fff;
+  border-color: #111;
+  box-shadow: 0 0 0 1px #111, var(--sombra);
+}
+
+/* campos, botões e filtros */
+.tema-vikings input,
+.tema-vikings select,
+.tema-vikings textarea,
+.garcom-viking input,
+.garcom-viking select,
+.garcom-viking textarea {
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  color: #111;
+  border-radius: 12px;
+}
+.tema-vikings input:focus,
+.tema-vikings select:focus,
+.tema-vikings textarea:focus,
+.garcom-viking input:focus,
+.garcom-viking textarea:focus {
+  border-color: #111;
+  box-shadow: 0 0 0 4px rgba(17, 17, 17, 0.06);
+}
+.garcom-viking .busca-mesa input,
+.garcom-viking input[type='search'] {
+  border-radius: 14px;
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%23111111' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E")
+      no-repeat 18px center,
+    #fff;
+  box-shadow: var(--sombra);
+}
+.tema-vikings .btn,
+.garcom-viking .btn {
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.12);
+  color: #111;
+  font-weight: 500;
+  border-radius: 999px;
+  box-shadow: none;
+}
+.tema-vikings .btn:hover:not(:disabled),
+.garcom-viking .btn:hover:not(:disabled) {
+  background: #f4f3f0;
+}
+.tema-vikings .btn.primario,
+.garcom-viking .btn.primario,
+.garcom-viking .qtd .mais {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 8px 20px rgba(17, 17, 17, 0.16);
+}
+.tema-vikings .btn.primario:hover:not(:disabled),
+.garcom-viking .btn.primario:hover:not(:disabled) {
+  background: #2a2a2a;
+}
+.tema-vikings .btn.fantasma,
+.garcom-viking .btn.fantasma {
+  background: transparent;
+  border-color: transparent;
+}
+.tema-vikings .btn.sucesso,
+.garcom-viking .btn.sucesso {
+  background: #1f8a5b;
+  border-color: #1f8a5b;
+  color: #fff;
+}
+.garcom-viking .qtd button:not(.mais) {
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.14);
+  color: #111;
+}
+.tema-vikings .filtros-rolagem button,
+.garcom-viking .filtros-rolagem button {
+  background: #fff;
+  border: 1px solid rgba(17, 17, 17, 0.1);
+  color: #111;
+  font-weight: 500;
+  box-shadow: none;
+}
+.tema-vikings .filtros-rolagem button.ativo,
+.garcom-viking .filtros-rolagem button.ativo {
+  background: #111;
+  border-color: #111;
+  color: #fff;
+  box-shadow: none;
+}
+.garcom-viking .formas button.ativo,
+.garcom-viking .divisao button.ativo {
+  background: #111;
+  border: 1px solid #111;
+  color: #fff;
+  box-shadow: 0 0 0 3px rgba(17, 17, 17, 0.12);
+}
+.tema-vikings .chip,
+.garcom-viking .chip {
+  background: #f4f3f0;
+  border-color: transparent;
+  color: var(--texto-2);
+  font-weight: 500;
+}
+.tema-vikings .aviso,
+.garcom-viking .aviso {
+  background: #fff;
+  border: 1px solid var(--borda);
+  color: var(--texto-2);
+}
+.tema-vikings .modal,
+.garcom-viking .modal {
+  background: #fff;
+  border: 1px solid var(--borda);
+  box-shadow: 0 30px 80px rgba(17, 17, 17, 0.18);
+}
+.tema-vikings .modal-fundo {
+  background: rgba(17, 17, 17, 0.28);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+/* garçom: topo e barras em vidro claro, aba ativa preta */
+.garcom-viking .topo-garcom {
+  background: rgba(248, 247, 244, 0.85);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-bottom: 1px solid var(--borda);
+}
+.garcom-viking .conexao {
+  background: #fff;
+  border: 1px solid var(--borda);
+  color: #111;
+}
+.garcom-viking .abas-baixo {
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border: 1px solid var(--borda);
+  box-shadow: 0 20px 50px rgba(17, 17, 17, 0.12);
+}
+.garcom-viking .abas-baixo button {
+  color: var(--texto-3);
+  font-weight: 500;
+}
+.garcom-viking .abas-baixo button.ativo {
+  background: #111;
+  color: #fff;
+  box-shadow: none;
+}
+.garcom-viking .barra-acao {
+  background: rgba(255, 255, 255, 0.88);
+  -webkit-backdrop-filter: blur(20px);
+  backdrop-filter: blur(20px);
+  border-color: var(--borda);
+}
+.faixa-promo {
+  background: #111;
+  color: #fff;
+  box-shadow: 0 12px 30px rgba(17, 17, 17, 0.16);
+}
+.faixa-promo b {
+  color: #e6c77f;
+}
+.selo-promo {
+  background: #111;
+  color: #e6c77f;
+}
+.balde-combo {
+  border-color: #111;
+  background: #fff;
+}
+.garcom-viking .gratis {
+  background: rgba(31, 138, 91, 0.08);
+  border-color: rgba(31, 138, 91, 0.35);
+  color: #1f6e4a;
+}
+
+/* ===================== site no mesmo padrão (claro, editorial) ===================== */
+.pv {
+  --pv-texto: #111;
+  --pv-texto-2: #5f5f5f;
+  --pv-borda: rgba(17, 17, 17, 0.08);
+  --pv-ouro: #b8954a;
+  --pv-display: 'Instrument Serif', Georgia, serif;
+  background: linear-gradient(180deg, #f8f7f4, #f3f1ec);
+}
+.pv a {
+  color: #111;
+}
+.pv .pv-titulo {
+  font-family: var(--pv-display);
+  font-weight: 400;
+  letter-spacing: -0.03em;
+  background: none;
+  -webkit-background-clip: border-box;
+  background-clip: border-box;
+  color: #111;
+}
+.pv-hero .pv-titulo span {
+  font-style: italic;
+  color: var(--pv-ouro);
+}
+.pv-nav {
+  background: rgba(248, 247, 244, 0.8);
+  border-bottom: 1px solid var(--pv-borda);
+}
+.pv-marca {
+  color: #111 !important;
+}
+.pv-marca span {
+  font-family: var(--pv-display);
+  font-weight: 400;
+  font-size: 20px;
+}
+.pv-marca small {
+  color: var(--pv-texto-2);
+}
+.pv-links a {
+  color: var(--pv-texto-2) !important;
+}
+.pv-links a:hover {
+  color: #111 !important;
+  background: rgba(17, 17, 17, 0.04);
+}
+.pv-equipe {
+  color: #111 !important;
+  border-color: rgba(17, 17, 17, 0.14);
+}
+.pv-hero-logo::before {
+  background: radial-gradient(circle, rgba(184, 149, 74, 0.22), transparent 65%);
+}
+.pv-hero-logo img {
+  box-shadow: 0 30px 80px rgba(17, 17, 17, 0.18);
+}
+.pv-sobretitulo {
+  color: var(--pv-texto-2);
+  font-weight: 500;
+}
+.pv-sub {
+  color: var(--pv-texto-2);
+}
+.pv-btn-ouro {
+  background: #111;
+  color: #fff !important;
+  box-shadow: 0 10px 26px rgba(17, 17, 17, 0.18);
+}
+.pv-btn-linha {
+  border: 1px solid rgba(17, 17, 17, 0.16);
+  color: #111 !important;
+  background: #fff;
+}
+.pv-selos li {
+  background: #fff;
+  border-color: var(--pv-borda);
+  color: var(--pv-texto-2);
+}
+.pv-secao-madeira {
+  background: #fff;
+  border-top: 1px solid var(--pv-borda);
+  border-bottom: 1px solid var(--pv-borda);
+}
+.pv-ornamento {
+  width: 40px;
+  height: 1px;
+  background: #111;
+}
+.pv-cabeca p {
+  color: var(--pv-texto-2);
+}
+.pv-promo {
+  background: #111;
+  border: none;
+  box-shadow: 0 20px 50px rgba(17, 17, 17, 0.18);
+}
+.pv-promo h2 {
+  font-family: var(--pv-display);
+  font-weight: 400;
+  color: #fff;
+}
+.pv-promo p {
+  color: rgba(255, 255, 255, 0.75);
+}
+.pv-promo b {
+  color: #e6c77f;
+}
+.pv-promo-tag {
+  background: rgba(255, 255, 255, 0.1);
+  color: #fff;
+}
+.pv-chips a {
+  background: #fff;
+  border-color: rgba(17, 17, 17, 0.1);
+  color: #111 !important;
+}
+.pv-bloco {
+  background: #fff;
+  border: 1px solid var(--pv-borda);
+  box-shadow: 0 1px 2px rgba(17, 17, 17, 0.04), 0 10px 30px rgba(17, 17, 17, 0.05);
+}
+.pv-faixa {
+  text-align: left;
+}
+.pv-faixa span {
+  clip-path: none;
+  background: none;
+  padding: 0;
+  font-family: var(--pv-display);
+  font-weight: 400;
+  font-size: 30px;
+  color: #111;
+}
+.pv-bloco li {
+  border-bottom-color: rgba(17, 17, 17, 0.06);
+}
+.pv-item-nome b {
+  text-transform: none;
+  letter-spacing: -0.01em;
+  font-weight: 600;
+}
+.pv-bloco li i {
+  border-bottom: 1px dotted rgba(17, 17, 17, 0.2);
+}
+.pv-preco {
+  font-family: var(--fonte);
+  font-weight: 600;
+  font-size: 16px;
+  background: none;
+  color: #111;
+  padding: 0;
+}
+.pv-item-promo {
+  color: var(--pv-ouro);
+}
+.pv-passos li,
+.pv-cartao,
+.pv-faq details {
+  background: #fff;
+  border-color: var(--pv-borda);
+}
+.pv-passos span {
+  background: #111;
+  color: #fff;
+  font-family: var(--fonte);
+  font-weight: 600;
+  font-size: 16px;
+}
+.pv-passos h3,
+.pv-cartao h3 {
+  font-family: var(--pv-display);
+  font-weight: 400;
+  font-size: 24px;
+  color: #111;
+}
+.pv-faq summary::after {
+  color: #111;
+}
+.pv-rodape {
+  border-top-color: var(--pv-borda);
+}
+.tema-vikings .cabecalho h1 {
+  font-family: var(--lux-serifa);
+  font-weight: 400;
+  letter-spacing: -0.02em;
+}
+.tema-vikings .mesa.balcao b,
+.tema-vikings .mesa.balcao .num,
+.tema-vikings .mesa.balcao strong,
+.garcom-viking .mesa.balcao b,
+.garcom-viking .mesa.balcao .num {
+  color: #fff;
+}
+.tema-vikings .mesa.balcao .chip,
+.garcom-viking .mesa.balcao .chip {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
