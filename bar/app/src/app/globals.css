@@ -4229,3 +4229,332 @@ label.campo {
   background: rgba(255, 255, 255, 0.12);
   color: #fff;
 }
+
+/* ===================== Tudo em Arial (pedido da administração) ===================== */
+:root,
+.tema-vikings,
+.garcom-viking,
+.pv {
+  --fonte: Arial, Helvetica, sans-serif;
+  --fonte-titulo: Arial, Helvetica, sans-serif;
+  --lux-serifa: Arial, Helvetica, sans-serif;
+  --pv-display: Arial, Helvetica, sans-serif;
+}
+html body,
+html body *,
+html body *::before,
+html body *::after,
+input,
+select,
+textarea,
+button {
+  font-family: Arial, Helvetica, sans-serif !important;
+}
+/* títulos em Arial: mais firmes, sem itálico */
+.tema-vikings h1,
+.tema-vikings .cabecalho h1,
+.garcom-viking .titulo-topo .t,
+.garcom-viking .total-grande,
+.garcom-viking .sucesso-envio h1,
+.pv .pv-titulo,
+.pv-promo h2,
+.pv-faixa span,
+.pv-passos h3,
+.pv-cartao h3,
+.pv-marca span,
+.tema-vikings .lateral .logo,
+.tema-vikings .kpi .valor {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  font-style: normal;
+}
+.pv-hero .pv-titulo span {
+  font-style: normal;
+}
+
+/* ===================== Tons da logo: marrom café, nude e off-white (com dourado de detalhe) ===================== */
+.tema-vikings,
+.garcom-viking,
+.pv {
+  --cafe: #3d2618;
+  --cafe-2: #5a3a24;
+  --nude: #eadfcf;
+  --nude-2: #d9c4a8;
+  --off: #fbf7f1;
+  --ouro-logo: #c8902e;
+  --fundo: #f5eee4;
+  --superficie: #fffdf9;
+  --borda: rgba(90, 58, 36, 0.14);
+  --linha: rgba(90, 58, 36, 0.1);
+  --texto: #3d2618;
+  --texto-2: #7a5e48;
+  --texto-3: #a8907a;
+  --marca: #c8902e;
+  --marca-forte: #3d2618;
+  --tinta: #3d2618;
+  --sombra: 0 1px 2px rgba(61, 38, 24, 0.05), 0 10px 26px rgba(61, 38, 24, 0.06);
+  color: var(--cafe);
+  background:
+    radial-gradient(60vw 40vh at 100% 0%, rgba(200, 144, 46, 0.12), transparent 70%),
+    radial-gradient(50vw 50vh at 0% 100%, rgba(217, 196, 168, 0.35), transparent 70%),
+    linear-gradient(180deg, #fbf7f1, #f2e9dc);
+}
+.tema-vikings a,
+.garcom-viking a,
+.pv a {
+  color: var(--cafe);
+}
+/* títulos e números em café */
+.tema-vikings h1,
+.tema-vikings .cabecalho h1,
+.tema-vikings h2,
+.tema-vikings .cartao > header h2,
+.tema-vikings .cartao h3,
+.tema-vikings .kpi .valor,
+.tema-vikings .lateral .logo,
+.garcom-viking .titulo-topo .t,
+.garcom-viking .total-grande,
+.garcom-viking .sucesso-envio h1,
+.garcom-viking .modal > header h2,
+.pv .pv-titulo,
+.pv-faixa span,
+.pv-passos h3,
+.pv-cartao h3,
+.pv-marca span {
+  color: var(--cafe);
+}
+.pv-hero .pv-titulo span {
+  color: var(--ouro-logo);
+}
+.tema-vikings .mesa .n,
+.garcom-viking .mesa .n,
+.tema-vikings .mesa b,
+.garcom-viking .produto .nome {
+  color: var(--cafe);
+}
+
+/* superfícies off-white e bordas nude */
+.tema-vikings .cartao,
+.tema-vikings .mesa,
+.tema-vikings .produto,
+.tema-vikings .pedido-cartao,
+.tema-vikings .formas button,
+.garcom-viking .cartao,
+.garcom-viking .mesa,
+.garcom-viking .produto,
+.garcom-viking .pedido-cartao,
+.garcom-viking .formas button,
+.pv-bloco,
+.pv-passos li,
+.pv-cartao,
+.pv-faq details,
+.pv-selos li,
+.pv-chips a {
+  background: var(--superficie);
+  border-color: var(--borda);
+}
+.tema-vikings .lateral,
+.tema-vikings .menu-movel {
+  background: rgba(251, 247, 241, 0.8);
+}
+.tema-vikings .lateral a {
+  color: var(--texto-2);
+}
+.tema-vikings .lateral a:hover {
+  background: rgba(217, 196, 168, 0.3);
+  color: var(--cafe);
+}
+.garcom-viking .topo-garcom,
+.pv-nav {
+  background: rgba(251, 247, 241, 0.85);
+}
+.garcom-viking .abas-baixo,
+.garcom-viking .barra-acao {
+  background: rgba(255, 253, 249, 0.9);
+}
+.tema-vikings .chip,
+.garcom-viking .chip {
+  background: var(--nude);
+  color: var(--cafe-2);
+}
+.tema-vikings input,
+.tema-vikings select,
+.tema-vikings textarea,
+.garcom-viking input,
+.garcom-viking select,
+.garcom-viking textarea {
+  background: var(--superficie);
+  border-color: rgba(90, 58, 36, 0.18);
+  color: var(--cafe);
+}
+.garcom-viking .busca-mesa input,
+.garcom-viking input[type='search'] {
+  background:
+    url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%233d2618' stroke-width='1.6' stroke-linecap='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cpath d='M20 20l-3.5-3.5'/%3E%3C/svg%3E")
+      no-repeat 18px center,
+    var(--superficie);
+}
+.tema-vikings input:focus,
+.tema-vikings select:focus,
+.tema-vikings textarea:focus,
+.garcom-viking input:focus,
+.garcom-viking textarea:focus {
+  border-color: var(--cafe);
+  box-shadow: 0 0 0 4px rgba(61, 38, 24, 0.08);
+}
+.tema-vikings .btn,
+.garcom-viking .btn,
+.tema-vikings .filtros-rolagem button,
+.garcom-viking .filtros-rolagem button,
+.pv-btn-linha,
+.pv-equipe {
+  background: var(--superficie);
+  border-color: rgba(90, 58, 36, 0.2);
+  color: var(--cafe) !important;
+}
+.tema-vikings .btn:hover:not(:disabled),
+.garcom-viking .btn:hover:not(:disabled) {
+  background: var(--nude);
+}
+
+/* cor de ação: café (no lugar do preto) */
+.tema-vikings .btn.primario,
+.garcom-viking .btn.primario,
+.garcom-viking .qtd .mais,
+.tema-vikings .lancar-pedido,
+.tema-vikings .lateral a.ativo,
+.tema-vikings .filtros-rolagem button.ativo,
+.garcom-viking .filtros-rolagem button.ativo,
+.garcom-viking .abas-baixo button.ativo,
+.garcom-viking .formas button.ativo,
+.garcom-viking .divisao button.ativo,
+.pv-btn-ouro,
+.pv-passos span {
+  background: linear-gradient(180deg, #5a3a24, #3d2618) !important;
+  border-color: #3d2618 !important;
+  color: #fbf3e6 !important;
+}
+.tema-vikings .btn.primario:hover:not(:disabled),
+.garcom-viking .btn.primario:hover:not(:disabled) {
+  background: linear-gradient(180deg, #6b4630, #4a2f1e) !important;
+}
+.garcom-viking .qtd button:not(.mais) {
+  background: var(--superficie);
+  border-color: rgba(90, 58, 36, 0.22);
+  color: var(--cafe);
+}
+
+/* mesas: aberta com borda café e ponto dourado; balcão em café com emoji discreto */
+.tema-vikings .mesa.ocupada,
+.garcom-viking .mesa.ocupada {
+  background: var(--superficie);
+  border-color: var(--cafe);
+  box-shadow: 0 0 0 1px var(--cafe), var(--sombra);
+}
+.tema-vikings .mesa.balcao,
+.garcom-viking .mesa.balcao {
+  background: linear-gradient(160deg, #5a3a24, #3d2618);
+  border-color: #3d2618;
+  box-shadow: 0 8px 22px rgba(61, 38, 24, 0.2);
+}
+.tema-vikings .mesa.balcao .n,
+.garcom-viking .mesa.balcao .n,
+.tema-vikings .mesa.balcao b,
+.garcom-viking .mesa.balcao b {
+  color: #fbf3e6;
+}
+.tema-vikings .mesa.balcao .fraco,
+.garcom-viking .mesa.balcao .fraco,
+.tema-vikings .mesa.balcao .cliente-mesa,
+.garcom-viking .mesa.balcao .cliente-mesa {
+  color: rgba(251, 243, 230, 0.7);
+}
+.tema-vikings .mesa.balcao.ocupada,
+.garcom-viking .mesa.balcao.ocupada {
+  box-shadow: 0 0 0 2px var(--ouro-logo), 0 8px 22px rgba(61, 38, 24, 0.2);
+}
+.tema-vikings .mesa.balcao .n::before,
+.garcom-viking .mesa.balcao .n::before {
+  content: '🍺';
+  font-size: 0.75em;
+  margin-right: 8px;
+  vertical-align: 2px;
+  filter: sepia(0.5) saturate(0.7);
+}
+.tema-vikings .mesa.ocupada .n::after,
+.garcom-viking .mesa.ocupada .n::after {
+  background: var(--ouro-logo);
+}
+
+/* promoções em café com dourado */
+.faixa-promo,
+.pv-promo,
+.selo-promo {
+  background: linear-gradient(135deg, #5a3a24, #3d2618) !important;
+  color: #fbf3e6 !important;
+}
+.faixa-promo b,
+.pv-promo b,
+.selo-promo {
+  color: #f0c97a !important;
+}
+.pv-promo h2 {
+  color: #fbf3e6;
+}
+.pv-promo p {
+  color: rgba(251, 243, 230, 0.8);
+}
+.balde-combo {
+  border-color: var(--cafe);
+  background: var(--superficie);
+}
+
+/* site: seções alternando off-white e nude */
+.pv-secao-madeira {
+  background: var(--nude);
+  border-color: var(--borda);
+}
+.pv-ornamento {
+  background: var(--ouro-logo);
+}
+.pv-item-promo {
+  color: var(--ouro-logo);
+}
+.pv-preco {
+  color: var(--cafe);
+}
+.pv-sobretitulo,
+.pv-sub,
+.pv-cabeca p,
+.pv-marca small {
+  color: var(--texto-2);
+}
+
+/* emojis minimalistas: menores e no tom da casa */
+.pv-icone,
+.pv-promo-fogo,
+.pv-faixa span,
+.pv-chips a,
+.pv-selos li,
+.lateral a,
+.tema-vikings .cartao h2,
+.garcom-viking .faixa-promo,
+.garcom-viking .selo-promo {
+  font-variant-emoji: emoji;
+}
+.pv-icone,
+.pv-promo-fogo {
+  filter: sepia(0.55) saturate(0.75) brightness(0.98);
+}
+.pv-icone {
+  font-size: 22px;
+  width: 44px;
+  height: 44px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: var(--nude);
+}
+.pv-promo-fogo {
+  font-size: 32px;
+}

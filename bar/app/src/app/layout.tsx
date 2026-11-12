@@ -16,7 +16,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {/* fontes do tema cervejaria: títulos condensados e texto */}
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="" />
-        <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;800&family=Instrument+Serif:ital@0;1&family=Inter:wght@300..700&family=Sora:wght@200..600&family=Onest:wght@300..700&display=swap" />
+        {/* letras: Arial em tudo (sem fontes externas) */}
       </head>
       <body>{children}</body>
     </html>
