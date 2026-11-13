@@ -75,7 +75,7 @@ export function titulosDaNota(nf: NotaFiscal, direcao: Exclude<Direcao, 'terceir
   }
   // sem duplicata, o vencimento costuma vir no texto da nota: "VENCIMENTO: 14/12/2026" ou "COND. PGTO: 60 DIAS"
   const texto = d.infCpl || '';
-  const dataTexto = texto.match(/VENC\w*\.?\s*:?\s*(\d{2})\/(\d{2})\/(\d{4})/i);
+  const dataTexto = texto.match(/VENC\w*\.?\s*:?\s*(\d{2})[/.-](\d{2})[/.-](\d{4})/i);
   const prazoTexto = texto.match(/(?:COND\w*\.?\s*(?:DE\s+)?PA?G\w*\.?|PRAZO)\s*:?\s*(\d{1,3})\s*DIAS/i);
   const avista = d.condicao === 'À vista' && !!d.emissao;
   if (dataTexto || (prazoTexto && d.emissao)) {

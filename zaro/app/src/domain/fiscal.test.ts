@@ -123,6 +123,8 @@ describe('vencimento escrito na nota', () => {
   };
   it('usa a data de vencimento do texto e, sem ela, o prazo em dias', () => {
     expect(titulosDaNota(semDup('COND. PGTO: 60 DIAS -(VENCIMENTO: 14/12/2026)- DEPOSITO'), 'saida')[0]).toMatchObject({ venc: '2026-12-14', vencEstimado: false });
+    expect(titulosDaNota(semDup('COND. PGTO: 60 DIAS -(VENCIMENTO: 04.01.2027)'), 'saida')[0]).toMatchObject({ venc: '2027-01-04' });
+    expect(titulosDaNota(semDup('COND. PGTO : (VENCIMENTO :25.11.2026)'), 'saida')[0]).toMatchObject({ venc: '2026-11-25', vencEstimado: false });
     expect(titulosDaNota(semDup('COND. PGTO: 45 DIAS'), 'saida')[0]).toMatchObject({ venc: addDias('2026-10-14', 45), vencEstimado: false });
     expect(titulosDaNota(semDup('pedido 123'), 'saida')[0]).toMatchObject({ venc: '2026-11-13', vencEstimado: true });
   });
