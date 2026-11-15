@@ -400,11 +400,11 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
           <div className="fila acoes-topo">
             <Conexao />
             {ehGestao(usuario.papel) && (
-              <a className="acao-topo" href={INICIO[usuario.papel as Papel]}>
+              <a className="acao-topo" href={INICIO[usuario.papel as Papel]} aria-label="Abrir a administração">
                 <Icone nome="engrenagem" /> <span>Admin</span>
               </a>
             )}
-            <button type="button" className="acao-topo" onClick={() => void sairDoSistema()}>
+            <button type="button" className="acao-topo" aria-label="Sair do sistema" onClick={() => void sairDoSistema()}>
               <Icone nome="sair" /> <span>Sair</span>
             </button>
           </div>

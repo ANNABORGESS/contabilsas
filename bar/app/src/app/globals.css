@@ -4712,3 +4712,141 @@ button {
   border-color: #b8473d !important;
   color: #fff !important;
 }
+
+/* =====================================================================================
+   Ajustes pelas regras do guia UI/UX Pro Max (acessibilidade e toque), mantendo a paleta
+   da casa: contraste mínimo 4.5:1, alvos de toque de 44px, texto mínimo 12px, foco visível,
+   cursor de mão, transições curtas e respeito a "reduzir movimento".
+   ===================================================================================== */
+.tema-vikings,
+.garcom-viking,
+.pv {
+  --texto-3: #7d6450; /* era #a8907a: contraste 2,9 -> 5,4 */
+  --ouro-texto: #8a5f17; /* dourado para texto pequeno (5,5:1) */
+}
+/* textos em dourado: versão escura legível; o dourado claro fica só em pontos e bordas */
+.tema-vikings .cliente-mesa,
+.garcom-viking .cliente-mesa,
+.pv-item-promo,
+.pv-sobretitulo {
+  color: var(--ouro-texto);
+}
+.pv-hero .pv-titulo span {
+  color: #9a6a1a;
+}
+.tema-vikings .mesa.balcao .cliente-mesa,
+.garcom-viking .mesa.balcao .cliente-mesa {
+  color: #f0c97a;
+}
+/* texto mínimo de 12px */
+.tema-vikings .kpi .rotulo,
+.tema-vikings .tabela th,
+.pv-marca small,
+.caixa-passos small {
+  font-size: 12px;
+}
+
+/* alvos de toque com 44px */
+.garcom-viking .filtros-rolagem button,
+.tema-vikings .filtros-rolagem button,
+.pv-chips a,
+.caixa-rapidos button,
+.caixa-modo button {
+  min-height: 44px;
+}
+.acao-topo {
+  min-width: 44px;
+  min-height: 44px;
+  justify-content: center;
+}
+.topo-garcom .voltar {
+  min-width: 44px;
+  min-height: 44px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+}
+.garcom-viking .qtd button,
+.qtd .qtd-num {
+  min-width: 44px;
+  min-height: 44px;
+}
+.tema-vikings .btn,
+.garcom-viking .btn {
+  min-height: 44px;
+}
+.tema-vikings .btn.pequeno,
+.garcom-viking .btn.pequeno {
+  min-height: 36px; /* ações secundárias em tabelas do computador */
+}
+.tema-vikings .lateral a {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+}
+.menu-movel .btn {
+  min-height: 44px;
+}
+.pv-equipe,
+.pv-links a {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+}
+
+/* foco visível para teclado (sem aparecer no toque) */
+.tema-vikings :focus-visible,
+.garcom-viking :focus-visible,
+.pv :focus-visible {
+  outline: 2px solid #3d2618;
+  outline-offset: 2px;
+  border-radius: 10px;
+}
+/* mão no que é clicável e transições curtas */
+.tema-vikings button:not(:disabled),
+.garcom-viking button:not(:disabled),
+.tema-vikings .clicavel,
+.garcom-viking .mesa,
+.pv a {
+  cursor: pointer;
+}
+.tema-vikings .btn,
+.garcom-viking .btn,
+.tema-vikings .mesa,
+.garcom-viking .mesa,
+.garcom-viking .produto,
+.tema-vikings .lateral a,
+.filtros-rolagem button,
+.pv-btn,
+.pv-chips a {
+  transition: background-color 0.18s ease, border-color 0.18s ease, color 0.18s ease, box-shadow 0.18s ease, transform 0.12s ease;
+}
+.garcom-viking .mesa:active,
+.garcom-viking .btn:active,
+.garcom-viking .qtd button:active {
+  transform: scale(0.97);
+}
+/* quem pediu menos movimento no aparelho não vê animação */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+/* campos com 16px: o iPhone não dá zoom sozinho ao tocar (o zoom manual continua liberado) */
+.tema-vikings input,
+.tema-vikings select,
+.tema-vikings textarea,
+.garcom-viking input,
+.garcom-viking select,
+.garcom-viking textarea {
+  font-size: 16px;
+}
+.menu-movel .btn.pequeno,
+.tema-vikings .lateral .rodape .btn {
+  min-height: 44px;
+}

@@ -7,7 +7,7 @@ export const metadata: Metadata = {
   appleWebApp: { capable: true, title: 'Porão Vikings', statusBarStyle: 'black-translucent' },
 };
 
-export const viewport: Viewport = { width: 'device-width', initialScale: 1, maximumScale: 1, themeColor: '#f6f2ea' };
+export const viewport: Viewport = { width: 'device-width', initialScale: 1, themeColor: '#f6eee4' };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
