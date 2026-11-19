@@ -1,5 +1,5 @@
 import { dataValida } from '@/domain/turno';
-import { fecharCaixa, listarFechamentos, resumoCaixa, turnoSemFechamento } from '@/server/caixa';
+import { fecharCaixa, listarFechamentos, reabrirCaixa, resumoCaixa, turnoSemFechamento } from '@/server/caixa';
 import { hoje } from '@/server/config';
 import { rota } from '@/server/http';
 
@@ -13,3 +13,6 @@ export const GET = rota(['fechamento'], async ({ db, req }) => {
 
 /** Fecha (ou refaz) o caixa do turno. */
 export const POST = rota(['fechamento'], async ({ db, u, corpo }) => fecharCaixa(db, u, dataValida(corpo.data) ? String(corpo.data) : hoje(), corpo));
+
+/** Reabre o caixa do turno (desfaz o fechamento). */
+export const DELETE = rota(['autorizar'], async ({ db, u, corpo }) => reabrirCaixa(db, u, dataValida(corpo.data) ? String(corpo.data) : hoje()));

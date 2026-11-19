@@ -92,6 +92,16 @@ export default function Caixa() {
   const trocoC = dados?.movimentos.length ? dados.fundoCentavos : (paraCentavos(troco) ?? 0);
   const r = dados ? conferirCaixa(dados.sistema, conferido, trocoC) : null;
 
+  async function reabrir() {
+    if (!dados || !confirm(`Reabrir o caixa do turno ${dataBr(dados.data)}? O fechamento sai e fica guardado na Auditoria.`)) return;
+    try {
+      await api('/api/caixa', 'DELETE', { data: dados.data });
+      setMsg({ tipo: 'ok', texto: `Caixa do turno ${dataBr(dados.data)} reaberto.` });
+    } catch (e) {
+      setMsg({ tipo: 'erro', texto: (e as Error).message });
+    }
+  }
+
   async function fechar() {
     // nada digitado: pergunta se fecha considerando que confere com o que o sistema registrou
     let conf = conferido;
@@ -134,7 +144,11 @@ export default function Caixa() {
       {(erro || msg) && <Aviso tipo={msg?.tipo === 'ok' ? 'ok' : 'erro'}>{msg?.texto || erro}</Aviso>}
       {dados?.fechamento && (
         <Aviso tipo="info">
-          Fechado em {dataHora(dados.fechamento.fechadoEm)} por {dados.fechamento.fechadoPor}. Você pode corrigir e gravar de novo.
+          Fechado em {dataHora(dados.fechamento.fechadoEm)} por {dados.fechamento.fechadoPor}. Você pode corrigir e gravar de novo, ou{' '}
+          <button type="button" className="link-botao" onClick={reabrir}>
+            reabrir o caixa
+          </button>
+          .
         </Aviso>
       )}
       {dados && (

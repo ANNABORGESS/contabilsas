@@ -203,3 +203,18 @@ async function ultimaAbertura(db: Db, data: string) {
     .limit(1);
   return m ? m.v : null;
 }
+
+/** Desfaz o fechamento do turno (fechou sem querer ou chegou venda depois). Só administrador ou gerente. */
+export async function reabrirCaixa(db: Db, u: Usuario, data: string) {
+  if (!tem(u.papel, 'autorizar')) throw new ErroRegra('Só administrador ou gerente reabre o caixa.', 403);
+  if (!dataValida(data)) throw new ErroRegra('Data inválida.');
+  const [f] = await db.delete(schema.caixaFechamentos).where(eq(schema.caixaFechamentos.data, data)).returning();
+  if (!f) throw new ErroRegra('Este turno não está fechado.', 404);
+  await registrar(db, {
+    tipo: 'caixa_reaberto',
+    usuarioId: u.id,
+    descricao: `${u.nome} reabriu o caixa do turno ${data.split('-').reverse().join('/')} (o fechamento anterior fica guardado aqui na Auditoria)`,
+    dados: f as unknown as Record<string, unknown>,
+  });
+  return { ok: true };
+}

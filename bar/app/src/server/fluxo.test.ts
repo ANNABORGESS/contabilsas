@@ -12,7 +12,7 @@ import { versaoAtual } from './eventos';
 import { custosELucro, excluirDespesa, lancarDespesa } from './financeiro';
 import { contaDaTela } from './acessoTela';
 import { alterarEstoque, listarMovimentos } from './estoque';
-import { conferirEstorno, estornosPendentes, fecharCaixa, movimentarCaixa, resumoCaixa } from './caixa';
+import { conferirEstorno, estornosPendentes, fecharCaixa, movimentarCaixa, reabrirCaixa, resumoCaixa } from './caixa';
 import { listarPromocoes, promocoesAgora, salvarPromocao } from './promocoes';
 
 let db: Db;
@@ -485,6 +485,12 @@ describe('fluxo do pedido pago', () => {
     const f = await fecharCaixa(db, caixa, data, { trocoInicialCentavos: 1, conferido: { dinheiro: 12000 } });
     expect(f.linhas.find((l) => l.forma === 'dinheiro')).toMatchObject({ esperado: 12000, diferenca: 0 });
     await expect(alterarEstoque(db, caixa, randomUUID(), 'entrada', 1)).rejects.toThrow(/perfil/);
+    // reabrir: caixa não pode, administrador pode; depois dá para fechar de novo
+    await expect(reabrirCaixa(db, caixa, data)).rejects.toThrow(/gerente/);
+    await reabrirCaixa(db, admin, data);
+    expect((await resumoCaixa(db, data)).fechamento).toBeNull();
+    await expect(reabrirCaixa(db, admin, data)).rejects.toThrow(/não está fechado/);
+    await fecharCaixa(db, caixa, data, { conferido: { dinheiro: 12000 } });
   });
 
   it('estorno: fica pendente até alguém confirmar que devolveu na maquininha', async () => {
