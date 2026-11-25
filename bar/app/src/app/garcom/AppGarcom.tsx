@@ -139,7 +139,7 @@ function FaixaPromocoes({ promocoes }: { promocoes: PromoAgora[] }) {
 
 interface Previa {
   mesa: { id: string; numero: number };
-  linhas: { produtoId: string; nome: string; setor: Setor; quantidade: number; precoCentavos: number; subtotalCentavos: number; balde: number | null; unidades?: number; promocaoId?: string | null }[];
+  linhas: { produtoId: string; nome: string; setor: Setor; quantidade: number; precoCentavos: number; subtotalCentavos: number; balde: number | null; unidades?: number; promocaoId?: string | null; comboId?: string | null }[];
   totalCentavos: number;
   setores: Setor[];
   /** 10% do garçom sobre os itens (couver fora) */
@@ -156,6 +156,8 @@ interface Tentativa {
   partes?: Parte[];
   /** cliente não quis pagar os 10% */
   semTaxa?: boolean;
+  /** combos do happy hour deste pedido (vão separados dos itens) */
+  combos?: ComboNoPedido[];
 }
 interface Parte {
   valor: number;
@@ -168,6 +170,20 @@ type Carrinhos = Record<string, Record<string, number>>;
 /** Baldes de cada mesa: cada balde é { produtoId: quantidade }, até MAX_BALDE cervejas. */
 type Balde = Record<string, number>;
 type Baldes = Record<string, Balde[]>;
+/** combo escolhido no pedido: qual combo e quais long necks */
+interface ComboNoPedido {
+  comboId: string;
+  escolhas?: Record<string, number>;
+}
+type CombosMesa = Record<string, ComboNoPedido[]>;
+interface ComboAgora {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  precoCentavos: number;
+  escolhas: number;
+  terminaEm: string;
+}
 type Tela = { t: 'inicio' } | { t: 'pedido'; mesaId: string } | { t: 'pagamento' } | { t: 'enviado'; pedido: DetalhePedido; duplicado: boolean };
 type Aba = 'mesas' | 'pedidos' | 'prontos';
 
@@ -191,6 +207,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   const [aba, setAba] = useState<Aba>('mesas');
   const [carrinhos, setCarrinhos] = useState<Carrinhos>({});
   const [baldes, setBaldes] = useState<Baldes>({});
+  const [combosMesa, setCombosMesa] = useState<CombosMesa>({});
   const [tentativa, setTentativa] = useState<Tentativa | null>(null);
   const [toast, setToast] = useState<{ texto: string; pedidoId?: string } | null>(null);
   const [detalhe, setDetalhe] = useState<string | null>(null);
@@ -202,6 +219,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
   useEffect(() => {
     setCarrinhos(ler('bar:carrinhos', {}));
     setBaldes(ler('bar:baldes', {}));
+    setCombosMesa(ler('bar:combos', {}));
     const t = ler<Tentativa | null>('bar:tentativa', null);
     if (t) {
       setTentativa(t);
@@ -216,18 +234,22 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
     if (pronto) gravar('bar:baldes', baldes);
   }, [baldes, pronto]);
   useEffect(() => {
+    if (pronto) gravar('bar:combos', combosMesa);
+  }, [combosMesa, pronto]);
+  useEffect(() => {
     if (pronto) gravar('bar:tentativa', tentativa);
   }, [tentativa, pronto]);
 
   const cardapio = useDados<{ produtos: Produto[] }>('/api/cardapio');
   const mesas = useDados<{ data: string; mesas: MesaTurno[] }>('/api/mesas/turno');
   const prontos = useDados<{ prontos: Pronto[] }>('/api/prontos');
-  const promos = useDados<{ promocoes: PromoAgora[] }>('/api/promocoes/agora');
+  const promos = useDados<{ promocoes: PromoAgora[]; combos: ComboAgora[] }>('/api/promocoes/agora');
   // no horário de encerramento a lista é pedida de novo: a promoção some e o preço volta ao normal
   const relogio = useAgora(15000);
   const promocoes = useMemo(() => (promos.dados?.promocoes || []).filter((p) => Date.parse(p.terminaEm) > relogio), [promos.dados, relogio]);
+  const combosValendo = useMemo(() => (promos.dados?.combos || []).filter((c) => Date.parse(c.terminaEm) > relogio), [promos.dados, relogio]);
   const recarregarPromos = promos.recarregar;
-  const vencidas = (promos.dados?.promocoes || []).length - promocoes.length;
+  const vencidas = (promos.dados?.promocoes || []).length - promocoes.length + (promos.dados?.combos || []).length - combosValendo.length;
   useEffect(() => {
     if (vencidas > 0) void recarregarPromos();
   }, [vencidas, recarregarPromos]);
@@ -277,6 +299,13 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
       return novo;
     });
   }, []);
+  const definirCombos = useCallback((mesaId: string, lista: ComboNoPedido[]) => {
+    setCombosMesa((c) => {
+      const novo = { ...c, [mesaId]: lista };
+      if (!lista.length) delete novo[mesaId];
+      return novo;
+    });
+  }, []);
   const limparMesa = (mesaId: string) => {
     setCarrinhos((c) => {
       const n = { ...c };
@@ -284,6 +313,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
       return n;
     });
     definirBaldes(mesaId, []);
+    definirCombos(mesaId, []);
   };
 
   async function irParaPagamento(mesaId: string) {
@@ -291,13 +321,14 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
       ...Object.entries(carrinhos[mesaId] || {}).map(([produtoId, quantidade]) => ({ produtoId, quantidade })),
       ...(baldes[mesaId] || []).flatMap((b, i) => Object.entries(b).map(([produtoId, quantidade]) => ({ produtoId, quantidade, balde: i + 1 }))),
     ];
-    const previa = await api<Previa>('/api/pedidos/previa', 'POST', { mesaId, itens });
+    const combos = combosMesa[mesaId] || [];
+    const previa = await api<Previa>('/api/pedidos/previa', 'POST', { mesaId, itens, combos });
     // sugere o nome do último cliente da mesa no turno; o garçom pode trocar ou apagar
     // no balcão cada pedido é de um cliente diferente: o nome começa vazio
     // mesa já finalizada também começa vazia: provavelmente é outro cliente
     const m = mesaPorId.get(mesaId);
     const sugestao = previa.mesa.numero === BALCAO || !m?.abertos ? '' : (m.clientes[0] ?? '');
-    setTentativa({ mesaId, chave: novaChave(), previa, forma: null, observacao: '', cliente: sugestao });
+    setTentativa({ mesaId, chave: novaChave(), previa, forma: null, observacao: '', cliente: sugestao, combos });
     setTela({ t: 'pagamento' });
   }
 
@@ -328,6 +359,9 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
           definir={(p, q) => definirQtd(tela.mesaId, p, q)}
           baldes={baldes[tela.mesaId] || []}
           definirBaldes={(l) => definirBaldes(tela.mesaId, l)}
+          combos={combosValendo}
+          combosEscolhidos={combosMesa[tela.mesaId] || []}
+          definirCombos={(l) => definirCombos(tela.mesaId, l)}
           limpar={() => limparMesa(tela.mesaId)}
           voltar={() => setTela({ t: 'inicio' })}
           cobrar={() => irParaPagamento(tela.mesaId)}
@@ -426,7 +460,7 @@ export default function AppGarcom({ usuario }: { usuario: { id: string; nome: st
               )}
               <div className="mesas-grade" style={{ gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))' }}>
                 {filtrarMesas(mesas.dados?.mesas || [], buscaMesa, filtroMesa).map((m) => {
-                  const rascunho = Object.values(carrinhos[m.id] || {}).reduce((a, b) => a + b, 0) + (baldes[m.id] || []).length;
+                  const rascunho = Object.values(carrinhos[m.id] || {}).reduce((a, b) => a + b, 0) + (baldes[m.id] || []).length + (combosMesa[m.id] || []).length;
                   return (
                     <button key={m.id} className={`mesa ${m.abertos ? 'ocupada' : ''} ${ehBalcao(m.numero) ? 'balcao' : ''} ${m.numero === BALCAO ? 'balcao-geral' : ''}`} onClick={() => setTela({ t: 'pedido', mesaId: m.id })}>
                       <span className="n">{nomeLocal(m.numero)}</span>
@@ -496,6 +530,9 @@ function TelaProdutos(props: {
   definir: (produtoId: string, qtd: number) => void;
   baldes: Balde[];
   definirBaldes: (lista: Balde[]) => void;
+  combos: ComboAgora[];
+  combosEscolhidos: ComboNoPedido[];
+  definirCombos: (lista: ComboNoPedido[]) => void;
   limpar: () => void;
   voltar: () => void;
   cobrar: () => Promise<void>;
@@ -525,9 +562,14 @@ function TelaProdutos(props: {
   const itens = Object.entries(carrinho).filter(([id]) => porId.has(id));
   const promoDe = new Map(props.promocoes.map((x) => [x.produtoId, x]));
   const somaBalde = (b: Balde) => Object.entries(b).reduce((a, [id, q]) => a + precoComPromo(porId.get(id)?.precoCentavos || 0, q, promoDe.get(id)), 0);
-  const qtdTotal = itens.reduce((a, [, q]) => a + q, 0) + baldes.length;
+  const precoDoCombo = (id: string) => props.combos.find((c) => c.id === id)?.precoCentavos ?? 0;
+  const qtdTotal = itens.reduce((a, [, q]) => a + q, 0) + baldes.length + props.combosEscolhidos.length;
   // estimativa na tela; o valor que vale é o da prévia, calculado no servidor com o horário de lá
-  const total = itens.reduce((a, [id, q]) => a + precoComPromo(porId.get(id)!.precoCentavos, q, promoDe.get(id)), 0) + baldes.reduce((a, b) => a + somaBalde(b), 0);
+  const total =
+    itens.reduce((a, [id, q]) => a + precoComPromo(porId.get(id)!.precoCentavos, q, promoDe.get(id)), 0) +
+    baldes.reduce((a, b) => a + somaBalde(b), 0) +
+    props.combosEscolhidos.reduce((a, c) => a + precoDoCombo(c.comboId), 0);
+  const [escolhendoCombo, setEscolhendoCombo] = useState<ComboAgora | null>(null);
   const gratisTotal =
     itens.reduce((a, [id, q]) => a + gratisDe(porId.get(id)!.precoCentavos, q, promoDe.get(id)), 0) +
     baldes.reduce((a, b) => a + Object.entries(b).reduce((x, [id, q]) => x + gratisDe(porId.get(id)?.precoCentavos || 0, q, promoDe.get(id)), 0), 0);
@@ -585,6 +627,62 @@ function TelaProdutos(props: {
           ))}
         </div>
         {props.carregando && <div className="vazio">Carregando cardápio…</div>}
+        {(props.combos.length > 0 || props.combosEscolhidos.length > 0) && (
+          <div className="cartao combos-cartao">
+            <div style={{ fontWeight: 700 }}>🔥 Combos do happy hour</div>
+            {props.combos.map((c) => (
+              <div key={c.id} className="combo-linha">
+                <div style={{ minWidth: 0 }}>
+                  <b>{c.nome}</b>
+                  <div className="fraco">
+                    {c.descricao} · <b className="num">{reais(c.precoCentavos)}</b>
+                  </div>
+                </div>
+                <button
+                  className="btn primario"
+                  onClick={() => (c.escolhas ? setEscolhendoCombo(c) : props.definirCombos([...props.combosEscolhidos, { comboId: c.id }]))}
+                  aria-label={`Adicionar ${c.nome}`}
+                >
+                  + Adicionar
+                </button>
+              </div>
+            ))}
+            {props.combosEscolhidos.map((ce, i) => {
+              const c = props.combos.find((x) => x.id === ce.comboId);
+              return (
+                <div key={i} className="balde-linha">
+                  <div>
+                    <b>✓ {c?.nome ?? 'Combo fora do horário'}</b>
+                    <div className="fraco">
+                      {Object.entries(ce.escolhas || {})
+                        .filter(([id, q]) => q > 0 && porId.has(id))
+                        .map(([id, q]) => `${q}× ${porId.get(id)!.nome}`)
+                        .join(', ') || c?.descricao}
+                    </div>
+                  </div>
+                  <div className="fila">
+                    <span className="num">{c ? reais(c.precoCentavos) : '—'}</span>
+                    <button className="btn fantasma pequeno" onClick={() => props.definirCombos(props.combosEscolhidos.filter((_, k) => k !== i))} aria-label="Tirar combo">
+                      ✕
+                    </button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        )}
+        {escolhendoCombo && (
+          <EscolherCombo
+            combo={escolhendoCombo}
+            produtos={deBalde}
+            disponivel={Object.fromEntries(deBalde.map((p) => [p.id, sobra(p)]))}
+            fechar={() => setEscolhendoCombo(null)}
+            salvar={(escolhas) => {
+              props.definirCombos([...props.combosEscolhidos, { comboId: escolhendoCombo.id, escolhas }]);
+              setEscolhendoCombo(null);
+            }}
+          />
+        )}
         {deBalde.length > 0 && (
           <div className="cartao balde-cartao">
             <div className="fila" style={{ justifyContent: 'space-between' }}>
@@ -819,6 +917,55 @@ function MontarBalde({ numero, produtos, promocoes, disponivel, inicial, fechar,
   );
 }
 
+/** Escolhe as long necks do combo: exatamente N, pode misturar marcas. */
+function EscolherCombo({ combo, produtos, disponivel, fechar, salvar }: { combo: ComboAgora; produtos: Produto[]; disponivel: Record<string, number>; fechar: () => void; salvar: (e: Record<string, number>) => void }) {
+  const [e, setE] = useState<Record<string, number>>({});
+  const n = Object.values(e).reduce((a, q) => a + q, 0);
+  const falta = combo.escolhas - n;
+  const mudar = (id: string, q: number) => setE((at) => ({ ...at, [id]: Math.max(0, q) }));
+  return (
+    <Modal titulo={combo.nome} aoFechar={fechar}>
+      <p className="fraco" style={{ marginTop: 0 }}>
+        {combo.descricao} · <b>{reais(combo.precoCentavos)}</b>
+      </p>
+      <div className="balde-contador">
+        <span className="num">
+          {n}/{combo.escolhas}
+        </span>
+        <span className="fraco">{falta > 0 ? `escolha mais ${falta} long neck${falta > 1 ? 's' : ''}` : 'Pronto'}</span>
+      </div>
+      {produtos.map((p) => {
+        const q = e[p.id] || 0;
+        const pode = falta > 0 && q < disponivel[p.id];
+        return (
+          <div key={p.id} className={`produto ${q ? 'escolhido' : ''}`}>
+            <div className="info" onClick={() => pode && mudar(p.id, q + 1)}>
+              <div className="nome">{p.nome}</div>
+              {disponivel[p.id] !== Infinity && disponivel[p.id] - q <= ESTOQUE_BAIXO && <div className="restam">{disponivel[p.id] - q <= 0 ? 'Sem mais no estoque' : `Restam ${disponivel[p.id] - q}`}</div>}
+            </div>
+            <div className="qtd">
+              {q > 0 && (
+                <>
+                  <button onClick={() => mudar(p.id, q - 1)} aria-label={`Tirar um ${p.nome}`}>
+                    −
+                  </button>
+                  <span>{q}</span>
+                </>
+              )}
+              <button className="mais" disabled={!pode} onClick={() => mudar(p.id, q + 1)} aria-label={`Adicionar ${p.nome}`}>
+                +
+              </button>
+            </div>
+          </div>
+        );
+      })}
+      <button className="btn primario grande bloco" disabled={falta !== 0} onClick={() => salvar(Object.fromEntries(Object.entries(e).filter(([, q]) => q > 0)))}>
+        {falta ? `Escolha mais ${falta}` : `Colocar no pedido · ${reais(combo.precoCentavos)}`}
+      </button>
+    </Modal>
+  );
+}
+
 // ---------- pagamento na maquininha ----------
 
 const emReais = (c: number) => (c / 100).toFixed(2).replace('.', ',');
@@ -856,12 +1003,13 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
         chave: tentativa.chave,
         mesaId: tentativa.mesaId,
         // unidades de verdade: no combo da promoção cada linha leva várias (o servidor remonta o combo)
-        itens: previa.linhas.map((l) => ({ produtoId: l.produtoId, quantidade: l.quantidade * (l.unidades ?? 1), balde: l.balde })),
+        itens: previa.linhas.filter((l) => !l.comboId).map((l) => ({ produtoId: l.produtoId, quantidade: l.quantidade * (l.unidades ?? 1), balde: l.balde })),
+        combos: tentativa.combos ?? [],
         formaPagamento: dividindo ? null : forma,
         pagamentos: dividindo ? partes!.map((x) => ({ forma: x.forma, valorCentavos: x.valor, pessoa: x.pessoa })) : undefined,
         totalCobradoCentavos: previa.totalCentavos,
         taxaServico: taxa > 0,
-        precosCobrados: previa.linhas.map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos, promocaoId: l.promocaoId ?? null })),
+        precosCobrados: previa.linhas.filter((l) => !l.comboId).map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos, promocaoId: l.promocaoId ?? null })),
         observacao: tentativa.observacao,
         cliente: tentativa.cliente ?? '',
       });
@@ -916,12 +1064,12 @@ function TelaPagamento({ tentativa, atualizar, voltar, enviado }: { tentativa: T
           />
         </label>
         <div className="cartao resumo-itens">
-          {previa.linhas.map((l) => (
-            <div key={`${l.produtoId}-${l.balde ?? ''}`}>
+          {previa.linhas.map((l, i) => (
+            <div key={i}>
               <span>
                 <b>{l.quantidade}×</b> {l.nome} <span className="fraco">· {l.balde ? `🪣 Balde ${l.balde}` : NOME_SETOR[l.setor]}</span>
               </span>
-              <span className="num">{reais(l.subtotalCentavos)}</span>
+              <span className="num">{l.comboId && !l.subtotalCentavos ? <span className="fraco">no combo</span> : reais(l.subtotalCentavos)}</span>
             </div>
           ))}
         </div>

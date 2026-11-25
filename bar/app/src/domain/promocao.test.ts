@@ -87,3 +87,30 @@ describe('promoção só em algumas mesas', () => {
     expect(valeNaMesa({ mesas: null }, 3)).toBe(true);
   });
 });
+
+import { lerJanelas, linhasDosCombos, restanteDoCombo, textoJanelas } from './combo';
+describe('combos do happy hour', () => {
+  const ln1 = { id: 'h', nome: 'Heineken', setor: 'bar', ativo: true, balde: true };
+  const ln2 = { id: 'c', nome: 'Corona', setor: 'bar', ativo: true, balde: true };
+  const bat = { id: 'b', nome: 'Batata frita', setor: 'cozinha', ativo: true, balde: false };
+  const combo = { id: 'k', nome: 'Combo Dupla da Casa', descricao: null, precoCentavos: 8490, ativo: true, janelas: [{ dias: [3, 4], inicio: '17:00', fim: '20:00' }, { dias: [5], inicio: '16:00', fim: '20:00' }], itens: [{ produtoId: 'b', quantidade: 1, nome: 'Batata frita 300 g' }, { escolha: 'long-neck' as const, quantidade: 4 }] };
+  it('vale quarta 17h-20h e sexta 16h-20h (Manaus)', () => {
+    expect(restanteDoCombo(combo, new Date('2026-11-25T17:30:00-04:00'))).not.toBeNull(); // quarta
+    expect(restanteDoCombo(combo, new Date('2026-11-25T16:30:00-04:00'))).toBeNull(); // quarta antes das 17h
+    expect(restanteDoCombo(combo, new Date('2026-11-27T16:30:00-04:00'))).not.toBeNull(); // sexta 16h30
+    expect(restanteDoCombo(combo, new Date('2026-11-28T17:30:00-04:00'))).toBeNull(); // sábado
+  });
+  it('preço fechado na primeira linha, o resto a R$ 0 para estoque e preparo', () => {
+    const l = linhasDosCombos([{ comboId: 'k', escolhas: { h: 2, c: 2 } }], [combo], [ln1, ln2, bat]);
+    expect(l.reduce((a, x) => a + x.subtotalCentavos, 0)).toBe(8490);
+    expect(l.map((x) => [x.produtoId, x.quantidade * x.unidades, x.setor])).toEqual([
+      ['b', 1, 'cozinha'],
+      ['h', 2, 'bar'],
+      ['c', 2, 'bar'],
+    ]);
+  });
+  it('horários em texto', () => {
+    expect(lerJanelas('Qua, Qui 17:00-20:00; Sex 16:00-20:00')).toEqual(combo.janelas);
+    expect(textoJanelas(combo.janelas)).toBe('Qua, Qui 17:00-20:00; Sex 16:00-20:00');
+  });
+});

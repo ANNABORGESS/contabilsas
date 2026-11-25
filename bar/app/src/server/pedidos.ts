@@ -6,7 +6,7 @@ import { and, asc, desc, eq, inArray, sql } from 'drizzle-orm';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
-import { ErroPedido, NOME_FORMA, NOME_SETOR, aplicarPrecosCobrados, chaveValida, ehFormaPagamento, montarPedido, type ItemSolicitado } from '@/domain/pedido';
+import { ErroPedido, NOME_FORMA, NOME_SETOR, aplicarPrecosCobrados, chaveValida, ehFormaPagamento, juntarCombos, montarPedido, type ItemSolicitado } from '@/domain/pedido';
 import { situacaoPedido, type StatusPreparo } from '@/domain/preparo';
 import { dataOperacional } from '@/domain/turno';
 import { FUSO, VIRADA } from './config';
@@ -16,7 +16,8 @@ import { baixarEstoque } from './estoque';
 import { faltaNoEstoque } from '@/domain/estoque';
 import { ErroPagamento, formaDoPedido, nomeForma, validarPartes, valendoPorForma } from '@/domain/pagamento';
 import type { Usuario } from './auth';
-import { promocoesParaPedido } from './promocoes';
+import { combosParaPedido, promocoesParaPedido } from './promocoes';
+import { ErroCombo, linhasDosCombos, type Combo, type ComboSolicitado } from '@/domain/combo';
 import type { PromocaoVigente } from '@/domain/pedido';
 import { TAXA_SERVICO_LIGADA, taxaServico } from '@/domain/servico';
 
@@ -44,21 +45,37 @@ async function mesaAtiva(db: Db, mesaId: unknown) {
   return m;
 }
 
-function montar(itens: ItemSolicitado[], produtos: Awaited<ReturnType<typeof cardapio>>, promocoes: PromocaoVigente[] = []) {
+function montar(itens: ItemSolicitado[], produtos: Awaited<ReturnType<typeof cardapio>>, promocoes: PromocaoVigente[] = [], combos: { pedidos: ComboSolicitado[]; validos: Combo[] } = { pedidos: [], validos: [] }) {
   try {
-    return montarPedido(itens, produtos, promocoes);
+    const avulsos = itens.length ? montarPedido(itens, produtos, promocoes) : null;
+    return juntarCombos(avulsos, linhasDosCombos(combos.pedidos, combos.validos, produtos));
   } catch (e) {
-    if (e instanceof ErroPedido) throw new ErroRegra(e.message);
+    if (e instanceof ErroPedido || e instanceof ErroCombo) throw new ErroRegra(e.message);
     throw e;
   }
 }
 
+/** Produtos que o pedido usa: os avulsos e os dos combos (fixos e escolhidos). */
+function idsDoPedido(itens: ItemSolicitado[], combosPedidos: ComboSolicitado[], validos: Combo[]) {
+  const ids = itens.map((i) => i?.produtoId);
+  for (const cp of combosPedidos) {
+    const c = validos.find((x) => x.id === cp?.comboId);
+    if (c) for (const it of c.itens) if (!('escolha' in it)) ids.push(it.produtoId);
+    ids.push(...Object.keys(cp?.escolhas || {}));
+  }
+  return ids;
+}
+
+const listaCombos = (v: unknown): ComboSolicitado[] => (Array.isArray(v) ? (v as ComboSolicitado[]).filter((x) => x && typeof x.comboId === 'string') : []);
+
 /** Antes de cobrar: confere mesa e produtos e devolve o total calculado com o cardápio atual. */
-export async function previa(db: Db, entrada: { mesaId: unknown; itens: ItemSolicitado[] }) {
+export async function previa(db: Db, entrada: { mesaId: unknown; itens: ItemSolicitado[]; combos?: unknown }) {
   const mesa = await mesaAtiva(db, entrada.mesaId);
   const itens = Array.isArray(entrada.itens) ? entrada.itens : [];
-  const produtos = await cardapio(db, itens.map((i) => i?.produtoId));
-  const m = montar(itens, produtos, await promocoesParaPedido(db, new Date(), mesa.numero));
+  const combosPedidos = listaCombos(entrada.combos);
+  const validos = combosPedidos.length ? await combosParaPedido(db, new Date()) : [];
+  const produtos = await cardapio(db, idsDoPedido(itens, combosPedidos, validos));
+  const m = montar(itens, produtos, await promocoesParaPedido(db, new Date(), mesa.numero), { pedidos: combosPedidos, validos });
   // confere o estoque antes de cobrar (depois do pagamento aprovado o pedido nunca é recusado)
   // só trava os produtos com a trava ligada (comida sem estoque inicial vende e só registra)
   const falta = faltaNoEstoque(unidadesDoEstoque(m.linhas), new Map(produtos.map((p) => [p.id, p.estoqueTrava ? p.estoque : null])));
@@ -77,6 +94,8 @@ export interface Confirmacao {
   precosCobrados?: { produtoId: string; precoCentavos: number; promocaoId?: string | null }[];
   observacao?: unknown;
   cliente?: unknown;
+  /** combos do happy hour (o preço é o do combo; as linhas dele não vão em itens) */
+  combos?: unknown;
   /** 10% do garçom: o cliente aceitou pagar */
   taxaServico?: unknown;
 }
@@ -98,9 +117,12 @@ export async function confirmarPagamento(db: Db, u: Usuario, c: Confirmacao, ago
   if (!dividido && !ehFormaPagamento(c.formaPagamento)) throw new ErroRegra('Informe a forma de pagamento.');
   const mesa = await mesaAtiva(db, c.mesaId);
   const itens = Array.isArray(c.itens) ? c.itens : [];
-  const produtosPedido = await cardapio(db, itens.map((i) => i?.produtoId));
+  const combosPedidos = listaCombos(c.combos);
+  // combo cobrado pouco antes do fim do happy hour ainda vale ao confirmar
+  const validosCombos = combosPedidos.length ? await combosParaPedido(db, agora, true) : [];
+  const produtosPedido = await cardapio(db, idsDoPedido(itens, combosPedidos, validosCombos));
   const cobradasCom = (Array.isArray(c.precosCobrados) ? c.precosCobrados : []).map((x) => x?.promocaoId).filter((x): x is string => typeof x === 'string');
-  const montado = montar(itens, produtosPedido, await promocoesParaPedido(db, agora, mesa.numero, cobradasCom));
+  const montado = montar(itens, produtosPedido, await promocoesParaPedido(db, agora, mesa.numero, cobradasCom), { pedidos: combosPedidos, validos: validosCombos });
   const diretos = new Set(produtosPedido.filter((x) => x.servirDireto).map((x) => x.id));
   let final;
   try {

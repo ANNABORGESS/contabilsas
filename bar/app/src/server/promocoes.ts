@@ -1,6 +1,7 @@
 // Promoções programadas: cadastro (administrador ou gerente), as que valem agora (para o garçom,
 // com a contagem regressiva) e o relatório de cada uma no período.
-import { and, desc, eq, gte, inArray, isNotNull, lte } from 'drizzle-orm';
+import { and, asc, desc, eq, gte, inArray, isNotNull, lte } from 'drizzle-orm';
+import { escolhasDoCombo, lerJanelas, restanteDoCombo, textoJanelas, type Combo } from '@/domain/combo';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
@@ -130,4 +131,83 @@ export async function promocoesDoSite(db: Db, agora = new Date()) {
       };
     })
     .filter((p) => p.produto);
+}
+
+// ---------- combos do happy hour ----------
+
+const todosCombos = (db: Db) => db.select().from(schema.combos).orderBy(asc(schema.combos.ordem), asc(schema.combos.nome));
+
+/** Combos que valem agora (na confirmação, também os que acabaram há pouco). */
+export async function combosParaPedido(db: Db, agora: Date, comTolerancia = false): Promise<Combo[]> {
+  const antes = new Date(agora.getTime() - TOLERANCIA_MS);
+  return (await todosCombos(db)).filter((c) => restanteDoCombo(c, agora) !== null || (comTolerancia && restanteDoCombo(c, antes) !== null)) as Combo[];
+}
+
+/** Para o garçom: combos valendo agora, com o que dá para escolher e quanto falta para acabar. */
+export async function combosAgora(db: Db, agora = new Date()) {
+  return (await todosCombos(db))
+    .map((c) => ({ c, ms: restanteDoCombo(c, agora) }))
+    .filter((x) => x.ms !== null)
+    .map(({ c, ms }) => ({ id: c.id, nome: c.nome, descricao: c.descricao, precoCentavos: c.precoCentavos, itens: c.itens, escolhas: escolhasDoCombo(c), terminaEm: new Date(agora.getTime() + ms!).toISOString() }));
+}
+
+/** Para o administrador e o site: todos os combos, com as janelas em texto e se valem agora. */
+export async function listarCombos(db: Db, agora = new Date()) {
+  return (await todosCombos(db)).map((c) => ({ ...c, horarios: textoJanelas(c.janelas), valendo: restanteDoCombo(c, agora) !== null }));
+}
+
+export async function salvarCombo(db: Db, u: Usuario, id: string, corpo: Record<string, unknown>) {
+  if (!tem(u.papel, 'cardapio')) throw new ErroRegra('Seu perfil não mexe nos combos.', 403);
+  const set: Partial<typeof schema.combos.$inferInsert> = {};
+  if (corpo.precoCentavos !== undefined) {
+    const v = Number(corpo.precoCentavos);
+    if (!Number.isInteger(v) || v < 1 || v > 100000_00) throw new ErroRegra('Preço inválido.');
+    set.precoCentavos = v;
+  }
+  if (typeof corpo.horarios === 'string') {
+    try {
+      set.janelas = lerJanelas(corpo.horarios);
+    } catch (e) {
+      throw new ErroRegra((e as Error).message);
+    }
+  }
+  if (typeof corpo.ativo === 'boolean') set.ativo = corpo.ativo;
+  if (!Object.keys(set).length) throw new ErroRegra('Nada para salvar.');
+  const [c] = await db.update(schema.combos).set(set).where(eq(schema.combos.id, id)).returning();
+  if (!c) throw new ErroRegra('Combo não encontrado.', 404);
+  await registrar(db, { tipo: 'combo_salvo', usuarioId: u.id, descricao: `${u.nome} alterou o ${c.nome}: ${reais(c.precoCentavos)}, ${textoJanelas(c.janelas)}${c.ativo ? '' : ' (desligado)'}` });
+  return { combo: c };
+}
+
+/** Cria um combo: { nome, descricao, precoCentavos, horarios: "Qua, Qui 17:00-20:00", itens: [...] }. */
+export async function criarCombo(db: Db, u: Usuario, corpo: Record<string, unknown>) {
+  if (!tem(u.papel, 'cardapio')) throw new ErroRegra('Seu perfil não mexe nos combos.', 403);
+  const nome = typeof corpo.nome === 'string' ? corpo.nome.trim().slice(0, 60) : '';
+  if (nome.length < 3) throw new ErroRegra('Dê um nome ao combo.');
+  const preco = Number(corpo.precoCentavos);
+  if (!Number.isInteger(preco) || preco < 1) throw new ErroRegra('Preço inválido.');
+  let janelas;
+  try {
+    janelas = lerJanelas(String(corpo.horarios || ''));
+  } catch (e) {
+    throw new ErroRegra((e as Error).message);
+  }
+  const itensBrutos = Array.isArray(corpo.itens) ? (corpo.itens as Record<string, unknown>[]) : [];
+  const itens = itensBrutos.map((i) => {
+    const q = Number(i?.quantidade);
+    if (!Number.isInteger(q) || q < 1 || q > 24) throw new ErroRegra('Quantidade inválida no combo.');
+    if (i.escolha === 'long-neck') return { escolha: 'long-neck' as const, quantidade: q };
+    if (typeof i.produtoId !== 'string') throw new ErroRegra('Produto inválido no combo.');
+    return { produtoId: i.produtoId, quantidade: q, nome: typeof i.nome === 'string' ? i.nome.slice(0, 60) : null };
+  });
+  if (!itens.length) throw new ErroRegra('O combo precisa de pelo menos um item.');
+  const fixos = itens.filter((i): i is { produtoId: string; quantidade: number; nome: string | null } => 'produtoId' in i);
+  if (fixos.length) {
+    const achados = await db.select({ id: schema.produtos.id }).from(schema.produtos).where(inArray(schema.produtos.id, fixos.map((f) => f.produtoId)));
+    if (achados.length !== new Set(fixos.map((f) => f.produtoId)).size) throw new ErroRegra('Um produto do combo não existe.');
+  }
+  const descricao = typeof corpo.descricao === 'string' ? corpo.descricao.trim().slice(0, 120) || null : null;
+  const [c] = await db.insert(schema.combos).values({ nome, descricao, precoCentavos: preco, janelas, itens }).returning();
+  await registrar(db, { tipo: 'combo_salvo', usuarioId: u.id, descricao: `${u.nome} criou o ${c.nome}: ${reais(c.precoCentavos)}, ${textoJanelas(c.janelas)}` });
+  return { combo: c };
 }

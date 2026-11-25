@@ -1,5 +1,6 @@
 // Fluxo completo contra um PostgreSQL de verdade (PGlite em memória).
 import { randomUUID } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { beforeAll, describe, expect, it } from 'vitest';
 import { abrirPglite, schema, type Db } from '@/db';
 import type { Usuario } from './auth';
@@ -513,6 +514,42 @@ describe('fluxo do pedido pago', () => {
     expect(pv.taxaServicoCentavos).toBe(0);
     const { pedido } = await confirmarPagamento(db, garcom, { chave: randomUUID(), mesaId: mesa, itens, formaPagamento: 'credito', taxaServico: true });
     expect(pedido!).toMatchObject({ totalCentavos: pv.totalCentavos, taxaServicoCentavos: 0 });
+  });
+
+  it('combos do happy hour: preço fechado, garçom escolhe as long necks, estoque baixa tudo, fora do horário não vale', async () => {
+    const prods = await listarProdutos(db, true);
+    const lata = prods.find((p) => p.nome === 'Cerveja lata 350 ml')!;
+    const ln = prods.find((p) => p.balde && p.id !== lata.id) || lata;
+    const batata = prods.find((p) => p.setor === 'cozinha')!;
+    await alterarEstoque(db, admin, ln.id, 'ajustar', 20);
+    const [combo] = await db
+      .insert(schema.combos)
+      .values({ nome: 'Combo Teste', descricao: '2 long necks + batata', precoCentavos: 5990, janelas: [{ dias: [0, 1, 2, 3, 4, 5, 6], inicio: '00:00', fim: '23:59' }], itens: [{ produtoId: batata.id, quantidade: 1, nome: 'Batata 250 g' }, { escolha: 'long-neck', quantidade: 2 }] })
+      .returning();
+    // escolheu errado (só 1 long neck): recusa
+    await expect(previa(db, { mesaId: mesa, itens: [], combos: [{ comboId: combo.id, escolhas: { [ln.id]: 1 } }] })).rejects.toThrow(/Escolha 2/);
+    // batata não é long neck
+    await expect(previa(db, { mesaId: mesa, itens: [], combos: [{ comboId: combo.id, escolhas: { [batata.id]: 2 } }] })).rejects.toThrow(/long necks/);
+    const pv = await previa(db, { mesaId: mesa, itens: [{ produtoId: lata.id, quantidade: 1 }], combos: [{ comboId: combo.id, escolhas: { [ln.id]: 2 } }] });
+    expect(pv.totalCentavos).toBe(5990 + lata.precoCentavos);
+    expect(pv.setores.sort()).toEqual(['bar', 'cozinha']);
+    const { pedido } = await confirmarPagamento(db, garcom, {
+      chave: randomUUID(),
+      mesaId: mesa,
+      formaPagamento: 'pix',
+      itens: [{ produtoId: lata.id, quantidade: 1 }],
+      combos: [{ comboId: combo.id, escolhas: { [ln.id]: 2 } }],
+      totalCobradoCentavos: pv.totalCentavos,
+      precosCobrados: pv.linhas.filter((l) => !l.comboId).map((l) => ({ produtoId: l.produtoId, precoCentavos: l.precoCentavos })),
+    });
+    expect(pedido!.totalCentavos).toBe(5990 + lata.precoCentavos);
+    const est = (await listarProdutos(db, true)).find((p) => p.id === ln.id)!.estoque;
+    expect(est).toBe(ln.id === lata.id ? 17 : 18); // 2 do combo (+1 avulsa se for a mesma)
+    // fora do horário: não vale
+    await db.update(schema.combos).set({ janelas: [{ dias: [9], inicio: '00:00', fim: '00:01' }] }).where(eq(schema.combos.id, combo.id));
+    await expect(previa(db, { mesaId: mesa, itens: [], combos: [{ comboId: combo.id, escolhas: { [ln.id]: 2 } }] })).rejects.toThrow(/não está valendo/);
+    await encerrar(db, admin, pedido!.id, 'teste de combo');
+    await alterarEstoque(db, admin, ln.id, 'desligar', null);
   });
 
   it('custo do produto: só o administrador vê na lista completa', async () => {

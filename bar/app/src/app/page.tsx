@@ -10,7 +10,7 @@ import { DIAS_SEMANA } from '@/domain/promocao';
 import { linkMapa, linkWhatsapp } from '@/domain/site';
 import { semUsuarios, usuarioAtual } from '@/server/auth';
 import { listarProdutos } from '@/server/cadastros';
-import { promocoesDoSite } from '@/server/promocoes';
+import { listarCombos, promocoesDoSite } from '@/server/promocoes';
 import { lerSite } from '@/server/site';
 
 export const dynamic = 'force-dynamic';
@@ -42,7 +42,8 @@ export async function generateMetadata() {
 export default async function Site() {
   const db = await getDb();
   if (await semUsuarios(db)) redirect('/primeiro-acesso');
-  const [site, todos, promos, u] = await Promise.all([lerSite(db), listarProdutos(db), promocoesDoSite(db), usuarioAtual()]);
+  const [site, todos, promos, todosCombos, u] = await Promise.all([lerSite(db), listarProdutos(db), promocoesDoSite(db), listarCombos(db), usuarioAtual()]);
+  const combos = todosCombos.filter((c) => c.ativo);
   // esgotado não aparece no site
   const produtos = todos.filter((p) => p.estoque === null || !p.estoqueTrava || p.estoque > 0);
   const whats = linkWhatsapp(site.whatsapp, `Olá! Vim pelo site do ${site.nome}.`);
@@ -81,7 +82,7 @@ export default async function Site() {
           </a>
           <nav className="pv-links">
             <a href="#cardapio">Cardápio</a>
-            {promos.length > 0 && <a href="#promocoes">Promoções</a>}
+            {promos.length + combos.length > 0 && <a href="#promocoes">Happy hour</a>}
             <a href="#como-funciona">Como funciona</a>
             <a href="#contato">Visite</a>
           </nav>
@@ -127,9 +128,14 @@ export default async function Site() {
         </div>
       </section>
 
-      {promos.length > 0 && (
+      {promos.length + combos.length > 0 && (
         <section id="promocoes" className="pv-secao pv-promos">
           <div className="pv-largura">
+            {combos.length > 0 && (
+              <div className="pv-cabeca" style={{ marginBottom: 8 }}>
+                <h2 className="pv-titulo">Happy hour do Vikings</h2>
+              </div>
+            )}
             {promos.map((p) => {
               const pagas = p.precoNormalCentavos ? p.precoComboCentavos / p.precoNormalCentavos : 0;
               const gratis = Number.isInteger(pagas) && pagas > 0 ? p.quantidadeCombo - pagas : 0;
@@ -163,6 +169,21 @@ export default async function Site() {
                 </div>
               );
             })}
+            {combos.map((c) => (
+              <div key={c.id} className={`pv-promo ${c.valendo ? 'valendo' : ''}`}>
+                <div className="pv-promo-fogo" aria-hidden>
+                  🍻
+                </div>
+                <div className="pv-promo-texto">
+                  <span className="pv-promo-tag">{c.valendo ? 'Valendo agora' : 'Combo'}</span>
+                  <h2>{c.nome}</h2>
+                  <p>
+                    {c.descricao} por <b>{reais(c.precoCentavos)}</b>
+                  </p>
+                  <p className="pv-promo-quando">{c.horarios.replace(/(\d{2}):00/g, (_, h) => `${Number(h)}h`).replace(/-/g, ' às ').replace('Todos os dias', 'todos os dias')}</p>
+                </div>
+              </div>
+            ))}
           </div>
         </section>
       )}

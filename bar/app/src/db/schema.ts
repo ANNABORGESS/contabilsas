@@ -119,6 +119,7 @@ export const pedidoItens = pgTable(
     quantidadeCancelada: integer('quantidade_cancelada').notNull().default(0), // cancelados um a um pelo administrador
     unidades: integer('unidades').notNull().default(1), // unidades do produto por item (combo da promoção: 2)
     promocaoId: uuid('promocao_id'), // promoção que deu o preço deste item
+    comboId: uuid('combo_id'), // combo do happy hour a que este item pertence
   },
   (t) => [index('pedido_itens_pedido_idx').on(t.pedidoId)],
 );
@@ -262,3 +263,17 @@ export const caixaMovimentos = pgTable(
   },
   (t) => [index('caixa_mov_data_idx').on(t.data)],
 );
+
+/** Combos do happy hour: vários produtos por um preço, em janelas de dia e horário (Manaus). */
+export const combos = pgTable('combos', {
+  id: id(),
+  nome: text('nome').notNull(),
+  descricao: text('descricao'),
+  precoCentavos: integer('preco_centavos').notNull(),
+  janelas: jsonb('janelas').$type<{ dias: number[]; inicio: string; fim: string }[]>().notNull(),
+  // fixos { produtoId, quantidade, nome? } e escolhas { escolha: 'long-neck', quantidade }
+  itens: jsonb('itens').$type<({ produtoId: string; quantidade: number; nome?: string | null } | { escolha: 'long-neck'; quantidade: number })[]>().notNull(),
+  ativo: boolean('ativo').notNull().default(true),
+  ordem: integer('ordem').notNull().default(0),
+  criadoEm: criadoEm(),
+});

@@ -28,6 +28,15 @@ interface Promo {
   terminaEm: string | null;
   resultado: ResultadoPromocao;
 }
+interface ComboAdm {
+  id: string;
+  nome: string;
+  descricao: string | null;
+  precoCentavos: number;
+  horarios: string;
+  ativo: boolean;
+  valendo: boolean;
+}
 interface Produto {
   id: string;
   nome: string;
@@ -40,7 +49,8 @@ const textoDias = (d: number[]) => (d.length === 7 ? 'Todos os dias' : d.map((x)
 export default function Promocoes() {
   const [periodo, setPeriodo] = useState<{ de: string; ate: string } | null>(null);
   const q = periodo ? `?de=${periodo.de}&ate=${periodo.ate}` : '';
-  const { dados, erro, recarregar } = useDados<{ de: string; ate: string; promocoes: Promo[] }>(`/api/promocoes${q}`);
+  const { dados, erro, recarregar } = useDados<{ de: string; ate: string; promocoes: Promo[]; combos: ComboAdm[] }>(`/api/promocoes${q}`);
+  const [editandoCombo, setEditandoCombo] = useState<ComboAdm | null>(null);
   const cardapio = useDados<{ produtos: Produto[] }>('/api/cardapio?todos=1');
   const [editando, setEditando] = useState<Promo | 'nova' | null>(null);
   const [msg, setMsg] = useState<{ tipo: 'ok' | 'erro'; texto: string } | null>(null);
@@ -106,6 +116,42 @@ export default function Promocoes() {
         })}
         {dados && !lista.length && <div className="cartao vazio">Nenhuma promoção cadastrada.</div>}
       </div>
+
+      {(dados?.combos.length || 0) > 0 && (
+        <>
+          <h2 style={{ margin: '6px 0 12px' }}>🔥 Combos do happy hour</h2>
+          <div className="grade g2" style={{ marginBottom: 14 }}>
+            {dados!.combos.map((c) => (
+              <div key={c.id} className="cartao">
+                <header>
+                  <h2>{c.nome}</h2>
+                  {!c.ativo ? <span className="chip">Desligado</span> : c.valendo ? <span className="chip ped-pago">Valendo agora</span> : <span className="chip">Fora do horário</span>}
+                </header>
+                <div>
+                  {c.descricao} · <b>{reais(c.precoCentavos)}</b>
+                </div>
+                <div className="fraco">{c.horarios}</div>
+                <div className="fila" style={{ marginTop: 10 }}>
+                  <button className="btn pequeno" onClick={() => setEditandoCombo(c)}>
+                    Editar
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+      {editandoCombo && (
+        <FormCombo
+          c={editandoCombo}
+          fechar={() => setEditandoCombo(null)}
+          salvo={(t) => {
+            setEditandoCombo(null);
+            setMsg({ tipo: 'ok', texto: t });
+            void recarregar();
+          }}
+        />
+      )}
 
       <div className="cartao">
         <header>
@@ -273,6 +319,49 @@ function FormPromocao({ p, produtos, fechar, salvo }: { p: Promo | null; produto
           <input type="checkbox" name="ativa" defaultChecked={p ? p.ativa : true} /> Ligada (desligue para pausar sem apagar)
         </label>
         <p className="fraco">Cada combo completo no pedido sai pelo preço do combo; quantidade que sobra vai no preço normal. O estoque baixa todas as unidades entregues. Pedido confirmado antes do fim mantém o preço.</p>
+        {erro && <Aviso tipo="erro">{erro}</Aviso>}
+        <button className="btn primario" disabled={indo}>
+          {indo ? 'Salvando…' : 'Salvar'}
+        </button>
+      </form>
+    </Modal>
+  );
+}
+
+function FormCombo({ c, fechar, salvo }: { c: ComboAdm; fechar: () => void; salvo: (t: string) => void }) {
+  const [erro, setErro] = useState('');
+  const [indo, setIndo] = useState(false);
+  async function salvar(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const d = new FormData(e.currentTarget);
+    setIndo(true);
+    setErro('');
+    try {
+      await api(`/api/combos/${c.id}`, 'PATCH', { precoCentavos: paraCentavos(String(d.get('preco') || '')), horarios: d.get('horarios'), ativo: d.get('ativo') === 'on' });
+      salvo(`${c.nome} salvo.`);
+    } catch (x) {
+      setErro((x as Error).message);
+      setIndo(false);
+    }
+  }
+  return (
+    <Modal titulo={`Editar ${c.nome}`} aoFechar={fechar}>
+      <form className="formulario" onSubmit={salvar}>
+        <p className="fraco" style={{ margin: 0 }}>{c.descricao}</p>
+        <label className="campo">
+          Preço do combo (R$)
+          <input name="preco" inputMode="decimal" defaultValue={(c.precoCentavos / 100).toFixed(2).replace('.', ',')} required />
+        </label>
+        <label className="campo">
+          Dias e horários (Manaus)
+          <input name="horarios" defaultValue={c.horarios} placeholder="Qua, Qui 17:00-20:00; Sex 16:00-20:00" required />
+        </label>
+        <p className="fraco" style={{ margin: 0 }}>
+          Separe com ponto e vírgula. Ex.: <b>Qua, Qui 17:00-20:00; Sex 16:00-20:00</b> ou <b>Todos 17:00-23:59</b>.
+        </p>
+        <label className="fila">
+          <input type="checkbox" name="ativo" defaultChecked={c.ativo} /> Ligado
+        </label>
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
         <button className="btn primario" disabled={indo}>
           {indo ? 'Salvando…' : 'Salvar'}

@@ -4850,3 +4850,20 @@ button {
 .tema-vikings .lateral .rodape .btn {
   min-height: 44px;
 }
+/* combos do happy hour no pedido */
+.combos-cartao {
+  display: grid;
+  gap: 10px;
+  border-color: var(--cafe, #3d2618) !important;
+}
+.combo-linha {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding-top: 10px;
+  border-top: 1px solid var(--linha);
+}
+.combo-linha .btn {
+  flex: none;
+}

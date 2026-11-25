@@ -49,6 +49,8 @@ export interface LinhaPedido {
   /** unidades do produto em cada item: 1, ou o tamanho do combo da promoção */
   unidades: number;
   promocaoId: string | null;
+  /** combo do happy hour a que a linha pertence */
+  comboId?: string | null;
 }
 
 export interface PedidoMontado {
@@ -116,6 +118,7 @@ export function aplicarPrecosCobrados(montado: PedidoMontado, cobrado: { produto
   const chave = (c: { produtoId: string; promocaoId?: string | null }) => `${c.produtoId}|${c.promocaoId || ''}`;
   const preco = new Map(cobrado.map((c) => [chave(c), c.precoCentavos]));
   const linhas = montado.linhas.map((l) => {
+    if (l.comboId) return l; // combo: o preço é sempre o do combo
     const p = preco.get(chave(l));
     const precoCentavos = Number.isInteger(p) && p! >= 0 ? p! : l.precoCentavos;
     return { ...l, precoCentavos, subtotalCentavos: precoCentavos * l.quantidade };
@@ -144,4 +147,13 @@ export function agruparBaldes<T extends { quantidade: number; balde?: number | n
 /** "3× Batata frita" ou "6× Cerveja lata (balde 1)". */
 export function textoItem(i: { quantidade: number; nome: string; balde?: number | null }) {
   return `${i.quantidade}× ${i.nome}${i.balde ? ` (balde ${i.balde})` : ''}`;
+}
+
+/** Junta as linhas dos combos às dos produtos avulsos (pedido pode ter só combos). */
+export function juntarCombos(montado: PedidoMontado | null, combos: LinhaPedido[]): PedidoMontado {
+  const linhas = [...(montado?.linhas ?? []), ...combos];
+  if (!linhas.length) throw new ErroPedido('Adicione pelo menos um produto.');
+  const totalCentavos = linhas.reduce((a, l) => a + l.subtotalCentavos, 0);
+  if (totalCentavos <= 0) throw new ErroPedido('O total do pedido deve ser maior que zero.');
+  return { linhas, totalCentavos, setores: SETORES.filter((st) => linhas.some((l) => l.setor === st)) };
 }
