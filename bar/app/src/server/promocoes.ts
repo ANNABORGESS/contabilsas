@@ -1,7 +1,7 @@
 // Promoções programadas: cadastro (administrador ou gerente), as que valem agora (para o garçom,
 // com a contagem regressiva) e o relatório de cada uma no período.
 import { and, asc, desc, eq, gte, inArray, isNotNull, lte } from 'drizzle-orm';
-import { escolhasDoCombo, lerJanelas, restanteDoCombo, textoJanelas, type Combo } from '@/domain/combo';
+import { escolhasDoCombo, excluidasDoCombo, lerJanelas, restanteDoCombo, textoJanelas, type Combo } from '@/domain/combo';
 import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
@@ -149,7 +149,7 @@ export async function combosAgora(db: Db, agora = new Date()) {
   return (await todosCombos(db))
     .map((c) => ({ c, ms: restanteDoCombo(c, agora) }))
     .filter((x) => x.ms !== null)
-    .map(({ c, ms }) => ({ id: c.id, nome: c.nome, descricao: c.descricao, precoCentavos: c.precoCentavos, itens: c.itens, escolhas: escolhasDoCombo(c), terminaEm: new Date(agora.getTime() + ms!).toISOString() }));
+    .map(({ c, ms }) => ({ id: c.id, nome: c.nome, descricao: c.descricao, precoCentavos: c.precoCentavos, itens: c.itens, escolhas: escolhasDoCombo(c), excluir: excluidasDoCombo(c), terminaEm: new Date(agora.getTime() + ms!).toISOString() }));
 }
 
 /** Para o administrador e o site: todos os combos, com as janelas em texto e se valem agora. */

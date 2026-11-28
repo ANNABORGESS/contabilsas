@@ -17,7 +17,7 @@ export interface JanelaCombo {
 
 export type ItemCombo =
   | { produtoId: string; quantidade: number; nome?: string | null } // fixo
-  | { escolha: 'long-neck'; quantidade: number }; // o garçom escolhe entre as cervejas de balde
+  | { escolha: 'long-neck'; quantidade: number; excluir?: string[] }; // o garçom escolhe entre as cervejas de balde (menos as excluídas)
 
 export interface Combo {
   id: string;
@@ -62,6 +62,9 @@ export function restanteDoCombo(c: Pick<Combo, 'ativo' | 'janelas'>, agora: Date
   }
   return null;
 }
+
+/** Long necks que não entram nas escolhas deste combo (ex.: a Original, que já tem a promoção em dobro). */
+export const excluidasDoCombo = (c: Pick<Combo, 'itens'>) => [...new Set(c.itens.flatMap((i) => ('escolha' in i ? i.excluir ?? [] : [])))];
 
 /** Quantas long necks o garçom precisa escolher. */
 export const escolhasDoCombo = (c: Pick<Combo, 'itens'>) => c.itens.reduce((a, i) => a + ('escolha' in i ? i.quantidade : 0), 0);
@@ -133,6 +136,7 @@ export function linhasDosCombos(pedidos: ComboSolicitado[], combos: Combo[], pro
         if (!q) continue;
         const p = porId.get(id);
         if (!p || !p.ativo || !p.balde) throw new ErroCombo(`No ${c.nome} só entram as long necks.`);
+        if (excluidasDoCombo(c).includes(id)) throw new ErroCombo(`${p.nome} não entra no ${c.nome}.`);
         soma += q;
         componentes.push({ produtoId: id, quantidade: q });
       }

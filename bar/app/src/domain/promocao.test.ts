@@ -133,3 +133,12 @@ describe('combo sem horário', () => {
     expect(restanteDoCombo({ ativo: true, janelas: js }, new Date('2026-11-27T23:59:40-04:00'))).not.toBeNull();
   });
 });
+
+describe('combo sem a Original', () => {
+  it('long neck excluída é recusada no combo', () => {
+    const c = { id: 'f', nome: 'Combo Fim de Expediente', descricao: null, precoCentavos: 5990, ativo: true, janelas: [], itens: [{ escolha: 'long-neck' as const, quantidade: 2, excluir: ['o'] }] };
+    const prods = [{ id: 'o', nome: 'Original', setor: 'bar', ativo: true, balde: true }, { id: 'h', nome: 'Heineken', setor: 'bar', ativo: true, balde: true }];
+    expect(() => linhasDosCombos([{ comboId: 'f', escolhas: { o: 2 } }], [c], prods)).toThrow(/não entra/);
+    expect(linhasDosCombos([{ comboId: 'f', escolhas: { h: 2 } }], [c], prods)).toHaveLength(1);
+  });
+});

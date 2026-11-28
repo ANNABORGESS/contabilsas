@@ -190,6 +190,8 @@ interface ComboAgora {
   descricao: string | null;
   precoCentavos: number;
   escolhas: number;
+  /** long necks que não entram neste combo */
+  excluir?: string[];
   terminaEm: string;
 }
 type Tela = { t: 'inicio' } | { t: 'pedido'; mesaId: string } | { t: 'pagamento' } | { t: 'enviado'; pedido: DetalhePedido; duplicado: boolean };
@@ -682,7 +684,7 @@ function TelaProdutos(props: {
         {escolhendoCombo && (
           <EscolherCombo
             combo={escolhendoCombo}
-            produtos={deBalde}
+            produtos={deBalde.filter((p) => !(escolhendoCombo.excluir || []).includes(p.id))}
             disponivel={Object.fromEntries(deBalde.map((p) => [p.id, sobra(p)]))}
             fechar={() => setEscolhendoCombo(null)}
             salvar={(escolhas) => {
