@@ -101,7 +101,11 @@ export interface ProdutoDoCombo {
   setor: string;
   ativo: boolean;
   balde?: boolean | null;
+  precoCentavos?: number;
 }
+
+/** Long necks além do mínimo do combo: cobradas pelo preço normal, até este tanto a mais. */
+export const MAX_ADICIONAIS = 10;
 
 export interface LinhaDeCombo {
   produtoId: string;
@@ -140,7 +144,23 @@ export function linhasDosCombos(pedidos: ComboSolicitado[], combos: Combo[], pro
         soma += q;
         componentes.push({ produtoId: id, quantidade: q });
       }
-      if (soma !== precisa) throw new ErroCombo(`Escolha ${precisa} long necks para o ${c.nome}.`);
+      if (soma < precisa) throw new ErroCombo(`Escolha pelo menos ${precisa} long necks para o ${c.nome}.`);
+      if (soma > precisa + MAX_ADICIONAIS) throw new ErroCombo(`No máximo ${MAX_ADICIONAIS} long necks adicionais no ${c.nome}.`);
+    }
+    // as primeiras long necks escolhidas entram no preço do combo; o que passar do mínimo é adicional
+    const adicionais: { produtoId: string; quantidade: number }[] = [];
+    if (precisa) {
+      let incluidas = 0;
+      const fixos = componentes.filter((x) => c.itens.some((it) => !('escolha' in it) && it.produtoId === x.produtoId));
+      const escolhidas = componentes.filter((x) => !fixos.includes(x));
+      componentes.length = 0;
+      componentes.push(...fixos);
+      for (const e of escolhidas) {
+        const entra = Math.min(e.quantidade, precisa - incluidas);
+        incluidas += entra;
+        if (entra) componentes.push({ produtoId: e.produtoId, quantidade: entra });
+        if (e.quantidade - entra) adicionais.push({ produtoId: e.produtoId, quantidade: e.quantidade - entra });
+      }
     }
     componentes.forEach((comp, i) => {
       const p = porId.get(comp.produtoId);
@@ -153,6 +173,12 @@ export function linhasDosCombos(pedidos: ComboSolicitado[], combos: Combo[], pro
         linhas.push({ produtoId: p.id, nome: `${c.nome} · ${nomeItem}${comp.quantidade > 1 ? ` (${comp.quantidade} un.)` : ''}`, setor: p.setor, quantidade: 1, precoCentavos: c.precoCentavos, subtotalCentavos: c.precoCentavos, balde: null, unidades: comp.quantidade, promocaoId: null, comboId: c.id });
       else linhas.push({ produtoId: p.id, nome: `${c.nome} · ${nomeItem}`, setor: p.setor, quantidade: comp.quantidade, precoCentavos: 0, subtotalCentavos: 0, balde: null, unidades: 1, promocaoId: null, comboId: c.id });
     });
+    for (const a of adicionais) {
+      const p = porId.get(a.produtoId)!;
+      if (!ehSetor(p.setor)) throw new ErroCombo(`${p.nome} está sem setor de preparo.`);
+      const preco = p.precoCentavos ?? 0;
+      linhas.push({ produtoId: p.id, nome: `${c.nome} · ${p.nome} (adicional)`, setor: p.setor, quantidade: a.quantidade, precoCentavos: preco, subtotalCentavos: preco * a.quantidade, balde: null, unidades: 1, promocaoId: null, comboId: c.id });
+    }
   }
   return linhas;
 }

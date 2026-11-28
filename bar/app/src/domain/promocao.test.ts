@@ -142,3 +142,18 @@ describe('combo sem a Original', () => {
     expect(linhasDosCombos([{ comboId: 'f', escolhas: { h: 2 } }], [c], prods)).toHaveLength(1);
   });
 });
+
+describe('combo com long necks adicionais', () => {
+  it('mínimo 2; as que passam são cobradas pelo preço normal', () => {
+    const c = { id: 'f', nome: 'Combo Fim de Expediente', descricao: null, precoCentavos: 5990, ativo: true, janelas: [], itens: [{ produtoId: 'b', quantidade: 1 }, { escolha: 'long-neck' as const, quantidade: 2, excluir: ['o'] }] };
+    const prods = [
+      { id: 'b', nome: 'Batata', setor: 'cozinha', ativo: true, balde: false, precoCentavos: 3500 },
+      { id: 'h', nome: 'Heineken', setor: 'bar', ativo: true, balde: true, precoCentavos: 1400 },
+      { id: 'c', nome: 'Corona', setor: 'bar', ativo: true, balde: true, precoCentavos: 1400 },
+    ];
+    expect(() => linhasDosCombos([{ comboId: 'f', escolhas: { h: 1 } }], [c], prods)).toThrow(/pelo menos 2/);
+    const l = linhasDosCombos([{ comboId: 'f', escolhas: { h: 2, c: 2 } }], [c], prods);
+    expect(l.reduce((a, x) => a + x.subtotalCentavos, 0)).toBe(5990 + 2 * 1400);
+    expect(l.reduce((a, x) => a + (x.produtoId === 'b' ? 0 : x.quantidade * x.unidades), 0)).toBe(4); // estoque: 4 garrafas
+  });
+});

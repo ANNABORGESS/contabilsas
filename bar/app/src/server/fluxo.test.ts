@@ -527,7 +527,7 @@ describe('fluxo do pedido pago', () => {
       .values({ nome: 'Combo Teste', descricao: '2 long necks + batata', precoCentavos: 5990, janelas: [{ dias: [0, 1, 2, 3, 4, 5, 6], inicio: '00:00', fim: '23:59' }], itens: [{ produtoId: batata.id, quantidade: 1, nome: 'Batata 250 g' }, { escolha: 'long-neck', quantidade: 2 }] })
       .returning();
     // escolheu errado (só 1 long neck): recusa
-    await expect(previa(db, { mesaId: mesa, itens: [], combos: [{ comboId: combo.id, escolhas: { [ln.id]: 1 } }] })).rejects.toThrow(/Escolha 2/);
+    await expect(previa(db, { mesaId: mesa, itens: [], combos: [{ comboId: combo.id, escolhas: { [ln.id]: 1 } }] })).rejects.toThrow(/pelo menos 2/);
     // batata não é long neck
     await expect(previa(db, { mesaId: mesa, itens: [], combos: [{ comboId: combo.id, escolhas: { [batata.id]: 2 } }] })).rejects.toThrow(/long necks/);
     const pv = await previa(db, { mesaId: mesa, itens: [{ produtoId: lata.id, quantidade: 1 }], combos: [{ comboId: combo.id, escolhas: { [ln.id]: 2 } }] });

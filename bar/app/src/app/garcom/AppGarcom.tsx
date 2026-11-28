@@ -572,13 +572,25 @@ function TelaProdutos(props: {
   const itens = Object.entries(carrinho).filter(([id]) => porId.has(id));
   const promoDe = new Map(props.promocoes.map((x) => [x.produtoId, x]));
   const somaBalde = (b: Balde) => Object.entries(b).reduce((a, [id, q]) => a + precoComPromo(porId.get(id)?.precoCentavos || 0, q, promoDe.get(id)), 0);
-  const precoDoCombo = (id: string) => props.combos.find((c) => c.id === id)?.precoCentavos ?? 0;
+  // preço do combo + long necks adicionais (as que passam do mínimo) pelo preço normal, como no servidor
+  const precoDoCombo = (ce: ComboNoPedido) => {
+    const c = props.combos.find((x) => x.id === ce.comboId);
+    if (!c) return 0;
+    let incluidas = 0;
+    let extra = 0;
+    for (const [id, q] of Object.entries(ce.escolhas || {})) {
+      const entra = Math.min(q, c.escolhas - incluidas);
+      incluidas += entra;
+      extra += (q - entra) * (porId.get(id)?.precoCentavos ?? 0);
+    }
+    return c.precoCentavos + extra;
+  };
   const qtdTotal = itens.reduce((a, [, q]) => a + q, 0) + baldes.length + props.combosEscolhidos.length;
   // estimativa na tela; o valor que vale é o da prévia, calculado no servidor com o horário de lá
   const total =
     itens.reduce((a, [id, q]) => a + precoComPromo(porId.get(id)!.precoCentavos, q, promoDe.get(id)), 0) +
     baldes.reduce((a, b) => a + somaBalde(b), 0) +
-    props.combosEscolhidos.reduce((a, c) => a + precoDoCombo(c.comboId), 0);
+    props.combosEscolhidos.reduce((a, c) => a + precoDoCombo(c), 0);
   const [escolhendoCombo, setEscolhendoCombo] = useState<ComboAgora | null>(null);
   const gratisTotal =
     itens.reduce((a, [id, q]) => a + gratisDe(porId.get(id)!.precoCentavos, q, promoDe.get(id)), 0) +
@@ -671,7 +683,7 @@ function TelaProdutos(props: {
                     </div>
                   </div>
                   <div className="fila">
-                    <span className="num">{c ? reais(c.precoCentavos) : '—'}</span>
+                    <span className="num">{c ? reais(precoDoCombo(ce)) : '—'}</span>
                     <button className="btn fantasma pequeno" onClick={() => props.definirCombos(props.combosEscolhidos.filter((_, k) => k !== i))} aria-label="Tirar combo">
                       ✕
                     </button>
@@ -934,6 +946,16 @@ function EscolherCombo({ combo, produtos, disponivel, fechar, salvar }: { combo:
   const [e, setE] = useState<Record<string, number>>({});
   const n = Object.values(e).reduce((a, q) => a + q, 0);
   const falta = combo.escolhas - n;
+  const extras = Math.max(0, -falta);
+  // adicionais pelo preço normal: as primeiras escolhidas entram no combo, as seguintes são cobradas (igual ao servidor)
+  let incluidas = 0;
+  let extra = 0;
+  for (const [id, q] of Object.entries(e)) {
+    const entra = Math.min(q, combo.escolhas - incluidas);
+    incluidas += entra;
+    extra += (q - entra) * (produtos.find((p) => p.id === id)?.precoCentavos ?? 0);
+  }
+  const totalEstimado = combo.precoCentavos + extra;
   const mudar = (id: string, q: number) => setE((at) => ({ ...at, [id]: Math.max(0, q) }));
   return (
     <Modal titulo={combo.nome} aoFechar={fechar}>
@@ -941,14 +963,18 @@ function EscolherCombo({ combo, produtos, disponivel, fechar, salvar }: { combo:
         {combo.descricao} · <b>{reais(combo.precoCentavos)}</b>
       </p>
       <div className="balde-contador">
-        <span className="num">
-          {n}/{combo.escolhas}
+        <span className="num">{n}</span>
+        <span className="fraco">
+          {falta > 0
+            ? `escolha mais ${falta} long neck${falta > 1 ? 's' : ''} (mínimo ${combo.escolhas})`
+            : extras
+              ? `${extras} adicional${extras > 1 ? 'is' : ''} pelo preço normal`
+              : `mínimo completo · pode adicionar mais`}
         </span>
-        <span className="fraco">{falta > 0 ? `escolha mais ${falta} long neck${falta > 1 ? 's' : ''}` : 'Pronto'}</span>
       </div>
       {produtos.map((p) => {
         const q = e[p.id] || 0;
-        const pode = falta > 0 && q < disponivel[p.id];
+        const pode = q < disponivel[p.id] && n < combo.escolhas + MAX_ADICIONAIS_COMBO;
         return (
           <div key={p.id} className={`produto ${q ? 'escolhido' : ''}`}>
             <div className="info" onClick={() => pode && mudar(p.id, q + 1)}>
@@ -971,12 +997,14 @@ function EscolherCombo({ combo, produtos, disponivel, fechar, salvar }: { combo:
           </div>
         );
       })}
-      <button className="btn primario grande bloco" disabled={falta !== 0} onClick={() => salvar(Object.fromEntries(Object.entries(e).filter(([, q]) => q > 0)))}>
-        {falta ? `Escolha mais ${falta}` : `Colocar no pedido · ${reais(combo.precoCentavos)}`}
+      <button className="btn primario grande bloco" disabled={falta > 0} onClick={() => salvar(Object.fromEntries(Object.entries(e).filter(([, q]) => q > 0)))}>
+        {falta > 0 ? `Escolha mais ${falta}` : `Colocar no pedido · ${reais(totalEstimado)}`}
       </button>
     </Modal>
   );
 }
+
+const MAX_ADICIONAIS_COMBO = 10;
 
 // ---------- pagamento na maquininha ----------
 
