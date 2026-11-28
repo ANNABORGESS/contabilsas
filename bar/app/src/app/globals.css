@@ -4880,3 +4880,19 @@ button {
 .pv-promo * {
   font-variant-emoji: normal;
 }
+
+/* promoção Original em dobro em cartão claro: nude com letra café (contraste acima de 4,5:1) */
+.faixa-promo {
+  background: #f6ead8 !important;
+  color: #3d2618 !important;
+  border: 1px solid #e2cba8;
+  box-shadow: 0 6px 18px rgba(61, 38, 24, 0.08) !important;
+}
+.faixa-promo b {
+  color: #3d2618 !important;
+}
+.selo-promo {
+  background: #f6ead8 !important;
+  color: #5a3a24 !important;
+  border: 1px solid #e2cba8;
+}
