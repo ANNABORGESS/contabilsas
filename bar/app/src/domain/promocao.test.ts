@@ -123,3 +123,13 @@ describe('promoção sem horário', () => {
     expect(restanteDaPromocao({ ...p, ativa: false }, new Date('2026-11-28T12:00:00-04:00'))).toBeNull();
   });
 });
+
+import { comboSemHorario } from './combo';
+describe('combo sem horário', () => {
+  it('"Sem horário" vale sempre, inclusive meia-noite', () => {
+    const js = lerJanelas('Sem horário');
+    expect(comboSemHorario(js)).toBe(true);
+    expect(textoJanelas(js)).toBe('Sem horário');
+    expect(restanteDoCombo({ ativo: true, janelas: js }, new Date('2026-11-27T23:59:40-04:00'))).not.toBeNull();
+  });
+});

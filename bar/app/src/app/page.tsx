@@ -180,7 +180,7 @@ export default async function Site() {
                   <p>
                     {c.descricao} por <b>{reais(c.precoCentavos)}</b>
                   </p>
-                  <p className="pv-promo-quando">{c.horarios.replace(/(\d{2}):00/g, (_, h) => `${Number(h)}h`).replace(/-/g, ' às ').replace('Todos os dias', 'todos os dias')}</p>
+                  <p className="pv-promo-quando">{c.horarios === 'Sem horário' ? 'Todos os dias, o dia todo' : c.horarios.replace(/(\d{2}):00/g, (_, h) => `${Number(h)}h`).replace(/-/g, ' às ').replace('Todos os dias', 'todos os dias')}</p>
                 </div>
               </div>
             ))}

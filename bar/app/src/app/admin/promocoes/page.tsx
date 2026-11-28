@@ -384,7 +384,7 @@ function FormCombo({ c, fechar, salvo }: { c: ComboAdm; fechar: () => void; salv
           <input name="horarios" defaultValue={c.horarios} placeholder="Qua, Qui 17:00-20:00; Sex 16:00-20:00" required />
         </label>
         <p className="fraco" style={{ margin: 0 }}>
-          Separe com ponto e vírgula. Ex.: <b>Qua, Qui 17:00-20:00; Sex 16:00-20:00</b> ou <b>Todos 17:00-23:59</b>.
+          Separe com ponto e vírgula. Ex.: <b>Qua, Qui 17:00-20:00; Sex 16:00-20:00</b>, <b>Todos 17:00-23:59</b> ou <b>Sem horário</b>.
         </p>
         <label className="fila">
           <input type="checkbox" name="ativo" defaultChecked={c.ativo} /> Ligado

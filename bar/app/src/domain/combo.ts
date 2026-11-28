@@ -47,8 +47,12 @@ function agoraLocal(agora: Date, fuso: string) {
 }
 
 /** Milissegundos até o fim da janela que vale agora; null se nenhuma vale. */
+/** Sem horário: todos os dias, o dia inteiro. Vale direto, sem pausa à meia-noite. */
+export const comboSemHorario = (js: JanelaCombo[]) => js.some((j) => j.dias.length === 7 && j.inicio === '00:00' && j.fim === '23:59');
+
 export function restanteDoCombo(c: Pick<Combo, 'ativo' | 'janelas'>, agora: Date, fuso = FUSO_PROMOCAO): number | null {
   if (!c.ativo) return null;
+  if (comboSemHorario(c.janelas)) return 24 * 3600_000;
   const { dia, seg } = agoraLocal(agora, fuso);
   for (const j of c.janelas) {
     if (!HORA.test(j.inicio) || !HORA.test(j.fim) || !j.dias.includes(dia)) continue;
@@ -65,9 +69,11 @@ export const escolhasDoCombo = (c: Pick<Combo, 'itens'>) => c.itens.reduce((a, i
 /** "Qua, Qui 17:00-20:00; Sex 16:00-20:00" */
 const DIAS = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 export function textoJanelas(js: JanelaCombo[]) {
+  if (comboSemHorario(js)) return 'Sem horário';
   return js.map((j) => `${j.dias.length === 7 ? 'Todos os dias' : j.dias.map((d) => DIAS[d]).join(', ')} ${j.inicio}-${j.fim}`).join('; ');
 }
 export function lerJanelas(texto: string): JanelaCombo[] {
+  if (/sem\s*hor/i.test(texto)) return [{ dias: [0, 1, 2, 3, 4, 5, 6], inicio: '00:00', fim: '23:59' }];
   const out: JanelaCombo[] = [];
   for (const parte of texto.split(';').map((x) => x.trim()).filter(Boolean)) {
     const m = parte.match(/^(.*?)\s*(\d{1,2}:\d{2})\s*[-–a]+\s*(\d{1,2}:\d{2})$/i);
