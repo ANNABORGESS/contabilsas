@@ -91,14 +91,22 @@ export default function Promocoes() {
             <div key={p.id} className="cartao" style={valendo ? { borderColor: 'var(--marca)' } : undefined}>
               <header>
                 <h2>{p.nome}</h2>
-                {!p.ativa ? <span className="chip">Desligada</span> : valendo ? <span className="chip ped-pago">Valendo · termina em {textoRestante(falta)}</span> : <span className="chip">Fora do horário</span>}
+                {!p.ativa ? (
+                  <span className="chip">Desligada</span>
+                ) : valendo && p.dias.length === 7 && p.inicio === '00:00' && p.fim === '23:59' ? (
+                  <span className="chip ped-pago">Valendo · sem horário</span>
+                ) : valendo ? (
+                  <span className="chip ped-pago">Valendo · termina em {textoRestante(falta)}</span>
+                ) : (
+                  <span className="chip">Fora do horário</span>
+                )}
               </header>
               <div className="pilha" style={{ gap: 4 }}>
                 <div>
                   <b>{p.produto}</b>: {p.quantidadeCombo} por <b>{reais(p.precoComboCentavos)}</b> <span className="fraco">(normal {reais(p.precoNormalCentavos)} cada)</span>
                 </div>
                 <div className="fraco">
-                  {textoDias(p.dias)} · das {p.inicio} às {p.fim} · baixa {p.quantidadeCombo} un. do estoque por combo
+                  {p.dias.length === 7 && p.inicio === '00:00' && p.fim === '23:59' ? 'Sem horário: todos os dias, o dia todo' : `${textoDias(p.dias)} · das ${p.inicio} às ${p.fim}`} · baixa {p.quantidadeCombo} un. do estoque por combo
                 </div>
                 <div className="fraco">{p.mesas?.length ? `Só em: ${p.mesas.map((n) => nomeLocal(n)).join(', ')}` : 'Em todas as mesas e no balcão'}</div>
                 {p.destaque && <div className="fraco">Aviso no cardápio: “{p.destaque}”</div>}
@@ -227,6 +235,8 @@ export default function Promocoes() {
 
 function FormPromocao({ p, produtos, fechar, salvo }: { p: Promo | null; produtos: Produto[]; fechar: () => void; salvo: (t: string) => void }) {
   const [dias, setDias] = useState<number[]>(p?.dias || [0, 1, 2, 3, 4, 5, 6]);
+  const [inicio, setInicio] = useState(p?.inicio || '17:00');
+  const [fim, setFim] = useState(p?.fim || '20:00');
   const [erro, setErro] = useState('');
   const [indo, setIndo] = useState(false);
   async function salvar(e: React.FormEvent<HTMLFormElement>) {
@@ -297,14 +307,31 @@ function FormPromocao({ p, produtos, fechar, salvo }: { p: Promo | null; produto
             </button>
           </div>
         </div>
+        <label className="fila">
+          <input
+            type="checkbox"
+            checked={dias.length === 7 && inicio === '00:00' && fim === '23:59'}
+            onChange={(e) => {
+              if (e.target.checked) {
+                setDias([0, 1, 2, 3, 4, 5, 6]);
+                setInicio('00:00');
+                setFim('23:59');
+              } else {
+                setInicio('17:00');
+                setFim('20:00');
+              }
+            }}
+          />{' '}
+          Sem horário (vale todos os dias, o dia todo)
+        </label>
         <div className="linha-campos">
           <label className="campo">
             Começa (Manaus)
-            <input name="inicio" type="time" defaultValue={p?.inicio || '10:00'} required />
+            <input name="inicio" type="time" value={inicio} onChange={(e) => setInicio(e.target.value)} required />
           </label>
           <label className="campo">
             Termina (Manaus)
-            <input name="fim" type="time" defaultValue={p?.fim || '20:00'} required />
+            <input name="fim" type="time" value={fim} onChange={(e) => setFim(e.target.value)} required />
           </label>
         </div>
         <label className="campo">

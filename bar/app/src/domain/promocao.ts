@@ -37,8 +37,12 @@ function agoraLocal(agora: Date, fuso: string) {
 }
 
 /** Milissegundos até o fim, se está valendo agora; null se não está. */
+/** Sem horário: todos os dias, o dia inteiro (00:00 às 23:59). Vale direto, sem contagem regressiva. */
+export const semHorario = (p: Pick<Promocao, 'dias' | 'inicio' | 'fim'>) => p.dias.length === 7 && p.inicio === '00:00' && p.fim === '23:59';
+
 export function restanteDaPromocao(p: Promocao, agora: Date, fuso = FUSO_PROMOCAO): number | null {
   if (!p.ativa || !HORA.test(p.inicio) || !HORA.test(p.fim)) return null;
+  if (semHorario(p)) return 24 * 3600_000; // não acaba: sempre há um dia inteiro pela frente
   const { dia, segundos } = agoraLocal(agora, fuso);
   if (!p.dias.includes(dia)) return null;
   const ini = minutos(p.inicio) * 60;

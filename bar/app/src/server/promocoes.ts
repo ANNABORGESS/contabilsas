@@ -6,7 +6,7 @@ import type { Db } from '@/db';
 import { schema } from '@/db';
 import { reais } from '@/domain/dinheiro';
 import { tem } from '@/domain/papeis';
-import { DIAS_SEMANA, ErroPromocao, TOLERANCIA_MS, restanteDaPromocao, resultadoPromocao, validarPromocao, valeNaMesa, type Promocao } from '@/domain/promocao';
+import { DIAS_SEMANA, ErroPromocao, TOLERANCIA_MS, restanteDaPromocao, resultadoPromocao, semHorario, validarPromocao, valeNaMesa, type Promocao } from '@/domain/promocao';
 import { nomeLocal } from '@/domain/mesas';
 import type { PromocaoVigente } from '@/domain/pedido';
 import { dataValida } from '@/domain/turno';
@@ -22,7 +22,7 @@ export async function promocoesAgora(db: Db, agora = new Date()) {
   return lista
     .map((p) => ({ p, ms: restanteDaPromocao(p as Promocao, agora) }))
     .filter((x) => x.ms !== null)
-    .map(({ p, ms }) => ({ id: p.id, nome: p.nome, produtoId: p.produtoId, quantidadeCombo: p.quantidadeCombo, precoComboCentavos: p.precoComboCentavos, destaque: p.destaque, fim: p.fim, mesas: p.mesas ?? null, terminaEm: new Date(agora.getTime() + ms!).toISOString() }));
+    .map(({ p, ms }) => ({ id: p.id, nome: p.nome, produtoId: p.produtoId, quantidadeCombo: p.quantidadeCombo, precoComboCentavos: p.precoComboCentavos, destaque: p.destaque, fim: p.fim, semHorario: semHorario(p as Promocao), mesas: p.mesas ?? null, terminaEm: new Date(agora.getTime() + ms!).toISOString() }));
 }
 
 /**
@@ -45,7 +45,7 @@ function regra<T>(f: () => T): T {
 }
 
 const descrever = (p: { nome: string; quantidadeCombo: number; precoComboCentavos: number; dias: number[]; inicio: string; fim: string; mesas?: number[] | null }) =>
-  `${p.nome}: ${p.quantidadeCombo} por ${reais(p.precoComboCentavos)}, ${p.dias.length === 7 ? 'todos os dias' : p.dias.map((d) => DIAS_SEMANA[d]).join(', ')}, ${p.inicio} às ${p.fim}${p.mesas?.length ? `, só em ${p.mesas.map((n) => nomeLocal(n)).join(', ')}` : ''}`;
+  `${p.nome}: ${p.quantidadeCombo} por ${reais(p.precoComboCentavos)}, ${p.dias.length === 7 ? 'todos os dias' : p.dias.map((d) => DIAS_SEMANA[d]).join(', ')}, ${semHorario(p) ? 'sem horário' : `${p.inicio} às ${p.fim}`}${p.mesas?.length ? `, só em ${p.mesas.map((n) => nomeLocal(n)).join(', ')}` : ''}`;
 
 export async function salvarPromocao(db: Db, u: Usuario, id: string | null, corpo: Record<string, unknown>) {
   if (!tem(u.papel, 'cardapio')) throw new ErroRegra('Seu perfil não cadastra promoções.', 403);
@@ -127,6 +127,7 @@ export async function promocoesDoSite(db: Db, agora = new Date()) {
         fim: p.fim,
         dias: p.dias,
         mesas: p.mesas ?? null,
+        semHorario: semHorario(p as Promocao),
         valendo: restanteDaPromocao(p as Promocao, agora) !== null,
       };
     })

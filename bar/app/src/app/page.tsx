@@ -162,7 +162,7 @@ export default async function Site() {
                       )}
                     </p>
                     <p className="pv-promo-quando">
-                      {textoDias(p.dias)}, das {hora(p.inicio)} às {hora(p.fim)}
+                      {p.semHorario ? 'Todos os dias, o dia todo' : `${textoDias(p.dias)}, das ${hora(p.inicio)} às ${hora(p.fim)}`}
                       {p.mesas?.length ? ` · só no ${p.mesas.map((n) => nomeLocal(n)).join(', ')}` : ''}
                     </p>
                   </div>

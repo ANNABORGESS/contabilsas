@@ -114,3 +114,12 @@ describe('combos do happy hour', () => {
     expect(textoJanelas(combo.janelas)).toBe('Qua, Qui 17:00-20:00; Sex 16:00-20:00');
   });
 });
+
+describe('promoção sem horário', () => {
+  it('vale o dia todo, inclusive 23:59 e meia-noite', () => {
+    const p = { id: 's', nome: 'Original em dobro', produtoId: 'x', quantidadeCombo: 2, precoComboCentavos: 1400, dias: [0, 1, 2, 3, 4, 5, 6], inicio: '00:00', fim: '23:59', ativa: true };
+    expect(restanteDaPromocao(p, new Date('2026-11-28T23:59:30-04:00'))).not.toBeNull();
+    expect(restanteDaPromocao(p, new Date('2026-11-29T00:00:10-04:00'))).not.toBeNull();
+    expect(restanteDaPromocao({ ...p, ativa: false }, new Date('2026-11-28T12:00:00-04:00'))).toBeNull();
+  });
+});

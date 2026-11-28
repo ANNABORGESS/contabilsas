@@ -104,6 +104,8 @@ interface PromoAgora {
   precoComboCentavos: number;
   destaque: string | null;
   fim: string;
+  /** vale direto, sem horário para acabar */
+  semHorario?: boolean;
   /** só nestas mesas (Balcão 10 = 1010); null = todas */
   mesas: number[] | null;
   terminaEm: string;
@@ -129,8 +131,14 @@ function FaixaPromocoes({ promocoes }: { promocoes: PromoAgora[] }) {
     <div className="faixa-promo">
       {valendo.map((p) => (
         <div key={p.id}>
-          🔥 <b>{p.destaque || `${p.nome} até as ${p.fim}`}</b>
-          {p.mesas?.length ? <> · só no {p.mesas.map((n) => nomeLocal(n)).join(', ')}</> : null} · {reais(p.precoComboCentavos)} por {p.quantidadeCombo} · termina em <b className="num">{textoRestante(Date.parse(p.terminaEm) - agora)}</b>
+          🔥 <b>{p.destaque || (p.semHorario ? p.nome : `${p.nome} até as ${p.fim}`)}</b>
+          {p.mesas?.length ? <> · só no {p.mesas.map((n) => nomeLocal(n)).join(', ')}</> : null} · {reais(p.precoComboCentavos)} por {p.quantidadeCombo}
+          {!p.semHorario && (
+            <>
+              {' '}
+              · termina em <b className="num">{textoRestante(Date.parse(p.terminaEm) - agora)}</b>
+            </>
+          )}
         </div>
       ))}
     </div>
@@ -711,8 +719,8 @@ function TelaProdutos(props: {
                       <b>🔥 {x.nome}</b>
                       <div className="fraco">
                         {gratisDe(p.precoCentavos, x.quantidadeCombo, x) > 0
-                          ? `Cada ${p.nome} paga ganha ${gratisDe(p.precoCentavos, x.quantidadeCombo, x) === 1 ? 'outra' : `mais ${gratisDe(p.precoCentavos, x.quantidadeCombo, x)}`} · até ${x.fim}`
-                          : `${x.quantidadeCombo} ${p.nome} por ${reais(x.precoComboCentavos)} · até ${x.fim}`}
+                          ? `Cada ${p.nome} paga ganha ${gratisDe(p.precoCentavos, x.quantidadeCombo, x) === 1 ? 'outra' : `mais ${gratisDe(p.precoCentavos, x.quantidadeCombo, x)}`}${x.semHorario ? "" : ` · até ${x.fim}`}`
+                          : `${x.quantidadeCombo} ${p.nome} por ${reais(x.precoComboCentavos)}${x.semHorario ? "" : ` · até ${x.fim}`}`}
                       </div>
                     </div>
                     <button
@@ -765,7 +773,8 @@ function TelaProdutos(props: {
                 <div className="nome">{p.nome}</div>
                 {promo && (
                   <div className="selo-promo">
-                    🔥 {promo.quantidadeCombo} por {reais(promo.precoComboCentavos)} até {promo.fim}
+                    🔥 {promo.quantidadeCombo} por {reais(promo.precoComboCentavos)}
+                    {promo.semHorario ? '' : ` até ${promo.fim}`}
                   </div>
                 )}
                 <div className="preco">
@@ -878,7 +887,8 @@ function MontarBalde({ numero, produtos, promocoes, disponivel, inicial, fechar,
               <div className="nome">{p.nome}</div>
               {promo && (
                 <div className="selo-promo">
-                  🔥 {promo.quantidadeCombo} por {reais(promo.precoComboCentavos)} até {promo.fim}
+                  🔥 {promo.quantidadeCombo} por {reais(promo.precoComboCentavos)}
+                  {promo.semHorario ? '' : ` até ${promo.fim}`}
                 </div>
               )}
               <div className="preco">
