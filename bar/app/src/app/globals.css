@@ -4532,17 +4532,6 @@ button {
 
 /* emojis minimalistas: menores e no tom da casa */
 .pv-icone,
-.pv-promo-fogo,
-.pv-faixa span,
-.pv-chips a,
-.pv-selos li,
-.lateral a,
-.tema-vikings .cartao h2,
-.garcom-viking .faixa-promo,
-.garcom-viking .selo-promo {
-  font-variant-emoji: emoji;
-}
-.pv-icone,
 .pv-promo-fogo {
   filter: sepia(0.55) saturate(0.75) brightness(0.98);
 }
@@ -4866,4 +4855,28 @@ button {
 }
 .combo-linha .btn {
   flex: none;
+}
+
+/* promoção bem legível: fundo café escuro, texto creme e números em dourado claro */
+.faixa-promo,
+.selo-promo {
+  background: #3d2618 !important;
+  color: #fff8ec !important;
+  font-variant-emoji: normal;
+}
+.faixa-promo b,
+.selo-promo {
+  color: #ffd98a !important;
+}
+.faixa-promo {
+  font-size: 15px;
+  line-height: 1.45;
+}
+.selo-promo {
+  font-size: 13px;
+  padding: 3px 10px;
+}
+.pv-promo,
+.pv-promo * {
+  font-variant-emoji: normal;
 }
